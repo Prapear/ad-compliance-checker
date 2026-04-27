@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Ad Compliance Checker — Ananda Development</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+body{margin:0;font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;font-size:15px;display:flex;flex-direction:column;}
+input,select,textarea,button{font-family:'Sarabun',sans-serif;font-size:14px;}
+@keyframes spin{to{transform:rotate(360deg);}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes prog{to{width:88%;}}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:#0f2240;display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:#1a3a6b;border-radius:16px;padding:40px 44px;width:420px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.5);}
+.login-logo{font-size:52px;margin-bottom:12px;}
+.login-title{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;}
+.login-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px;}
+.login-field{margin-bottom:14px;text-align:left;}
+.login-field label{display:block;font-size:12px;color:rgba(255,255,255,.6);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px;}
+.login-inp{width:100%;padding:10px 14px;border-radius:8px;border:2px solid #334155;background:#0f2240;color:#fff;font-size:15px;outline:none;}
+.login-inp:focus{border-color:#4ade80;}
+.login-btn{width:100%;padding:12px;background:#4ade80;color:#0f2240;border:none;border-radius:8px;font-size:16px;font-weight:800;cursor:pointer;margin-top:8px;}
+.login-btn:hover{background:#22c55e;}
+.login-err{color:#fca5a5;font-size:13px;margin-top:10px;display:none;}
+.role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;}
+.role-admin{background:#7c3aed;color:#fff;}
+.role-reviewer{background:#f59e0b;color:#fff;}
+.role-user{background:#16a34a;color:#fff;}
+
+/* ── HEADER ── */
+#main-header{background:#1A3A6B;color:#fff;padding:10px 24px;box-shadow:0 2px 10px rgba(0,0,0,.25);position:sticky;top:0;z-index:100;}
+.hdr-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.hdr-left{display:flex;align-items:center;gap:12px;}
+.hdr-title{font-size:18px;font-weight:800;}
+.hdr-role{display:flex;align-items:center;gap:8px;}
+.hdr-row2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.hdr-div{width:1px;height:22px;background:rgba(255,255,255,.2);flex-shrink:0;}
+.key-grp{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.key-lbl{font-size:13px;opacity:.85;white-space:nowrap;}
+.key-wrap{position:relative;}
+.key-inp{padding:5px 32px 5px 10px;border-radius:7px;border:2px solid #334155;background:#0f2240;color:#fff;font-size:13px;width:180px;font-family:monospace;}
+.key-inp.active{border-color:#4ade80;}
+.key-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#94a3b8;cursor:pointer;font-size:13px;padding:0;}
+.key-ok{color:#4ade80;font-size:12px;font-weight:600;}
+.key-opt{font-size:11px;color:#f59e0b;opacity:.85;}
+.hdr-sel{padding:5px 8px;border-radius:7px;border:2px solid #334155;background:#0f2240;color:#fff;font-size:13px;cursor:pointer;outline:none;}
+
+/* ── TAB BAR ── */
+#tab-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:90;}
+.tab-left{display:flex;}
+.tab-btn{padding:13px 20px;background:none;border:none;border-bottom:3px solid transparent;color:#64748b;font-weight:400;cursor:pointer;font-size:15px;transition:all .2s;}
+.tab-btn.active{color:#1A3A6B;font-weight:700;border-bottom-color:#1A3A6B;}
+.tab-btn.disabled{color:#cbd5e1;cursor:not-allowed;}
+.tab-btn.tab-admin{color:#7c3aed;}
+.tab-btn.tab-admin.active{color:#7c3aed;border-bottom-color:#7c3aed;}
+
+/* ── LAYOUT ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g2lg{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.gsev{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+
+/* ── CARD ── */
+.card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.card-title{margin:0 0 14px;font-size:15px;font-weight:700;color:#1A3A6B;display:flex;align-items:center;gap:6px;}
+
+/* ── FORM ── */
+.field{margin-bottom:13px;}
+.field-lbl{display:block;font-size:12px;font-weight:700;color:#64748b;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px;}
+.inp{width:100%;padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:15px;outline:none;background:#fff;}
+.inp:focus{border-color:#1A3A6B;}
+textarea.inp{resize:vertical;}
+.chip{padding:6px 16px;border-radius:20px;font-size:14px;cursor:pointer;border:2px solid #cbd5e1;background:#fff;color:#64748b;transition:all .15s;}
+.chip.active{border-color:#1A3A6B;background:#1A3A6B;color:#fff;}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ── TAGS ── */
+.stag{padding:3px 11px;background:#dbeafe;color:#1d4ed8;border-radius:20px;font-size:13px;font-weight:600;}
+.stag.pri{background:#1A3A6B;color:#fff;}
+.sev{display:inline-block;padding:2px 9px;border-radius:12px;font-weight:700;font-size:11px;white-space:nowrap;}
+.rbadge{padding:2px 10px;border-radius:12px;font-weight:700;font-size:12px;}
+
+/* ── SPINNER ── */
+.spinner{width:18px;height:18px;flex-shrink:0;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;}
+
+/* ── SUBMIT BTN ── */
+.submit-btn{width:100%;padding:14px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
+.prog-wrap{height:5px;background:#e2e8f0;border-radius:3px;overflow:hidden;margin-top:10px;}
+.prog-bar{height:100%;background:#1A3A6B;border-radius:3px;animation:prog 90s linear forwards;width:0;}
+.prog-lbl{font-size:12px;color:#64748b;margin-top:5px;text-align:center;animation:pulse 1.5s ease-in-out infinite;}
+
+/* ── FILE ── */
+.file-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:6px;}
+.file-icon{width:52px;height:52px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
+.file-thumb{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0;}
+.file-rm{background:#fee2e2;border:none;color:#ef4444;cursor:pointer;border-radius:6px;padding:4px 8px;font-size:13px;font-weight:700;}
+.drop-zone{border:2px dashed #cbd5e1;border-radius:8px;padding:12px;text-align:center;background:#f8fafc;}
+
+/* ── RESULTS ── */
+.res-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 120px);}
+.res-main{padding:22px 24px 30px 28px;}
+.res-side{background:#fff;border-left:1px solid #e2e8f0;padding:20px 16px;overflow-y:auto;}
+.dtable{width:100%;border-collapse:collapse;font-size:13px;}
+.dtable th{padding:9px 11px;text-align:left;font-weight:700;font-size:12px;white-space:nowrap;}
+.dtable td{padding:9px 11px;border-bottom:1px solid #e2e8f0;}
+.draft-banner{background:#fef9c3;border:2px solid #fbbf24;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+.stat-card{border-radius:12px;padding:18px 22px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);border-width:1px;border-style:solid;}
+.sec-note{margin-top:4px;padding:4px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;}
+.sec-note.conflict{background:#fff7ed;border-color:#f97316;}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;z-index:200;}
+.modal-box{background:#fff;border-radius:12px;padding:22px;width:720px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);}
+
+/* ── BUTTONS ── */
+.btn-navy{padding:8px 20px;background:#1A3A6B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+.btn-ghost{padding:8px 18px;background:#fff;color:#1A3A6B;border:2px solid #1A3A6B;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+.btn-purple{padding:8px 18px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+.btn-green{padding:8px 18px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
+.btn-sm{padding:5px 12px;font-size:13px;border-radius:7px;border:none;cursor:pointer;font-weight:600;}
+
+/* ── ADMIN ── */
+.admin-section-title{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:6px;}
+.admin-file-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
+.admin-preview-ta{width:100%;font-family:monospace;font-size:12px;line-height:1.65;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;resize:vertical;min-height:140px;outline:none;background:#f8fafc;}
+.admin-preview-ta:focus{border-color:#1A3A6B;background:#fff;}
+
+/* ── FOOTER ── */
+#app-footer{background:#1A3A6B;color:rgba(255,255,255,.7);text-align:center;padding:12px 24px;font-size:13px;line-height:1.9;margin-top:auto;}
+#app-footer strong{color:#fff;}
+.footer-div{display:inline-block;margin:0 10px;opacity:.4;}
+
+/* ── SOURCE BADGE (in Input tab) ── */
+.src-badge{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-size:13px;margin-bottom:6px;}
+.src-badge.loaded{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;}
+.src-badge.missing{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;}
+.src-badge.demo{background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;}
+
+@media print{
+  #main-header,#tab-bar,.res-side,#report-actions,#app-footer,#login-screen{display:none!important;}
+  .res-layout{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚖️</div>
+    <div class="login-title">Ad Compliance Checker</div>
+    <div class="login-sub">Ananda Development — Legal &amp; Compliance Division</div>
+    <div class="login-field">
+      <label>Role</label>
+      <select id="login-role" class="login-inp" style="cursor:pointer;">
+        <option value="admin">🔴 Super Admin</option>
+        <option value="reviewer" selected>🟡 Legal Reviewer</option>
+        <option value="user">🟢 User</option>
+      </select>
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <div style="position:relative;">
+        <input id="login-pwd" type="password" class="login-inp" placeholder="รหัสผ่าน"
+          onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button onclick="toggleLoginPwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;" id="login-eye">👁️</button>
+      </div>
+    </div>
+    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="login-err" id="login-err">❌ รหัสผ่านไม่ถูกต้อง</div>
+    <div style="margin-top:20px;padding:10px 16px;background:rgba(255,255,255,.07);border-radius:8px;font-size:12px;color:rgba(255,255,255,.4);text-align:left;line-height:1.8;">
+      Default passwords:<br>
+      🔴 Admin: <code style="color:#fbbf24;">ananda2025</code> &nbsp;
+      🟡 Reviewer: <code style="color:#fbbf24;">legal2025</code> &nbsp;
+      🟢 User: <code style="color:#fbbf24;">check2025</code>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════ -->
+<header id="main-header" style="display:none;">
+  <div class="hdr-row1">
+    <div class="hdr-left">
+      <span style="font-size:24px;">⚖️</span>
+      <span class="hdr-title">Ad Compliance Checker</span>
+    </div>
+    <div class="hdr-role">
+      <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
+      <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
+    </div>
+  </div>
+  <div class="hdr-row2">
+    <div class="key-grp">
+      <span class="key-lbl">🤖</span>
+      <select id="sel-provider" class="hdr-sel">
+        <option value="gemini">Gemini (Google)</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="groq">Groq</option>
+        <option value="together">Together AI</option>
+        <option value="openai_compat">Custom URL</option>
+      </select>
+      <select id="sel-model" class="hdr-sel" style="max-width:220px;">
+        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+      </select>
+      <button id="btn-fetch-models" onclick="fetchModelsManual()"
+        title="ดึง model list จาก API key ที่ใส่ไว้"
+        style="padding:4px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .2s;"
+        onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+        🔄 ดึง Models
+      </button>
+    </div>
+    <div class="hdr-div"></div>
+    <div class="key-grp">
+      <span class="key-lbl" id="lbl-apikey">API Key</span>
+      <div class="key-wrap">
+        <input id="inp-apikey" type="password" placeholder="AIza..." class="key-inp" autocomplete="off"/>
+        <button class="key-eye" id="btn-eye-api">👁️</button>
+      </div>
+      <span id="api-ok" class="key-ok" style="display:none;">✓</span>
+    </div>
+    <div id="custom-url-wrap" style="display:none;" class="key-grp">
+      <span class="key-lbl">URL</span>
+      <input id="inp-custom-url" type="text" placeholder="https://..." style="padding:5px 10px;border-radius:7px;border:2px solid #334155;background:#0f2240;color:#fff;font-size:13px;width:200px;" autocomplete="off"/>
+    </div>
+    <div class="hdr-div"></div>
+    <div class="key-grp">
+      <span class="key-lbl">📋 Monday</span>
+      <div class="key-wrap">
+        <input id="inp-monday" type="password" placeholder="eyJhbGci..." class="key-inp" autocomplete="off"/>
+        <button class="key-eye" id="btn-eye-monday">👁️</button>
+      </div>
+      <span class="key-opt">optional</span>
+    </div>
+  </div>
+</header>
+
+<!-- TAB BAR -->
+<div id="tab-bar" style="display:none;">
+  <div class="tab-left">
+    <button class="tab-btn active" data-tab="input">📋 Input</button>
+    <button class="tab-btn disabled" data-tab="results" id="tab-results-btn">📊 Results</button>
+    <button class="tab-btn disabled" data-tab="report" id="tab-report-btn">📄 Report</button>
+    <button class="tab-btn" data-tab="dashboard" id="tab-dashboard-btn">🏠 Dashboard</button>
+    <button class="tab-btn tab-admin" data-tab="admin" id="tab-admin-btn" style="display:none;">⚙️ Admin</button>
+  </div>
+  <button id="btn-new-job" style="display:none;padding:6px 16px;background:#fff;border:1.5px solid #1A3A6B;border-radius:7px;color:#1A3A6B;font-size:13px;font-weight:700;cursor:pointer;align-items:center;gap:6px;">
+    🔄 ตรวจงานใหม่
+  </button>
+</div>
+
+<!-- ══════════════ INPUT TAB ══════════════ -->
+<div id="panel-input" class="tab-panel" style="padding:22px 28px;max-width:1380px;margin:0 auto;">
+  <div class="g2lg">
+    <!-- LEFT -->
+    <div>
+      <div class="card">
+        <h3 class="card-title">📌 ข้อมูล Ticket</h3>
+        <div class="field">
+          <label class="field-lbl">ชื่องาน *</label>
+          <input id="f-jobname" class="inp" placeholder="เช่น Review_Banner_TheWork_April2025"/>
+        </div>
+        <div class="g2">
+          <div class="field">
+            <label class="field-lbl">ชื่อผู้ส่ง *</label>
+            <input id="f-sender" class="inp" placeholder="ชื่อ-นามสกุล"/>
+          </div>
+          <div class="field">
+            <label class="field-lbl">บริษัท *</label>
+            <select id="f-company" class="inp">
+              <option>Ananda Development</option>
+              <option>The Works</option>
+              <option>Anvinest</option>
+            </select>
+          </div>
+        </div>
+        <div class="g2">
+          <div class="field">
+            <label class="field-lbl">อีเมล</label>
+            <input id="f-email" class="inp" type="email" placeholder="name@ananda.co.th"/>
+          </div>
+          <div class="field">
+            <label class="field-lbl">เบอร์โทร</label>
+            <input id="f-phone" class="inp" placeholder="08x-xxx-xxxx"/>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-lbl">SLA</label>
+          <select id="f-sla" class="inp">
+            <option>1 วันทำการ</option><option>2 วันทำการ</option>
+            <option selected>3 วันทำการ</option><option>5 วันทำการ</option><option>7 วันทำการ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-lbl">รายละเอียดงาน</label>
+          <textarea id="f-details" class="inp" rows="3" placeholder="อธิบายสื่อที่ต้องการตรวจ..."></textarea>
+        </div>
+      </div>
+
+      <!-- Source status card (read-only for user/reviewer) -->
+      <div class="card">
+        <h3 class="card-title">📚 Source of Data (ตั้งค่าโดย Admin)</h3>
+        <div id="src-cl1-badge" class="src-badge demo">
+          <span>⭐</span><div><strong>Primary:</strong> <span id="src-cl1-name">Demo Checklist</span></div>
+        </div>
+        <div id="src-cl2-badge" class="src-badge missing">
+          <span>📎</span><div><strong>Secondary:</strong> <span id="src-cl2-name">ยังไม่ได้ตั้งค่า</span></div>
+        </div>
+        <div id="src-skill-badge" class="src-badge missing">
+          <span>🧠</span><div><strong>Skill Prompt:</strong> <span id="src-skill-name">ใช้ Default Prompt</span></div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:#94a3b8;">
+          💡 ติดต่อ Admin เพื่ออัพเดต source — ผู้ใช้ทั่วไปไม่สามารถแก้ไขได้
+        </div>
+      </div>
+
+      <!-- File Attach -->
+      <div class="card">
+        <h3 class="card-title">📎 แนบไฟล์สื่อ</h3>
+        <button onclick="document.getElementById('inp-media-files').click()"
+          style="width:100%;padding:12px;border-radius:8px;border:2px solid #1A3A6B;background:#1A3A6B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
+          📎 เลือกไฟล์จากเครื่อง
+        </button>
+        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.docx,.webp" style="display:none;"/>
+        <div class="drop-zone" id="drop-zone">
+          <div style="font-size:12px;color:#94a3b8;">หรือลากไฟล์มาวางที่นี่ · JPG · PNG · PDF · DOCX</div>
+        </div>
+        <div id="file-list" style="margin-top:10px;"></div>
+      </div>
+    </div><!-- /LEFT -->
+
+    <!-- RIGHT -->
+    <div>
+      <div class="card">
+        <h3 class="card-title">🗂️ Classification สื่อโฆษณา</h3>
+        <div class="field">
+          <label class="field-lbl">ประเภทโครงการ *</label>
+          <select id="f-projtype" class="inp">
+            <option value="">— เลือกประเภทโครงการ —</option>
+            <option>บ้าน</option><option>คอนโด</option><option>บ้านและคอนโด</option>
+          </select>
+        </div>
+        <div class="field" id="f-status-wrap" style="display:none;">
+          <label class="field-lbl">สถานะโครงการ *</label>
+          <select id="f-projstatus" class="inp"><option value="">— เลือกสถานะ —</option></select>
+        </div>
+        <div class="field">
+          <label class="field-lbl">ประเภทสื่อโฆษณา *</label>
+          <select id="f-media" class="inp">
+            <option value="">— เลือกประเภทสื่อ —</option>
+            <option value="TYPE1">TYPE1 — สิ่งพิมพ์ / ดิจิทัล / Social Media</option>
+            <option value="TYPE2">TYPE2 — ป้ายโฆษณา / Billboard</option>
+            <option value="TYPE3">TYPE3 — วิทยุกระจายเสียง</option>
+            <option value="TYPE4">TYPE4 — วิทยุโทรทัศน์</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-lbl">ข้อเสนอพิเศษ</label>
+          <div class="chip-row" id="chips-offer">
+            <button class="chip active" data-offer="ไม่มี">ไม่มี</button>
+            <button class="chip" data-offer="โปรโมชั่น">โปรโมชั่น</button>
+            <button class="chip" data-offer="ชิงโชค ชิงรางวัล">ชิงโชค ชิงรางวัล</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="sheets-card" style="display:none;">
+        <h3 class="card-title">📊 Sheets ที่จะใช้ตรวจสอบ</h3>
+        <div id="sheets-list" style="display:flex;flex-wrap:wrap;gap:7px;"></div>
+        <div id="sheets-count" style="margin-top:10px;font-size:12px;color:#64748b;"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">🎯 ระดับความเสี่ยง</h3>
+        <div class="gsev">
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fee2e2;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#b91c1c;">🔴 Critical</span><span style="font-size:11px;color:#b91c1c;opacity:.8;">— โทษอาญา</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff7ed;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#c2410c;">🟠 High</span><span style="font-size:11px;color:#c2410c;opacity:.8;">— โทษปรับสูง</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fffbeb;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#b45309;">🟡 Medium</span><span style="font-size:11px;color:#b45309;opacity:.8;">— ต้องแก้</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0fdf4;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#15803d;">🟢 Low</span><span style="font-size:11px;color:#15803d;opacity:.8;">— แนะนำ</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">✅ ความพร้อมก่อนส่งตรวจ</h3>
+        <div id="readiness-list"></div>
+      </div>
+
+      <button id="btn-submit" class="submit-btn" style="background:#94a3b8;cursor:not-allowed;" disabled onclick="handleSubmit()">
+        🔍 เริ่มตรวจสื่อโฆษณา
+      </button>
+      <div id="progress-wrap" style="display:none;margin-top:10px;">
+        <div class="prog-wrap"><div class="prog-bar" id="prog-bar"></div></div>
+        <div class="prog-lbl" id="prog-lbl">AI กำลังวิเคราะห์สื่อโฆษณา...</div>
+      </div>
+    </div><!-- /RIGHT -->
+  </div>
+</div>
+
+<!-- RESULTS TAB -->
+<div id="panel-results" class="tab-panel" style="display:none;">
+  <div class="res-layout">
+    <div class="res-main" id="results-main"></div>
+    <div class="res-side" id="results-side"></div>
+  </div>
+</div>
+
+<!-- REPORT TAB -->
+<div id="panel-report" class="tab-panel" style="display:none;"></div>
+
+<!-- DASHBOARD TAB -->
+<div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
+
+<!-- ADMIN TAB -->
+<div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <h2 style="margin:0;color:#1A3A6B;font-size:20px;font-weight:800;">⚙️ Admin — จัดการ Source of Data</h2>
+      <div style="font-size:13px;color:#64748b;margin-top:4px;">การเปลี่ยนแปลงมีผลกับผู้ใช้ทุกคนทันทีหลัง "บันทึก"</div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="saveAllAdmin()" class="btn-navy">💾 บันทึกทั้งหมด</button>
+    </div>
+  </div>
+  <div id="admin-save-banner" style="display:none;padding:10px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:16px;font-size:14px;color:#15803d;font-weight:600;">
+    ✅ บันทึกสำเร็จ — ผู้ใช้จะได้รับ source ใหม่ทันที
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;">
+    <!-- LEFT: Checklists -->
+    <div>
+      <!-- PRIMARY -->
+      <div class="card">
+        <div class="admin-section-title">
+          <span style="padding:2px 10px;background:#1A3A6B;color:#fff;border-radius:12px;font-size:11px;">⭐ PRIMARY</span>
+          Checklist หลัก
+        </div>
+        <div class="admin-file-row">
+          <div style="font-size:28px;">📋</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;" id="admin-cl1-name">Demo Checklist</div>
+            <div style="font-size:12px;color:#94a3b8;" id="admin-cl1-meta">—</div>
+          </div>
+          <button onclick="document.getElementById('admin-inp-cl1').click()" class="btn-navy btn-sm">📂 Upload</button>
+        </div>
+        <input id="admin-inp-cl1" type="file" accept=".md,.txt" style="display:none;"/>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;color:#64748b;">แก้ไขโดยตรง:</span>
+          <button onclick="toggleSection('admin-cl1-preview')" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;">▼ ดู/ซ่อน</button>
+        </div>
+        <div id="admin-cl1-preview">
+          <textarea id="admin-ta-cl1" class="admin-preview-ta" rows="10"></textarea>
+        </div>
+      </div>
+
+      <!-- SECONDARY -->
+      <div class="card">
+        <div class="admin-section-title">
+          <span style="padding:2px 10px;background:#f59e0b;color:#fff;border-radius:12px;font-size:11px;">📎 SECONDARY</span>
+          แหล่งอ้างอิง (optional)
+        </div>
+        <div class="admin-file-row">
+          <div style="font-size:28px;">📎</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;" id="admin-cl2-name">— ยังไม่ได้ตั้งค่า</div>
+            <div style="font-size:12px;color:#94a3b8;" id="admin-cl2-meta">—</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="document.getElementById('admin-inp-cl2').click()" class="btn-sm" style="background:#f59e0b;color:#fff;">📂 Upload</button>
+            <button onclick="adminClearCl2()" class="btn-sm" style="background:#fee2e2;color:#dc2626;">✕</button>
+          </div>
+        </div>
+        <input id="admin-inp-cl2" type="file" accept=".md,.txt" style="display:none;"/>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;color:#64748b;">แก้ไขโดยตรง:</span>
+          <button onclick="toggleSection('admin-cl2-preview')" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;">▼ ดู/ซ่อน</button>
+        </div>
+        <div id="admin-cl2-preview" style="display:none;">
+          <textarea id="admin-ta-cl2" class="admin-preview-ta" rows="8" placeholder="วาง Secondary source..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Skill + Settings -->
+    <div>
+      <!-- SKILL -->
+      <div class="card">
+        <div class="admin-section-title">
+          <span style="padding:2px 10px;background:#7c3aed;color:#fff;border-radius:12px;font-size:11px;">🧠 SKILL</span>
+          System Prompt / วิธีคิด AI
+        </div>
+        <div class="admin-file-row">
+          <div style="font-size:28px;">🧠</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:14px;font-weight:700;color:#1e293b;" id="admin-skill-name">— Default Prompt</div>
+            <div style="font-size:12px;color:#94a3b8;" id="admin-skill-meta">—</div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="document.getElementById('admin-inp-skill').click()" class="btn-sm btn-purple">📂 Upload</button>
+            <button onclick="adminClearSkill()" class="btn-sm" style="background:#fee2e2;color:#dc2626;">✕</button>
+          </div>
+        </div>
+        <input id="admin-inp-skill" type="file" accept=".md,.txt" style="display:none;"/>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;color:#64748b;">แก้ไขโดยตรง:</span>
+          <button onclick="toggleSection('admin-skill-preview')" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;">▼ ดู/ซ่อน</button>
+        </div>
+        <div id="admin-skill-preview" style="display:none;">
+          <textarea id="admin-ta-skill" class="admin-preview-ta" rows="8" placeholder="วาง System Prompt..."></textarea>
+        </div>
+      </div>
+
+      <!-- PASSWORD MANAGEMENT -->
+      <div class="card">
+        <div class="admin-section-title">🔑 จัดการรหัสผ่าน</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:12px;">เปลี่ยนรหัสผ่านของแต่ละ Role ได้ที่นี่</div>
+        <div id="pwd-change-rows">
+          <!-- Generated by JS -->
+        </div>
+      </div>
+
+      <!-- STORAGE INFO -->
+      <div class="card" style="background:#f8fafc;">
+        <div class="admin-section-title">📦 Storage Info</div>
+        <div id="admin-storage-info" style="font-size:13px;line-height:2;color:#475569;"></div>
+        <button onclick="renderAdminStorageInfo()" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;margin-top:4px;">🔄 รีเฟรช</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JSON MODAL -->
+<div id="modal-report" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <h3 id="modal-title" style="margin:0;color:#1A3A6B;font-size:16px;"></h3>
+      <button onclick="document.getElementById('modal-report').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;">✕</button>
+    </div>
+    <textarea id="modal-json" readonly style="flex:1;padding:12px;font-family:monospace;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;min-height:380px;resize:none;color:#1e293b;background:#f8fafc;"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button id="btn-copy-json" onclick="copyJson()" style="flex:1;padding:10px;background:#1A3A6B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">📋 Copy JSON</button>
+      <button onclick="document.getElementById('modal-report').style.display='none'" style="padding:10px 20px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:14px;">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer id="app-footer" style="display:none;">
+  <strong>Ananda Development PCL.</strong>
+  <span class="footer-div">|</span>
+  ฝ่ายกฎหมายและกำกับดูแล (Legal &amp; Compliance Division)
+  <span class="footer-div">|</span>
+  Ad Compliance Checker v1.5
+  <br>
+  <span style="font-size:11px;opacity:.55;">ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น — ต้องผ่านการอนุมัติจากทีมกฎหมายก่อนใช้งานจริง</span>
+</footer>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════════════════
+const NAVY = '#1A3A6B';
+const SEV_CFG = {
+  Critical:{ label:'🔴 Critical', bg:'#fee2e2', color:'#b91c1c' },
+  High:    { label:'🟠 High',     bg:'#fff7ed', color:'#c2410c' },
+  Medium:  { label:'🟡 Medium',   bg:'#fffbeb', color:'#b45309' },
+  Low:     { label:'🟢 Low',      bg:'#f0fdf4', color:'#15803d' },
+};
+const STATUS_MAP = {
+  'บ้าน':         ['ขออนุญาตจัดสรรที่ดินแล้ว','ยังไม่ขออนุญาตจัดสรรที่ดิน'],
+  'คอนโด':        ['จดทะเบียนอาคารชุดแล้ว','ยังไม่จดทะเบียนอาคารชุด'],
+  'บ้านและคอนโด': ['Both (ทุกสถานะ)'],
+};
+const MEDIA_LABEL = {
+  TYPE1:'TYPE1 — สิ่งพิมพ์/ดิจิทัล/Social',
+  TYPE2:'TYPE2 — ป้ายโฆษณา',
+  TYPE3:'TYPE3 — วิทยุกระจายเสียง',
+  TYPE4:'TYPE4 — วิทยุโทรทัศน์',
+};
+const DEMO_CHECKLIST = `## Common_Rules — กฎทั่วไป (พรบ.คุ้มครองผู้บริโภค พ.ศ. 2522)
+AA010 | ชื่อโครงการ | ต้องระบุชื่อโครงการที่ถูกต้องตามที่จดทะเบียน | ม.22
+AA020 | ที่ตั้งโครงการ | ต้องระบุที่อยู่/ย่าน/ทำเล | ม.22
+AA030 | ชื่อผู้ขาย | ต้องระบุชื่อบริษัทผู้ขายและเลขทะเบียน | ม.22
+AA040 | คำต้องห้าม | ห้ามใช้ "ดีที่สุด" "ถูกที่สุด" "เลิศ" โดยไม่มีหลักฐาน | ม.22(3)
+AA050 | ราคา | ถ้าระบุราคาต้องครบถ้วนและไม่หลอกลวง | ม.22(4)
+AA060 | ภาพตัวอย่าง | ภาพ perspective/AI ต้องมี disclaimer "ภาพเพื่อการโฆษณาเท่านั้น" | ประกาศ สคบ.
+AA070 | ขนาดตัวอักษร disclaimer | ต้องไม่ต่ำกว่า 12pt หรือ 2mm | ประกาศ สคบ.
+AA080 | วันหมดอายุโปรโมชั่น | ต้องระบุวันสิ้นสุดถ้ามีโปรโมชั่น | ม.22(7)
+## H_Allocation — บ้านจัดสรรที่ได้รับอนุญาต (พรบ.จัดสรรที่ดิน พ.ศ. 2543)
+HA010 | เลขที่ใบอนุญาต | ต้องระบุเลขที่ใบอนุญาตจัดสรรที่ดิน | ม.22
+HA020 | พื้นที่โครงการ | ต้องระบุพื้นที่โครงการ (ไร่/งาน/ตร.วา) | ม.22
+HA030 | จำนวนแปลง | ต้องระบุจำนวนแปลงทั้งหมดในโครงการ | ม.22
+HA040 | สาธารณูปโภค | ต้องระบุสาธารณูปโภคที่ผู้จัดสรรจัดให้ | ม.22(4)
+## H_Unallocation — บ้านที่ยังไม่ได้รับอนุญาต
+HU010 | ห้ามโฆษณาล่วงหน้า | ก่อนได้รับอนุญาตจัดสรรห้ามโฆษณาขายอย่างเด็ดขาด | ม.21
+HU020 | Pre-sale เงื่อนไข | ถ้า pre-sale ต้องระบุข้อความชัดเจนตามประกาศ | ประกาศฯ
+## Condo_Regis — คอนโดจดทะเบียนแล้ว (พรบ.อาคารชุด พ.ศ. 2551)
+CR010 | เลขทะเบียนอาคารชุด | ต้องระบุเลขทะเบียนอาคารชุดในโฆษณา | ม.6
+CR020 | ชื่ออาคารชุด | ชื่อในโฆษณาต้องตรงกับชื่อที่จดทะเบียน | ม.6
+CR030 | พื้นที่ห้องชุด | พื้นที่ที่โฆษณาต้องสอดคล้องกับเอกสาร | ม.6
+## Condo_Unregis — คอนโดยังไม่จดทะเบียน
+CU010 | ห้ามโฆษณาขาย | ก่อนจดทะเบียนอาคารชุดห้ามโฆษณาขายห้องชุด | ม.6
+CU020 | Pre-sale | ถ้า pre-sale ต้องระบุข้อความตามกฎหมาย | ประกาศฯ
+## TYPE1 — สิ่งพิมพ์/ดิจิทัล/Social
+T1010 | ขนาด/พื้นที่ | ต้องระบุขนาดและพื้นที่โฆษณาชัดเจน | ประกาศฯ
+T1020 | QR Code | ถ้ามี QR ต้องใช้งานได้และลิ้งก์ถูกต้อง | ประกาศฯ
+T1030 | Hashtag | hashtag ต้องไม่รับประกันที่ไม่มีหลักฐาน | ม.22
+## TYPE2 — ป้ายโฆษณา
+T2010 | ขนาดตัวอักษร | ต้องอ่านออกจากระยะที่กำหนด | กฎหมายป้ายฯ
+T2020 | ข้อมูลติดต่อ | ต้องมีข้อมูลติดต่อบริษัทที่ชัดเจน | ประกาศฯ
+## TYPE3 — วิทยุกระจายเสียง
+T3010 | ความชัดเจน | ต้องกล่าวชื่อโครงการและผู้ขายชัดเจน | ม.22
+T3020 | ระยะเวลา | ระยะเวลาโฆษณาต้องพอให้รับรู้ข้อมูลครบ | ประกาศฯ
+## TYPE4 — วิทยุโทรทัศน์
+T4010 | ภาพและเสียง | ภาพและเสียงต้องสอดคล้องกัน ไม่หลอกลวง | ม.22
+T4020 | Subtitle disclaimer | disclaimer ต้องแสดงนานพอให้อ่านได้ | ประกาศฯ
+## promotion — โปรโมชั่น
+PR010 | เงื่อนไขชัดเจน | เงื่อนไขโปรโมชั่นต้องครบถ้วน ชัดเจน | ม.22(7)
+PR020 | วันสิ้นสุด | ต้องระบุวันที่สิ้นสุดโปรโมชั่น | ม.22(7)
+PR030 | ของแถม | ของแถมต้องระบุรายละเอียดและมูลค่า | ม.22
+## Lucky_draw — ชิงโชค
+LD010 | ใบอนุญาตจัดชิงโชค | ต้องได้รับอนุญาตจากกรมการปกครองก่อน | พรบ.ชิงโชคฯ
+LD020 | รางวัล | ต้องระบุรางวัลและมูลค่าชัดเจนทุกรายการ | พรบ.ชิงโชคฯ
+LD030 | วิธีจับรางวัล | ต้องระบุวิธีการและวันประกาศผล | พรบ.ชิงโชคฯ`;
+
+// ── Role & Auth constants ──
+const ROLES = {
+  admin:    { label:'🔴 Super Admin', cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
+  reviewer: { label:'🟡 Legal Reviewer', cls:'role-reviewer', tabs:['input','results','report','dashboard'] },
+  user:     { label:'🟢 User',        cls:'role-user',     tabs:['input','results','report'] },
+};
+const PWD_KEYS = { admin:'pwd_admin', reviewer:'pwd_reviewer', user:'pwd_user' };
+const DEFAULT_PWDS = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
+
+function hashPwd(s){ let h=0; for(const c of s) h=(Math.imul(31,h)+c.charCodeAt(0))|0; return h.toString(36); }
+function getPwd(role){ return localStorage.getItem(PWD_KEYS[role]) || hashPwd(DEFAULT_PWDS[role]); }
+
+// ── Runtime state ──
+let mediaFiles = [];
+let lastResult = null;
+let caseHistory = [];
+let currentRole = null;
+try{ caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]'); }catch(e){}
+
+// ══════════════════════════════════════════════════════════
+// LOGIN / LOGOUT
+// ══════════════════════════════════════════════════════════
+function toggleLoginPwd(){
+  const i=document.getElementById('login-pwd');
+  const b=document.getElementById('login-eye');
+  i.type=i.type==='password'?'text':'password';
+  b.textContent=i.type==='password'?'👁️':'🙈';
+}
+function doLogin(){
+  const role = document.getElementById('login-role').value;
+  const pwd  = document.getElementById('login-pwd').value;
+  const err  = document.getElementById('login-err');
+  if(hashPwd(pwd) !== getPwd(role)){
+    err.style.display=''; document.getElementById('login-pwd').value='';
+    setTimeout(()=>err.style.display='none',3000); return;
+  }
+  currentRole = role;
+  sessionStorage.setItem('current_role', role);
+  document.getElementById('login-pwd').value='';
+  applyRole(role);
+}
+function doLogout(){
+  currentRole = null;
+  sessionStorage.removeItem('current_role');
+  document.getElementById('main-header').style.display='none';
+  document.getElementById('tab-bar').style.display='none';
+  document.getElementById('app-footer').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  // hide all panels
+  document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
+  document.getElementById('panel-input').style.display='';
+}
+function applyRole(role){
+  const cfg = ROLES[role];
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-header').style.display='';
+  document.getElementById('tab-bar').style.display='';
+  document.getElementById('app-footer').style.display='';
+  // Role badge
+  const badge = document.getElementById('hdr-role-badge');
+  badge.textContent=cfg.label; badge.className='role-badge '+cfg.cls;
+  // Show/hide tabs
+  document.getElementById('tab-admin-btn').style.display = cfg.tabs.includes('admin')?'':'none';
+  document.getElementById('tab-dashboard-btn').style.display = cfg.tabs.includes('dashboard')?'':'none';
+  // Fix tab-bar offset
+  setTimeout(fixTabBarOffset, 50);
+  switchTab('input');
+  initProviderUI();
+  loadSourceBadges();
+  updateReadiness();
+}
+// ══════════════════════════════════════════════════════════
+// TAB SWITCHING — must be defined before applyRole
+// ══════════════════════════════════════════════════════════
+const ALL_TABS=['input','results','report','dashboard','admin'];
+function switchTab(name){
+  ALL_TABS.forEach(t=>{
+    const p=document.getElementById('panel-'+t);
+    if(!p) return;
+    if(t==='input'){
+      p.style.visibility=(name==='input')?'':'hidden';
+      p.style.position=(name==='input')?'':'absolute';
+      p.style.pointerEvents=(name==='input')?'':'none';
+      p.style.display=''; p.style.height=(name==='input')?'':'0'; p.style.overflow=(name==='input')?'':'hidden';
+    } else { p.style.display=(t===name)?'':'none'; }
+  });
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.querySelector(`[data-tab="${name}"]`);
+  if(btn) btn.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='admin') { loadAdminFields(); renderAdminStorageInfo(); renderPwdRows(); }
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS — must be defined before applyRole
+// ══════════════════════════════════════════════════════════
+function getVal(id){ return document.getElementById(id).value.trim(); }
+function rcol(v){ return {PASS:'#16a34a',FAIL:'#dc2626','N/A':'#64748b','PASS WITH CONDITIONS':'#d97706'}[v]||'#6b7280'; }
+function rbg(v) { return {PASS:'#f0fdf4',FAIL:'#fef2f2','N/A':'#f8fafc','PASS WITH CONDITIONS':'#fffbeb'}[v]||'#f8fafc'; }
+function escHtml(s){ if(s==null)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toggleSection(id){ const el=document.getElementById(id); el.style.display=el.style.display==='none'?'':'none'; }
+function getSheets(){
+  const pt=getVal('f-projtype'),ps=getVal('f-projstatus'),mt=getVal('f-media');
+  const offer=document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี';
+  if(!pt||!ps||!mt) return [];
+  const s=['Common_Rules'];
+  if(pt==='บ้าน') s.push(ps==='ขออนุญาตจัดสรรที่ดินแล้ว'?'H_Allocation':'H_Unallocation');
+  else if(pt==='คอนโด') s.push(ps==='จดทะเบียนอาคารชุดแล้ว'?'Condo_Regis':'Condo_Unregis');
+  else if(pt==='บ้านและคอนโด') s.push('H_Unallocation','H_Allocation','Condo_Unregis','Condo_Regis');
+  if(offer==='โปรโมชั่น') s.push('promotion');
+  if(offer==='ชิงโชค ชิงรางวัล') s.push('Lucky_draw');
+  s.push(mt); return s;
+}
+function isValid(){
+  return !!(getVal('inp-apikey')&&getVal('f-jobname')&&getVal('f-sender')&&
+            getVal('f-company')&&getVal('f-projtype')&&getVal('f-projstatus')&&getVal('f-media'));
+}
+function toBase64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);}); }
+function getFileInfo(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(['jpg','jpeg'].includes(ext))return{kind:'image',mime:'image/jpeg'};
+  if(ext==='png')return{kind:'image',mime:'image/png'};
+  if(ext==='webp')return{kind:'image',mime:'image/webp'};
+  if(ext==='pdf')return{kind:'document',mime:'application/pdf'};
+  if(ext==='docx')return{kind:'document',mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
+  return null;
+}
+function isImgExt(f){return['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase());}
+
+// ── MD storage ──
+function saveMd(key,text,filename){ try{localStorage.setItem('md_'+key,JSON.stringify({text,filename,saved:new Date().toISOString()}));}catch(e){} }
+function clearMdStore(key){ try{localStorage.removeItem('md_'+key);}catch(e){} }
+function loadMdStore(key){ try{return JSON.parse(localStorage.getItem('md_'+key)||'null');}catch(e){return null;} }
+
+// Auto-restore session
+const savedRole = sessionStorage.getItem('current_role');
+if(savedRole && ROLES[savedRole]) applyRole(savedRole);
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{ if(!btn.classList.contains('disabled')) switchTab(btn.dataset.tab); });
+});
+
+// ── "ตรวจงานใหม่" ──
+document.getElementById('btn-new-job').addEventListener('click',()=>{
+  mediaFiles=[]; document.getElementById('file-list').innerHTML=''; lastResult=null;
+  document.getElementById('tab-results-btn').classList.add('disabled');
+  document.getElementById('tab-report-btn').classList.add('disabled');
+  document.getElementById('btn-new-job').style.display='none';
+  document.getElementById('progress-wrap').style.display='none';
+  const pb=document.getElementById('prog-bar');
+  const npb=pb.cloneNode(false); pb.parentNode.replaceChild(npb,pb);
+  switchTab('input'); updateReadiness();
+});
+
+function fixTabBarOffset(){
+  const hdr=document.getElementById('main-header');
+  const bar=document.getElementById('tab-bar');
+  if(hdr&&bar) bar.style.top=hdr.offsetHeight+'px';
+}
+window.addEventListener('resize',fixTabBarOffset);
+
+// ══════════════════════════════════════════════════════════
+// PROVIDER / API KEY UI
+// ══════════════════════════════════════════════════════════
+const PROVIDERS = {
+  gemini:       { label:'Gemini',       placeholder:'AIza...',         vision:true,  models:['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash-preview-04-17','gemini-2.5-pro-preview-03-25'] },
+  openrouter:   { label:'OpenRouter',   placeholder:'sk-or-v1-...',    vision:true,  models:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-7b-instruct:free','qwen/qwen-2.5-72b-instruct:free','microsoft/phi-3-mini-128k-instruct:free'] },
+  groq:         { label:'Groq',         placeholder:'gsk_...',         vision:false, models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','deepseek-r1-distill-llama-70b','mixtral-8x7b-32768'] },
+  together:     { label:'Together AI',  placeholder:'together_...',    vision:false, models:['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free','deepseek-ai/DeepSeek-V3','deepseek-ai/DeepSeek-R1'] },
+  openai_compat:{ label:'Custom URL',   placeholder:'sk-...',          vision:true,  models:['gpt-4o','gpt-4o-mini','custom-model'] },
+};
+function initProviderUI(){
+  const sel=document.getElementById('sel-provider');
+  const msel=document.getElementById('sel-model');
+  const lbl=document.getElementById('lbl-apikey');
+  const inp=document.getElementById('inp-apikey');
+  const urlWrap=document.getElementById('custom-url-wrap');
+  function apply(){
+    const p=PROVIDERS[sel.value];
+    lbl.textContent=p.label+' Key'; inp.placeholder=p.placeholder;
+    msel.innerHTML=p.models.map(m=>`<option value="${m}">${m}</option>`).join('');
+    urlWrap.style.display=sel.value==='openai_compat'?'':'none';
+    // restore saved model
+    const dm=localStorage.getItem('admin_default_model');
+    if(dm){ if(![...msel.options].find(o=>o.value===dm)){const opt=document.createElement('option');opt.value=dm;opt.textContent=dm;msel.insertBefore(opt,msel.firstChild);} msel.value=dm; }
+    updateReadiness();
+  }
+  sel.addEventListener('change',apply);
+  // Apply saved provider
+  const dp=localStorage.getItem('admin_default_provider');
+  if(dp&&PROVIDERS[dp]) sel.value=dp;
+  apply();
+}
+
+document.getElementById('inp-apikey').addEventListener('input',function(){
+  document.getElementById('api-ok').style.display=this.value?'inline':'none';
+  this.classList.toggle('active',!!this.value);
+  updateReadiness();
+  // Auto-fetch Gemini models when key is entered
+  if(this.value && document.getElementById('sel-provider').value==='gemini'){
+    fetchGeminiModels(this.value);
+  }
+});
+
+async function fetchGeminiModels(apiKey){
+  // Called automatically when key is typed — silent
+  if(document.getElementById('sel-provider').value !== 'gemini') return;
+  await fetchModelsForProvider('gemini', apiKey, false);
+}
+
+async function fetchModelsManual(){
+  const provider = document.getElementById('sel-provider').value;
+  const apiKey   = getVal('inp-apikey');
+  const btn      = document.getElementById('btn-fetch-models');
+
+  if(!apiKey){
+    btn.textContent = '⚠️ ใส่ API Key ก่อน';
+    btn.style.color = '#fbbf24';
+    setTimeout(()=>{ btn.textContent='🔄 ดึง Models'; btn.style.color='#fff'; }, 2500);
+    return;
+  }
+  btn.textContent = '⏳ กำลังดึง...';
+  btn.style.color = '#fbbf24';
+  btn.disabled = true;
+
+  const count = await fetchModelsForProvider(provider, apiKey, true);
+
+  if(count > 0){
+    btn.textContent = `✅ ${count} models`;
+    btn.style.color = '#4ade80';
+  } else {
+    btn.textContent = '❌ ดึงไม่ได้';
+    btn.style.color = '#fca5a5';
+  }
+  btn.disabled = false;
+  setTimeout(()=>{ btn.textContent='🔄 ดึง Models'; btn.style.color='#fff'; }, 3000);
+}
+
+async function fetchModelsForProvider(provider, apiKey, showError){
+  const msel = document.getElementById('sel-model');
+  const current = msel.value;
+
+  try{
+    let models = [];
+
+    if(provider === 'gemini'){
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=100`);
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      models = (data.models||[])
+        .filter(m => (m.supportedGenerationMethods||[]).includes('generateContent'))
+        .map(m => m.name.replace('models/',''))
+        .filter(m => m.startsWith('gemini'))
+        .sort();
+
+    } else if(provider === 'openrouter'){
+      const res = await fetch('https://openrouter.ai/api/v1/models', {
+        headers:{ 'Authorization': `Bearer ${apiKey}` }
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Show free models first, then paid
+      const free = (data.data||[]).filter(m => m.id.endsWith(':free')).map(m => m.id).sort();
+      const paid = (data.data||[]).filter(m => !m.id.endsWith(':free')).map(m => m.id).sort();
+      models = [...free, ...paid];
+
+    } else if(provider === 'groq'){
+      const res = await fetch('https://api.groq.com/openai/v1/models', {
+        headers:{ 'Authorization': `Bearer ${apiKey}` }
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      models = (data.data||[]).map(m => m.id).sort();
+
+    } else if(provider === 'together'){
+      const res = await fetch('https://api.together.xyz/v1/models', {
+        headers:{ 'Authorization': `Bearer ${apiKey}` }
+      });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      models = (Array.isArray(data) ? data : (data.data||[]))
+        .filter(m => (m.type||'').toLowerCase().includes('chat') || !m.type)
+        .map(m => m.id||m.name||'').filter(Boolean).sort();
+    }
+
+    if(!models.length) return 0;
+
+    msel.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+    // Restore previous selection if still in list
+    if(models.includes(current)) msel.value = current;
+    return models.length;
+
+  } catch(e){
+    if(showError) console.warn('fetchModels error:', e.message);
+    return 0;
+  }
+}
+document.getElementById('btn-eye-api').addEventListener('click',function(){
+  const i=document.getElementById('inp-apikey'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'👁️':'🙈';
+});
+document.getElementById('btn-eye-monday').addEventListener('click',function(){
+  const i=document.getElementById('inp-monday'); i.type=i.type==='password'?'text':'password'; this.textContent=i.type==='password'?'👁️':'🙈';
+});
+
+// ══════════════════════════════════════════════════════════
+// FORM INPUTS
+// ══════════════════════════════════════════════════════════
+['f-jobname','f-sender','f-email','f-phone','f-details'].forEach(id=>{ document.getElementById(id).addEventListener('input',updateReadiness); });
+['f-company','f-sla'].forEach(id=>{ document.getElementById(id).addEventListener('change',updateReadiness); });
+
+document.getElementById('f-projtype').addEventListener('change',function(){
+  const pt=this.value; const wrap=document.getElementById('f-status-wrap'); const sel=document.getElementById('f-projstatus');
+  if(!pt){ wrap.style.display='none'; sel.value=''; }
+  else{ sel.innerHTML='<option value="">— เลือกสถานะ —</option>'+(STATUS_MAP[pt]||[]).map(o=>`<option>${o}</option>`).join(''); wrap.style.display=''; }
+  updateClassification();
+});
+document.getElementById('f-projstatus').addEventListener('change',updateClassification);
+document.getElementById('f-media').addEventListener('change',updateClassification);
+document.getElementById('chips-offer').addEventListener('click',function(e){
+  const btn=e.target.closest('[data-offer]'); if(!btn) return;
+  document.querySelectorAll('[data-offer]').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); updateClassification();
+});
+
+function updateClassification(){
+  const sheets=getSheets(); const card=document.getElementById('sheets-card');
+  if(sheets.length){
+    document.getElementById('sheets-list').innerHTML=sheets.map(s=>`<span class="stag${s==='Common_Rules'?' pri':''}">${s}</span>`).join('');
+    document.getElementById('sheets-count').textContent='รวม '+sheets.length+' sheets';
+    card.style.display='';
+  } else card.style.display='none';
+  updateReadiness();
+}
+
+function updateReadiness(){
+  const checks=[
+    {label:'API Key',ok:!!getVal('inp-apikey')},
+    {label:'ชื่องาน',ok:!!getVal('f-jobname')},
+    {label:'ชื่อผู้ส่ง',ok:!!getVal('f-sender')},
+    {label:'บริษัท',ok:!!getVal('f-company')},
+    {label:'ประเภทโครงการ',ok:!!getVal('f-projtype')},
+    {label:'สถานะโครงการ',ok:!!getVal('f-projstatus')},
+    {label:'ประเภทสื่อ',ok:!!getVal('f-media')},
+    {label:'ไฟล์สื่อ (optional)',ok:mediaFiles.length>0,opt:true},
+  ];
+  document.getElementById('readiness-list').innerHTML=checks.map(c=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;">
+      <span>${c.ok?'✅':c.opt?'⬜':'❌'}</span>
+      <span style="color:${c.ok?'#16a34a':c.opt?'#94a3b8':'#ef4444'};">${c.label}</span>
+    </div>`).join('');
+  const valid=isValid();
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=!valid; btn.style.background=valid?NAVY:'#94a3b8';
+  btn.style.cursor=valid?'pointer':'not-allowed';
+  btn.style.boxShadow=valid?'0 4px 14px rgba(26,58,107,.35)':'none';
+}
+
+// ── Media files ──
+document.getElementById('inp-media-files').addEventListener('change',function(e){ addMediaFiles(Array.from(e.target.files)); e.target.value=''; });
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>e.preventDefault());
+dz.addEventListener('drop',e=>{e.preventDefault();addMediaFiles(Array.from(e.dataTransfer.files));});
+function addMediaFiles(files){ mediaFiles=[...mediaFiles,...files]; renderFileList(); updateReadiness(); }
+function removeFile(i){ mediaFiles.splice(i,1); renderFileList(); updateReadiness(); }
+function renderFileList(){
+  document.getElementById('file-list').innerHTML=mediaFiles.map((f,i)=>{
+    const ext=f.name.split('.').pop().toUpperCase();
+    const icon={PDF:'📕',DOCX:'📘',DOC:'📘'}[ext]||'📄';
+    const thumb=isImgExt(f)?`<img src="${URL.createObjectURL(f)}" class="file-thumb" alt="">`:
+      `<div class="file-icon">${icon}</div>`;
+    return `<div class="file-item">${thumb}
+      <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</div>
+      <div style="font-size:11px;color:#94a3b8;">${ext} · ${(f.size/1024).toFixed(0)} KB</div></div>
+      <button class="file-rm" onclick="removeFile(${i})">✕</button></div>`;
+  }).join('');
+}
+
+// ── Source badges (Input tab — read-only) ──
+function loadSourceBadges(){
+  const cl1=loadMdStore('cl1');
+  const cl2=loadMdStore('cl2');
+  const sk=loadMdStore('skill');
+  const b1=document.getElementById('src-cl1-badge');
+  const b2=document.getElementById('src-cl2-badge');
+  const bs=document.getElementById('src-skill-badge');
+  if(cl1?.text){ b1.className='src-badge loaded'; document.getElementById('src-cl1-name').textContent=cl1.filename||'Primary Checklist (Custom)'; }
+  else { b1.className='src-badge demo'; document.getElementById('src-cl1-name').textContent='Demo Checklist (built-in)'; }
+  if(cl2?.text){ b2.className='src-badge loaded'; document.getElementById('src-cl2-name').textContent=cl2.filename||'Secondary Source'; }
+  else { b2.className='src-badge missing'; document.getElementById('src-cl2-name').textContent='ยังไม่ได้ตั้งค่า'; }
+  if(sk?.text){ bs.className='src-badge loaded'; document.getElementById('src-skill-name').textContent=sk.filename||'Custom Skill Prompt'; }
+  else { bs.className='src-badge missing'; document.getElementById('src-skill-name').textContent='ใช้ Default Prompt'; }
+}
+
+// ══════════════════════════════════════════════════════════
+// API CALL
+// ══════════════════════════════════════════════════════════
+async function handleSubmit(){
+  if(!isValid()) return;
+  const btn=document.getElementById('btn-submit');
+  btn.disabled=true; btn.innerHTML='<div class="spinner"></div><span>กำลังตรวจสอบ...</span>';
+  const pb=document.getElementById('prog-bar');
+  const npb=pb.cloneNode(false); pb.parentNode.replaceChild(npb,pb);
+  document.getElementById('progress-wrap').style.display='';
+  try{
+    const result=await doCall(); lastResult=result;
+    const entry={ id:Date.now(), date:new Date().toISOString(), jobName:getVal('f-jobname'),
+      sender:getVal('f-sender'), company:getVal('f-company'), projectType:getVal('f-projtype'),
+      mediaType:getVal('f-media'), overall_result:result.overall_result,
+      fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,
+      critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,
+    };
+    caseHistory=[entry,...caseHistory].slice(0,100);
+    try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
+    document.getElementById('tab-results-btn').classList.remove('disabled');
+    document.getElementById('tab-report-btn').classList.remove('disabled');
+    document.getElementById('btn-new-job').style.display='flex';
+    renderResults(result,null); renderReportTab(result); switchTab('results');
+  }catch(err){
+    document.getElementById('tab-results-btn').classList.remove('disabled');
+    document.getElementById('btn-new-job').style.display='flex';
+    renderResults(null,err.message); switchTab('results');
+  }finally{
+    document.getElementById('progress-wrap').style.display='none';
+    btn.disabled=false; btn.innerHTML='🔍 เริ่มตรวจสื่อโฆษณา'; updateReadiness();
+  }
+}
+
+async function doCall(){
+  const provider=document.getElementById('sel-provider').value;
+  const model=document.getElementById('sel-model').value;
+  const apiKey=getVal('inp-apikey');
+  const customUrl=getVal('inp-custom-url');
+  // Read from admin-set MD files
+  const cl1data=loadMdStore('cl1');
+  const cl2data=loadMdStore('cl2');
+  const skdata=loadMdStore('skill');
+  const checklist=cl1data?.text||DEMO_CHECKLIST;
+  const checklist2=cl2data?.text||'';
+  const skillPrompt=skdata?.text||'';
+  const sheets=getSheets(); const mt=getVal('f-media');
+  const provCfg=PROVIDERS[provider];
+  const systemText=skillPrompt||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block';
+  const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
+
+  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const setLbl=txt=>{const el=document.getElementById('prog-lbl');if(el)el.textContent=txt;};
+
+  if(provider==='gemini'){
+    const parts=[{text:promptText}];
+    for(const f of mediaFiles){ const info=getFileInfo(f);if(!info)continue; const b64=await toBase64(f); parts.push({inlineData:{mimeType:info.mime,data:b64}}); }
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const body={systemInstruction:{parts:[{text:systemText}]},contents:[{role:'user',parts}],generationConfig:{temperature:0.1,maxOutputTokens:8192,responseMimeType:'application/json'}};
+    const callOnce=async()=>{
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!res.ok){ const e=await res.json().catch(()=>({})); const msg=e.error?.message||'Unknown'; const st=e.error?.status||'';
+        if(res.status===400)throw new Error(`❌ [400] ${msg}`);
+        if(res.status===401)throw new Error(`❌ [401] API Key ไม่ถูกต้อง: ${msg}`);
+        if(res.status===403)throw new Error(`❌ [403] ไม่มีสิทธิ์: ${msg}`);
+        if(res.status===429){ const isDaily=msg.includes('quota')||msg.includes('daily')||st==='RESOURCE_EXHAUSTED'; const retry=res.headers.get('Retry-After'); const waitMs=retry?parseInt(retry)*1000:isDaily?null:60000; throw Object.assign(new Error('RATE_LIMIT'),{retryAfter:waitMs,isDaily,detail:msg}); }
+        throw new Error(`❌ [${res.status}] ${st}: ${msg}`); } return res.json();};
+    let data; for(let i=0;i<3;i++){ try{data=await callOnce();break;}catch(e){
+      if(e.message.startsWith('❌ [400]')||e.message.startsWith('❌ [401]')||e.message.startsWith('❌ [403]'))throw e;
+      if(e.message==='RATE_LIMIT'){ if(e.isDaily||!e.retryAfter)throw new Error(`❌ Quota รายวันหมด\n${e.detail}\nรอถึง 07:00 น. ไทย หรือเปลี่ยน Provider`);
+        let rem=Math.ceil(e.retryAfter/1000); const timer=setInterval(()=>{rem--;setLbl(`⏳ รออีก ${rem}s...`);if(rem<=0)clearInterval(timer);},1000);
+        setLbl(`⏳ รออีก ${rem}s...`); await sleep(e.retryAfter); clearInterval(timer); setLbl('AI กำลังวิเคราะห์...'); continue; }
+      if(i<2){setLbl(`⚠️ รอ 5s (${i+2}/3)...`);await sleep(5000);continue;} throw e;} }
+    if(!data)throw new Error('❌ Gemini ไม่ตอบสนอง');
+    const raw=(data.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');
+    if(!raw)throw new Error('❌ Gemini ไม่ส่งข้อความ\n'+JSON.stringify(data).slice(0,500));
+    try{return JSON.parse(raw.replace(/```json|```/g,'').trim());}catch{throw new Error('JSON_PARSE_ERROR\n'+raw);}
+  }
+  // OpenAI-compat
+  const ENDPOINTS={openrouter:'https://openrouter.ai/api/v1/chat/completions',groq:'https://api.groq.com/openai/v1/chat/completions',together:'https://api.together.xyz/v1/chat/completions',openai_compat:customUrl||'https://api.openai.com/v1/chat/completions'};
+  const endpoint=ENDPOINTS[provider];
+  let userContent; const hasFiles=mediaFiles.length>0&&provCfg.vision;
+  if(hasFiles){ const arr=[{type:'text',text:promptText}]; for(const f of mediaFiles){ const info=getFileInfo(f);if(!info||info.kind!=='image')continue; const b64=await toBase64(f); arr.push({type:'image_url',image_url:{url:`data:${info.mime};base64,${b64}`}});} userContent=arr; }
+  else{ userContent=mediaFiles.length>0?promptText+'\n\n[Provider นี้ไม่รองรับ vision]':promptText; }
+  const headers={'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`};
+  if(provider==='openrouter'){headers['HTTP-Referer']=window.location.href||'https://ananda.co.th';headers['X-Title']='Ad Compliance Checker';}
+
+  // response_format json_object — only supported by OpenAI and some paid models
+  // OpenRouter free models (:free) do NOT support it → causes 404
+  const isFreeModel = model.endsWith(':free');
+  const isOpenAICompat = provider === 'openai_compat';
+  const useJsonFormat = isOpenAICompat && !isFreeModel;
+
+  const body={
+    model,
+    messages:[{role:'system',content:systemText},{role:'user',content:userContent}],
+    temperature:0.1,
+    max_tokens:4096,
+    ...(useJsonFormat ? {response_format:{type:'json_object'}} : {}),
+  };
+  const callOnce2=async()=>{ const res=await fetch(endpoint,{method:'POST',headers,body:JSON.stringify(body)});
+    if(!res.ok){ const e=await res.json().catch(()=>({})); const msg=e.error?.message||JSON.stringify(e).slice(0,300)||'Unknown';
+      if(res.status===401)throw new Error(`❌ [401] API Key ไม่ถูกต้อง: ${msg}`);
+      if(res.status===402)throw new Error(`❌ [402] เครดิตหมด: ${msg}`);
+      if(res.status===403)throw new Error(`❌ [403] ไม่มีสิทธิ์: ${msg}`);
+      if(res.status===404)throw new Error(`❌ [404] Model ไม่พบ: "${model}"\nลองกด 🔄 ดึง Models แล้วเลือก model ใหม่`);
+      if(res.status===429){ const retry=res.headers.get('Retry-After'); throw Object.assign(new Error('RATE_LIMIT'),{retryAfter:retry?parseInt(retry)*1000:30000,detail:msg}); }
+      throw new Error(`❌ [${res.status}] ${msg}`); } return res.json();};
+  let data2; for(let i=0;i<3;i++){ try{data2=await callOnce2();break;}catch(e){
+    if(e.message.startsWith('❌ [401]')||e.message.startsWith('❌ [402]')||e.message.startsWith('❌ [403]'))throw e;
+    if(e.message==='RATE_LIMIT'){ let rem=Math.ceil(e.retryAfter/1000); const timer=setInterval(()=>{rem--;setLbl(`⏳ รออีก ${rem}s...`);if(rem<=0)clearInterval(timer);},1000); setLbl(`⏳ รออีก ${rem}s...`); await sleep(e.retryAfter); clearInterval(timer); setLbl(`${provCfg.label} กำลังวิเคราะห์...`); continue; }
+    if(i<2){setLbl(`⚠️ รอ 5s (${i+2}/3)...`);await sleep(5000);continue;} throw e;} }
+  if(!data2)throw new Error(`❌ ${provCfg.label} ไม่ตอบสนอง`);
+  const raw2=data2.choices?.[0]?.message?.content||'';
+  if(!raw2)throw new Error(`❌ ${provCfg.label} ไม่ส่งข้อความ\n`+JSON.stringify(data2).slice(0,500));
+  try{return JSON.parse(raw2.replace(/```json|```/g,'').trim());}catch{throw new Error('JSON_PARSE_ERROR\n'+raw2);}
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════════
+function renderResults(result,errMsg){
+  const main=document.getElementById('results-main');
+  const side=document.getElementById('results-side');
+  let html='';
+  if(errMsg){
+    const isJson=errMsg.startsWith('JSON_PARSE_ERROR');
+    const isQuota=errMsg.includes('RESOURCE_EXHAUSTED')||errMsg.includes('Quota รายวัน');
+    const isRate=errMsg.includes('Rate limit')||errMsg.includes('429');
+    const errLines=errMsg.split('\n').map(l=>escHtml(l)).join('<br>');
+    let errBody=isJson?`<p style="color:#7f1d1d;font-size:13px;margin:0 0 8px;">ไม่สามารถแปลง JSON ได้:</p><textarea readonly style="width:100%;min-height:160px;font-family:monospace;font-size:11px;padding:10px;border:1px solid #fecaca;border-radius:8px;box-sizing:border-box;">${escHtml(errMsg.replace('JSON_PARSE_ERROR\n',''))}</textarea>`:`<div style="color:#7f1d1d;font-size:14px;line-height:1.8;">${errLines}</div>`;
+    if(isQuota) errBody+=`<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;"><strong>💡 Quota หมด:</strong><br>1. รอถึง 07:00 น. ไทย (UTC midnight)<br>2. สร้าง API key ใหม่ใน Google AI Studio<br>3. เปลี่ยนไปใช้ Provider อื่น (OpenRouter, Groq)</div>`;
+    else if(isRate) errBody+=`<div style="margin-top:14px;padding:12px 16px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:13px;color:#92400e;">💡 Rate limit ชั่วคราว — รอ 1 นาทีแล้วลองใหม่</div>`;
+    html+=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:20px;margin-bottom:20px;"><h3 style="color:#dc2626;margin:0 0 12px;">⚠️ เกิดข้อผิดพลาด</h3>${errBody}<button class="btn-navy" style="margin-top:14px;" onclick="document.getElementById('btn-new-job').click()">🔄 ตรวจใหม่</button></div>`;
+  }
+  if(result){
+    const cl=result.checklist_results||[];
+    const cnt=v=>cl.filter(r=>r.result===v).length;
+    const sev=s=>cl.filter(r=>r.severity===s&&r.result==='FAIL').length;
+    html+=`<div class="draft-banner"><span style="font-size:20px;flex-shrink:0;">⚠️</span><div><strong style="color:#92400e;font-size:14px;">DRAFT — ต้องผ่าน Human Review ก่อนส่งกลับผู้ขอ</strong><div style="font-size:12px;color:#78350f;margin-top:2px;">ผลนี้สร้างโดย AI — ต้องได้รับการตรวจสอบจากทีมกฎหมายก่อนใช้งาน</div></div></div>`;
+    html+=`<div style="background:${rbg(result.overall_result)};border:2px solid ${rcol(result.overall_result)};border-radius:12px;padding:18px 24px;margin-bottom:18px;display:flex;align-items:center;gap:20px;">
+      <div style="font-size:48px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[result.overall_result]||'•'}</div>
+      <div style="flex:1;"><div style="font-size:26px;font-weight:800;color:${rcol(result.overall_result)};">${result.overall_result}</div>
+      <div style="font-size:13px;color:#64748b;margin-top:4px;">ตรวจสอบ ${cl.length} ข้อ · ✓ ${cnt('PASS')} ผ่าน · ✕ ${cnt('FAIL')} ไม่ผ่าน · — ${cnt('N/A')} N/A</div>
+      ${cnt('FAIL')>0?`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v])=>sev(k)>0?`<span style="padding:2px 10px;border-radius:12px;background:${v.bg};color:${v.color};font-weight:700;font-size:12px;">${v.label}: ${sev(k)} ข้อ</span>`:'').join('')}</div>`:''}</div></div>`;
+    html+=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;margin-bottom:18px;"><h3 style="color:${NAVY};margin:0 0 8px;font-size:14px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:14px;">${escHtml(result.overall_summary)}</p></div>`;
+    if(cl.length){
+      html+=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:18px;overflow:hidden;">
+        <div style="padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+          <h3 style="color:${NAVY};margin:0;font-size:14px;">📋 ผลการตรวจรายข้อ</h3>
+          <div style="display:flex;gap:6px;">${['PASS','FAIL','N/A'].map(r=>`<span style="padding:2px 10px;border-radius:12px;background:${rbg(r)};color:${rcol(r)};font-weight:700;font-size:12px;">${r}: ${cnt(r)}</span>`).join('')}</div>
+        </div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f8fafc;">${['Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};const sec=row.secondary_note?`<div class="sec-note${row.conflict?' conflict':''}">${row.conflict?'<span style="color:#c2410c;font-weight:700;">⚡ ขัดแย้ง · </span>':''}📎 ${escHtml(row.secondary_note)}</div>`:'';
+        return `<tr style="background:${i%2?'#fafafa':'#fff'};border-bottom:1px solid #e2e8f0;">
+          <td style="font-family:monospace;color:#475569;white-space:nowrap;font-size:12px;">${row.rule_id||''}</td>
+          <td style="font-weight:600;">${escHtml(row.topic||'')}</td>
+          <td style="color:#64748b;font-size:12px;max-width:110px;">${escHtml(row.law||'')}</td>
+          <td style="white-space:nowrap;"><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
+          <td style="white-space:nowrap;"><span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};">${row.result==='PASS'?'✓ PASS':row.result==='FAIL'?'✕ FAIL':'N/A'}</span></td>
+          <td style="line-height:1.6;max-width:300px;">
+            ${row.finding?`<div style="color:#374151;font-size:13px;">${escHtml(row.finding)}</div>`:''}
+            ${row.missing?`<div style="color:#dc2626;font-size:12px;">⛔ ${escHtml(row.missing)}</div>`:''}
+            ${row.recommendation?`<div style="color:#2563eb;font-size:12px;">💡 ${escHtml(row.recommendation)}</div>`:''}
+            ${row.penalty&&row.result==='FAIL'?`<div style="color:#7c3aed;font-size:12px;">⚖️ ${escHtml(row.penalty)}</div>`:''}
+            ${sec}
+          </td></tr>`;}).join('')}</tbody></table></div></div>`;
+    }
+    const fw=result.forbidden_words_found||[];
+    if(fw.length){
+      html+=`<div style="background:#fff;border:1px solid #fecaca;border-radius:10px;margin-bottom:18px;overflow:hidden;">
+        <div style="padding:12px 18px;border-bottom:1px solid #fecaca;background:#fef2f2;"><h3 style="color:#dc2626;margin:0;font-size:14px;">🚫 คำต้องห้าม (${fw.length} คำ)</h3></div>
+        <table class="dtable"><thead><tr style="background:#fef2f2;">${['คำที่พบ','ตำแหน่ง','Rule','ระดับ'].map(h=>`<th style="border-bottom:1px solid #fecaca;color:#7f1d1d;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${fw.map(w=>{const ic=w.severity==='Critical';return`<tr style="border-bottom:1px solid #fee2e2;"><td style="font-weight:700;color:#dc2626;">"${escHtml(w.word)}"</td><td style="color:#64748b;">${escHtml(w.location||'')}</td><td style="font-family:monospace;font-size:12px;">${w.rule_id||''}</td><td><span style="padding:2px 10px;border-radius:12px;background:${ic?'#fee2e2':'#fef9c3'};color:${ic?'#dc2626':'#92400e'};font-weight:700;font-size:12px;">${ic?'🔴 Critical':'🟡 Warning'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+    }
+    html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <button class="btn-navy" onclick="showJsonModal()">📄 ดู JSON</button>
+      <button class="btn-ghost" onclick="exportReportExcel()">📊 Export Excel</button>
+      <button class="btn-ghost" onclick="window.print()">🖨️ Print PDF</button>
+      <button class="btn-ghost" onclick="document.getElementById('btn-new-job').click()">🔄 ตรวจงานใหม่</button>
+    </div>`;
+  }
+  main.innerHTML=html;
+
+  // Sidebar
+  const sheets=getSheets(); const cl2=result?.checklist_results||[];
+  const cnt2=v=>cl2.filter(r=>r.result===v).length; const sev2=s=>cl2.filter(r=>r.severity===s&&r.result==='FAIL').length;
+  let sh=`<div style="font-size:13px;font-weight:700;color:${NAVY};margin-bottom:12px;">📌 Ticket</div>`;
+  [['ชื่องาน',getVal('f-jobname')],['ผู้ส่ง',getVal('f-sender')],['อีเมล',getVal('f-email')],['เบอร์',getVal('f-phone')],['บริษัท',getVal('f-company')],['SLA',getVal('f-sla')]].forEach(([l,v])=>{if(v)sh+=`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;">${l}</div><div style="font-size:13px;font-weight:500;color:#1e293b;word-break:break-word;">${escHtml(v)}</div></div>`;});
+  sh+=`<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:6px;"><div style="font-size:13px;font-weight:700;color:${NAVY};margin-bottom:10px;">🗂️ Classification</div>`;
+  [['ประเภทโครงการ',getVal('f-projtype')],['สถานะ',getVal('f-projstatus')],['ประเภทสื่อ',getVal('f-media')],['แคมเปญ',document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี']].forEach(([l,v])=>{sh+=`<div style="margin-bottom:10px;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;">${l}</div><div style="font-size:13px;font-weight:500;">${escHtml(v||'—')}</div></div>`;});
+  sh+='</div>';
+  if(sheets.length) sh+=`<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:6px;"><div style="font-size:13px;font-weight:700;color:${NAVY};margin-bottom:10px;">📊 Sheets</div><div style="display:flex;flex-direction:column;gap:6px;">${sheets.map(s=>`<span class="stag${s==='Common_Rules'?' pri':''}">${s}</span>`).join('')}</div></div>`;
+  if(result&&cnt2('FAIL')>0) sh+=`<div style="border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;"><div style="font-size:13px;font-weight:700;color:${NAVY};margin-bottom:10px;">🎯 Severity</div>${Object.entries(SEV_CFG).map(([k,v])=>{const c=sev2(k);return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 8px;border-radius:7px;background:${c>0?v.bg:'#f8fafc'};margin-bottom:5px;"><span style="font-size:12px;color:${c>0?v.color:'#94a3b8'};font-weight:${c>0?700:400};">${v.label}</span><span style="font-weight:800;color:${c>0?v.color:'#94a3b8'};font-size:14px;">${c}</span></div>`;}).join('')}</div>`;
+  sh+=`<div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:14px;"><div style="font-size:10px;color:#94a3b8;">ตรวจเมื่อ</div><div style="font-size:12px;color:#475569;">${new Date().toLocaleString('th-TH')}</div></div>`;
+  side.innerHTML=sh;
+}
+
+// ══════════════════════════════════════════════════════════
+// RENDER REPORT TAB
+// ══════════════════════════════════════════════════════════
+function renderReportTab(result){
+  if(!result) return;
+  const cl=result.checklist_results||[];
+  const cnt=v=>cl.filter(r=>r.result===v).length;
+  const sev=s=>cl.filter(r=>r.severity===s&&r.result==='FAIL').length;
+  const sheets=getSheets();
+  document.getElementById('panel-report').innerHTML=`
+  <div id="report-actions" style="max-width:920px;margin:24px auto 0;padding:0 24px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+    <button class="btn-navy" onclick="window.print()">🖨️ Print / Save PDF</button>
+    <button class="btn-ghost" onclick="exportReportExcel()">📊 Export Excel</button>
+    <button class="btn-ghost" onclick="document.getElementById('btn-new-job').click()">🔄 ตรวจงานใหม่</button>
+  </div>
+  <div style="max-width:920px;margin:12px auto 40px;padding:0 24px;">
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);">
+      <div style="background:${NAVY};color:#fff;padding:24px 32px;display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div style="font-size:11px;opacity:.6;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Ananda Development PCL.</div>
+          <div style="font-size:22px;font-weight:800;">Ad Compliance Report</div>
+          <div style="font-size:13px;opacity:.75;margin-top:4px;">Legal &amp; Compliance Division</div></div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;opacity:.6;margin-bottom:2px;">Date Issued</div>
+          <div style="font-size:13px;font-weight:600;">${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</div>
+          <div style="margin-top:10px;padding:4px 16px;border-radius:20px;background:rgba(251,191,36,.25);border:1px solid rgba(251,191,36,.6);font-size:12px;font-weight:800;color:#fbbf24;">⚠ DRAFT</div>
+        </div>
+      </div>
+      <div style="padding:26px 32px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px;">
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;color:${NAVY};text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${NAVY};">Ticket Information</div>
+            ${[['Job Name',getVal('f-jobname')],['Requested by',getVal('f-sender')],['Company',getVal('f-company')],['Email',getVal('f-email')],['Tel',getVal('f-phone')],['SLA',getVal('f-sla')]].filter(([,v])=>v).map(([l,v])=>`<div style="display:flex;gap:8px;margin-bottom:6px;font-size:13px;"><span style="color:#94a3b8;min-width:96px;flex-shrink:0;">${l}</span><span style="font-weight:600;color:#1e293b;">${escHtml(v)}</span></div>`).join('')}
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;">
+            <div style="font-size:11px;font-weight:700;color:${NAVY};text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid ${NAVY};">Classification</div>
+            ${[['Project Type',getVal('f-projtype')],['Status',getVal('f-projstatus')],['Media',getVal('f-media')],['Campaign',document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี']].map(([l,v])=>`<div style="display:flex;gap:8px;margin-bottom:6px;font-size:13px;"><span style="color:#94a3b8;min-width:96px;flex-shrink:0;">${l}</span><span style="font-weight:600;color:#1e293b;">${escHtml(v||'—')}</span></div>`).join('')}
+            <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:5px;">${sheets.map(s=>`<span class="stag${s==='Common_Rules'?' pri':''}">${s}</span>`).join('')}</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:18px;padding:16px 22px;background:${rbg(result.overall_result)};border:2px solid ${rcol(result.overall_result)};border-radius:10px;margin-bottom:22px;">
+          <div style="font-size:44px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[result.overall_result]}</div>
+          <div><div style="font-size:24px;font-weight:800;color:${rcol(result.overall_result)};">${result.overall_result}</div>
+          <div style="font-size:13px;color:#64748b;margin-top:3px;">ตรวจสอบ ${cl.length} ข้อ · ผ่าน ${cnt('PASS')} · ไม่ผ่าน ${cnt('FAIL')} · N/A ${cnt('N/A')}</div>
+          ${cnt('FAIL')>0?`<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v])=>sev(k)>0?`<span style="padding:2px 10px;border-radius:12px;background:${v.bg};color:${v.color};font-size:11px;font-weight:700;">${v.label}: ${sev(k)} ข้อ</span>`:'').join('')}</div>`:''}</div>
+        </div>
+        <div style="margin-bottom:22px;">
+          <div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;">Executive Summary</div>
+          <p style="margin:0;line-height:1.95;color:#374151;font-size:14px;padding:14px 18px;background:#f8fafc;border-radius:8px;border-left:4px solid ${NAVY};">${escHtml(result.overall_summary)}</p>
+        </div>
+        ${cl.length?`<div style="margin-bottom:22px;">
+          <div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;">Checklist Results</div>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead><tr style="background:${NAVY};color:#fff;">${['Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','หมายเหตุ'].map(h=>`<th style="padding:9px 10px;text-align:left;font-weight:700;font-size:12px;">${h}</th>`).join('')}</tr></thead>
+            <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};return`<tr style="background:${i%2?'#f8fafc':'#fff'};border-bottom:1px solid #e2e8f0;">
+              <td style="padding:8px 10px;font-family:monospace;font-size:11px;color:#475569;white-space:nowrap;">${row.rule_id||''}</td>
+              <td style="padding:8px 10px;font-weight:600;">${escHtml(row.topic||'')}</td>
+              <td style="padding:8px 10px;font-size:11px;color:#64748b;max-width:110px;">${escHtml(row.law||'')}</td>
+              <td style="padding:8px 10px;white-space:nowrap;"><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
+              <td style="padding:8px 10px;white-space:nowrap;"><span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};">${row.result==='PASS'?'✓ PASS':row.result==='FAIL'?'✕ FAIL':'N/A'}</span></td>
+              <td style="padding:8px 10px;font-size:12px;color:#374151;line-height:1.6;max-width:280px;">${row.finding?`<div>${escHtml(row.finding)}</div>`:''}${row.missing?`<div style="color:#dc2626;">⛔ ${escHtml(row.missing)}</div>`:''}${row.recommendation?`<div style="color:#2563eb;">💡 ${escHtml(row.recommendation)}</div>`:''}${row.penalty&&row.result==='FAIL'?`<div style="color:#7c3aed;">⚖️ ${escHtml(row.penalty)}</div>`:''}</td>
+            </tr>`;}).join('')}</tbody></table></div>`:''}
+        <div style="border-top:2px solid #e2e8f0;padding-top:20px;display:flex;justify-content:space-between;align-items:flex-end;">
+          <div style="font-size:11px;color:#94a3b8;line-height:1.8;">
+            <div>Ad Compliance Checker v1.5 — Powered by AI</div>
+            <div>Ananda Development Legal Team · ${new Date().toLocaleString('th-TH')}</div>
+            <div style="color:#f59e0b;font-weight:600;">⚠ DRAFT — ต้องผ่าน Human Review ก่อนใช้งาน</div>
+          </div>
+          <div style="text-align:right;font-size:12px;color:#64748b;line-height:2.2;">
+            <div>ผู้ตรวจสอบ: _______________________________</div>
+            <div>ลายเซ็น: _______________________________</div>
+            <div>วันที่อนุมัติ: _______________________________</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORT EXCEL
+// ══════════════════════════════════════════════════════════
+function exportReportExcel(){
+  if(!lastResult){ alert('ยังไม่มีผลการตรวจ'); return; }
+  const cl=lastResult.checklist_results||[];
+  const fw=lastResult.forbidden_words_found||[];
+  const wb=XLSX.utils.book_new();
+
+  // Sheet 1: Summary
+  const summary=[
+    ['Ad Compliance Report — Ananda Development PCL.'],
+    ['Legal & Compliance Division'],
+    [''],
+    ['Job Name', getVal('f-jobname')],
+    ['Requested by', getVal('f-sender')],
+    ['Company', getVal('f-company')],
+    ['Email', getVal('f-email')],
+    ['Tel', getVal('f-phone')],
+    ['SLA', getVal('f-sla')],
+    [''],
+    ['Project Type', getVal('f-projtype')],
+    ['Project Status', getVal('f-projstatus')],
+    ['Media Type', getVal('f-media')],
+    ['Campaign', document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'],
+    [''],
+    ['OVERALL RESULT', lastResult.overall_result],
+    ['Summary', lastResult.overall_summary],
+    [''],
+    ['Total Rules Checked', cl.length],
+    ['PASS', cl.filter(r=>r.result==='PASS').length],
+    ['FAIL', cl.filter(r=>r.result==='FAIL').length],
+    ['N/A', cl.filter(r=>r.result==='N/A').length],
+    [''],
+    ['Generated', new Date().toLocaleString('th-TH')],
+    ['Status', '⚠ DRAFT — ต้องผ่าน Human Review'],
+  ];
+  const ws1=XLSX.utils.aoa_to_sheet(summary);
+  ws1['!cols']=[{wch:25},{wch:60}];
+  XLSX.utils.book_append_sheet(wb,ws1,'Summary');
+
+  // Sheet 2: Checklist Results
+  const clHeader=['Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','สิ่งที่พบ','สิ่งที่ขาด','คำแนะนำ','โทษ'];
+  const clRows=cl.map(r=>[r.rule_id||'',r.topic||'',r.law||'',r.severity||'',r.result||'',r.finding||'',r.missing||'',r.recommendation||'',r.penalty||'']);
+  const ws2=XLSX.utils.aoa_to_sheet([clHeader,...clRows]);
+  ws2['!cols']=[{wch:12},{wch:25},{wch:20},{wch:12},{wch:8},{wch:40},{wch:30},{wch:40},{wch:25}];
+  XLSX.utils.book_append_sheet(wb,ws2,'Checklist Results');
+
+  // Sheet 3: Forbidden Words
+  if(fw.length){
+    const fwHeader=['คำที่พบ','ตำแหน่ง','Rule ID','ระดับ'];
+    const fwRows=fw.map(w=>[w.word||'',w.location||'',w.rule_id||'',w.severity||'']);
+    const ws3=XLSX.utils.aoa_to_sheet([fwHeader,...fwRows]);
+    ws3['!cols']=[{wch:20},{wch:30},{wch:12},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws3,'Forbidden Words');
+  }
+
+  const fname=`AdCompliance_${getVal('f-jobname')||'Report'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb,fname);
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORT DASHBOARD EXCEL
+// ══════════════════════════════════════════════════════════
+function exportDashboardExcel(){
+  if(!caseHistory.length){ alert('ยังไม่มีข้อมูล'); return; }
+  const wb=XLSX.utils.book_new();
+  const header=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','ประเภทโครงการ','ประเภทสื่อ','ผล','FAIL ทั้งหมด','Critical'];
+  const rows=caseHistory.map(c=>[
+    new Date(c.date).toLocaleString('th-TH'),
+    c.jobName||'', c.sender||'', c.company||'', c.projectType||'', c.mediaType||'',
+    c.overall_result||'', c.fail_count||0, c.critical_count||0,
+  ]);
+  const ws=XLSX.utils.aoa_to_sheet([header,...rows]);
+  ws['!cols']=[{wch:20},{wch:30},{wch:18},{wch:20},{wch:18},{wch:10},{wch:20},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,ws,'Dashboard History');
+  XLSX.writeFile(wb,`AdCompliance_Dashboard_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+// ══════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════
+function renderDashboard(){
+  const panel=document.getElementById('panel-dashboard');
+  const total=caseHistory.length;
+  const pass=caseHistory.filter(c=>c.overall_result==='PASS').length;
+  const cond=caseHistory.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
+  const fail=caseHistory.filter(c=>c.overall_result==='FAIL').length;
+  const passRate=total?Math.round(pass/total*100):0;
+  if(!total){
+    panel.innerHTML=`<div style="text-align:center;padding:60px 20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;">
+      <div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:4px;">เริ่มตรวจสื่อโฆษณาแล้วผลจะแสดงที่นี่</div>
+      <button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 ไปหน้า Input</button>
+    </div>`; return;
+  }
+  const bar=(v,max,col)=>`<div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:${max?v/max*100:0}%;height:100%;background:${col};border-radius:4px;"></div></div>`;
+  const byCompany=['Ananda Development','The Works','Anvinest'].map(co=>({name:co.replace('Ananda Development','Ananda'),total:caseHistory.filter(c=>c.company===co).length,pass:caseHistory.filter(c=>c.company===co&&c.overall_result==='PASS').length,fail:caseHistory.filter(c=>c.company===co&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+  const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:m,total:caseHistory.filter(c=>c.mediaType===m).length,fail:caseHistory.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+  panel.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+      <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
+      <div style="font-size:13px;color:#64748b;margin-top:2px;">ข้อมูลสะสม · บันทึกอัตโนมัติ</div></div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="exportDashboardExcel()" class="btn-green">📊 Export Excel</button>
+        <button onclick="clearHistory()" style="padding:7px 16px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">🗑️ ล้างประวัติ</button>
+      </div>
+    </div>
+    <div class="g4" style="margin-bottom:22px;">
+      ${[['📁','ทั้งหมด',total,'เคส','#f8fafc',NAVY],['✅','PASS',pass,Math.round(pass/total*100)+'%','#f0fdf4','#16a34a'],['⚠️','CONDITIONS',cond,Math.round(cond/total*100)+'%','#fffbeb','#d97706'],['❌','FAIL',fail,Math.round(fail/total*100)+'%','#fef2f2','#dc2626']].map(([ic,lb,va,su,bg,co])=>`
+      <div class="stat-card" style="background:${bg};border-color:${co}22;"><div style="font-size:36px;">${ic}</div><div>
+        <div style="font-size:32px;font-weight:800;color:${co};line-height:1;">${va}</div>
+        <div style="font-size:13px;font-weight:600;color:#475569;margin-top:3px;">${lb}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${su}</div>
+      </div></div>`).join('')}
+    </div>
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;margin-bottom:22px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-weight:700;color:${NAVY};font-size:14px;">📈 Pass Rate รวม</span><span style="font-size:22px;font-weight:800;color:${passRate>=70?'#16a34a':passRate>=40?'#d97706':'#dc2626'};">${passRate}%</span></div>
+      <div style="height:14px;background:#f1f5f9;border-radius:8px;overflow:hidden;display:flex;">
+        ${pass>0?`<div style="width:${pass/total*100}%;background:#16a34a;"></div>`:''}
+        ${cond>0?`<div style="width:${cond/total*100}%;background:#f59e0b;"></div>`:''}
+        ${fail>0?`<div style="width:${fail/total*100}%;background:#ef4444;"></div>`:''}
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;">${[['#16a34a','PASS',pass],['#f59e0b','CONDITIONS',cond],['#ef4444','FAIL',fail]].map(([c,l,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block;"></span><span style="color:#64748b;">${l}: <strong>${v}</strong></span></div>`).join('')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;">
+      ${byCompany.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🏢 แยกตามบริษัท</div>${byCompany.map(c=>`<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span style="font-weight:600;">${c.name}</span><span style="color:#64748b;">${c.total} เคส · FAIL ${c.fail}</span></div><div style="display:flex;gap:4px;align-items:center;">${bar(c.pass,c.total,'#16a34a')}${bar(c.total-c.pass-c.fail,c.total,'#f59e0b')}${bar(c.fail,c.total,'#ef4444')}</div></div>`).join('')}</div>`:''}
+      ${byMedia.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📺 แยกตามสื่อ</div>${byMedia.map(m=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;"><span style="font-weight:700;font-size:13px;width:52px;color:${NAVY};">${m.name}</span>${bar(m.total-m.fail,m.total,'#16a34a')}<span style="font-size:12px;color:#64748b;white-space:nowrap;">${m.total} เคส</span>${m.fail>0?`<span style="font-size:12px;color:#dc2626;font-weight:700;">FAIL ${m.fail}</span>`:''}</div>`).join('')}</div>`:''}
+    </div>
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+      <div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-weight:700;color:${NAVY};font-size:14px;">🕐 ประวัติล่าสุด</span>
+        <span style="font-size:12px;color:#94a3b8;">แสดง ${Math.min(caseHistory.length,20)} เคส</span>
+      </div>
+      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f8fafc;">${['วันที่','ชื่องาน','บริษัท','ประเภท','สื่อ','ผล','FAIL'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
+      <tbody>${caseHistory.slice(0,20).map((c,i)=>`<tr style="background:${i%2?'#fafafa':'#fff'};border-bottom:1px solid #f1f5f9;">
+        <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+        <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
+        <td style="color:#64748b;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
+        <td style="color:#64748b;">${escHtml(c.projectType||'')}</td>
+        <td><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${c.mediaType||''}</span></td>
+        <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
+        <td>${c.fail_count>0?`<span style="color:#dc2626;font-weight:700;">${c.fail_count}${c.critical_count>0?` (${c.critical_count} Crit)`:''}</span>`:'<span style="color:#16a34a;">—</span>'}</td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`;
+}
+function clearHistory(){ if(!confirm('ลบประวัติทั้งหมด?'))return; caseHistory=[]; try{localStorage.removeItem('case_history');}catch(e){} renderDashboard(); }
+
+// ══════════════════════════════════════════════════════════
+// JSON MODAL
+// ══════════════════════════════════════════════════════════
+function showJsonModal(){
+  if(!lastResult) return;
+  document.getElementById('modal-title').textContent='📄 รายงานผลการตรวจ — '+getVal('f-jobname');
+  document.getElementById('modal-json').value=JSON.stringify(lastResult,null,2);
+  document.getElementById('modal-report').style.display='flex';
+}
+function copyJson(){
+  navigator.clipboard.writeText(document.getElementById('modal-json').value).then(()=>{
+    const btn=document.getElementById('btn-copy-json'); btn.textContent='✅ Copied!'; btn.style.background='#16a34a';
+    setTimeout(()=>{btn.textContent='📋 Copy JSON'; btn.style.background=NAVY;},2000);
+  });
+}
+
+// ══════════════════════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════════════════════
+function loadAdminFields(){
+  const cl1=loadMdStore('cl1'); const cl2=loadMdStore('cl2'); const sk=loadMdStore('skill');
+  document.getElementById('admin-ta-cl1').value=cl1?.text||DEMO_CHECKLIST;
+  document.getElementById('admin-cl1-name').textContent=cl1?.filename||'Demo Checklist (built-in)';
+  document.getElementById('admin-cl1-meta').textContent=cl1?.saved?'💾 '+new Date(cl1.saved).toLocaleString('th-TH'):'— ใช้ Demo';
+  document.getElementById('admin-ta-cl2').value=cl2?.text||'';
+  document.getElementById('admin-cl2-name').textContent=cl2?.filename||'— ยังไม่ได้ตั้งค่า';
+  document.getElementById('admin-cl2-meta').textContent=cl2?.saved?'💾 '+new Date(cl2.saved).toLocaleString('th-TH'):'—';
+  document.getElementById('admin-ta-skill').value=sk?.text||'';
+  document.getElementById('admin-skill-name').textContent=sk?.filename||'— Default Prompt';
+  document.getElementById('admin-skill-meta').textContent=sk?.saved?'💾 '+new Date(sk.saved).toLocaleString('th-TH'):'—';
+}
+document.getElementById('admin-inp-cl1').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return; const r=new FileReader();
+  r.onload=ev=>{document.getElementById('admin-ta-cl1').value=ev.target.result; document.getElementById('admin-cl1-name').textContent=file.name; document.getElementById('admin-cl1-meta').textContent='📂 พร้อมบันทึก';};
+  r.readAsText(file,'UTF-8'); e.target.value='';
+});
+document.getElementById('admin-inp-cl2').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return; const r=new FileReader();
+  r.onload=ev=>{document.getElementById('admin-ta-cl2').value=ev.target.result; document.getElementById('admin-cl2-name').textContent=file.name; document.getElementById('admin-cl2-meta').textContent='📂 พร้อมบันทึก';};
+  r.readAsText(file,'UTF-8'); e.target.value='';
+});
+document.getElementById('admin-inp-skill').addEventListener('change',function(e){
+  const file=e.target.files[0];if(!file)return; const r=new FileReader();
+  r.onload=ev=>{document.getElementById('admin-ta-skill').value=ev.target.result; document.getElementById('admin-skill-name').textContent=file.name; document.getElementById('admin-skill-meta').textContent='📂 พร้อมบันทึก';};
+  r.readAsText(file,'UTF-8'); e.target.value='';
+});
+function adminClearCl2(){ document.getElementById('admin-ta-cl2').value=''; document.getElementById('admin-cl2-name').textContent='— ยังไม่ได้ตั้งค่า'; document.getElementById('admin-cl2-meta').textContent='—'; }
+function adminClearSkill(){ document.getElementById('admin-ta-skill').value=''; document.getElementById('admin-skill-name').textContent='— Default Prompt'; document.getElementById('admin-skill-meta').textContent='—'; }
+
+function saveAllAdmin(){
+  const cl1Text=document.getElementById('admin-ta-cl1').value;
+  const cl2Text=document.getElementById('admin-ta-cl2').value;
+  const skillText=document.getElementById('admin-ta-skill').value;
+  const cl1Name=document.getElementById('admin-cl1-name').textContent;
+  const cl2Name=document.getElementById('admin-cl2-name').textContent;
+  const skillName=document.getElementById('admin-skill-name').textContent;
+  saveMd('cl1',cl1Text,cl1Name.includes('Demo')?null:cl1Name);
+  if(cl2Text.trim()) saveMd('cl2',cl2Text,cl2Name.includes('ยัง')?null:cl2Name); else clearMdStore('cl2');
+  if(skillText.trim()) saveMd('skill',skillText,skillName.includes('Default')?null:skillName); else clearMdStore('skill');
+  loadAdminFields(); renderAdminStorageInfo();
+  loadSourceBadges();
+  const banner=document.getElementById('admin-save-banner');
+  banner.style.display=''; setTimeout(()=>banner.style.display='none',3500);
+}
+
+function renderPwdRows(){
+  const el=document.getElementById('pwd-change-rows'); if(!el) return;
+  const roleInfo=[['admin','🔴 Super Admin','#7c3aed'],['reviewer','🟡 Legal Reviewer','#f59e0b'],['user','🟢 User','#16a34a']];
+  el.innerHTML=roleInfo.map(([role,label,color])=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+      <span style="min-width:130px;font-size:13px;font-weight:700;color:${color};">${label}</span>
+      <input type="password" id="pwd-new-${role}" placeholder="รหัสผ่านใหม่" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;"/>
+      <button onclick="changePwd('${role}')" class="btn-navy btn-sm">เปลี่ยน</button>
+      <span id="pwd-msg-${role}" style="font-size:12px;display:none;min-width:60px;"></span>
+    </div>`).join('');
+}
+function changePwd(role){
+  const val=document.getElementById('pwd-new-'+role).value.trim();
+  const msg=document.getElementById('pwd-msg-'+role);
+  if(!val||val.length<6){ msg.textContent='ต้อง ≥ 6 ตัว'; msg.style.color='#dc2626'; msg.style.display=''; setTimeout(()=>msg.style.display='none',3000); return; }
+  localStorage.setItem(PWD_KEYS[role],hashPwd(val));
+  document.getElementById('pwd-new-'+role).value='';
+  msg.textContent='✅ เปลี่ยนแล้ว'; msg.style.color='#16a34a'; msg.style.display='';
+  setTimeout(()=>msg.style.display='none',3000);
+}
+
+function renderAdminStorageInfo(){
+  const el=document.getElementById('admin-storage-info'); if(!el) return;
+  const keys=['md_cl1','md_cl2','md_skill','case_history','admin_default_provider','admin_default_model','pwd_admin','pwd_reviewer','pwd_user'];
+  let total=0;
+  el.innerHTML=keys.map(k=>{ const v=localStorage.getItem(k); const kb=v?(new Blob([v]).size/1024).toFixed(1):0; if(v)total+=parseFloat(kb);
+    return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f1f5f9;font-size:13px;"><span style="font-family:monospace;color:#475569;">${k}</span><span style="color:${v?'#1A3A6B':'#94a3b8'};">${v?kb+' KB':'—'}</span></div>`;
+  }).join('')+`<div style="display:flex;justify-content:space-between;padding:6px 0;font-weight:700;color:#1A3A6B;margin-top:4px;font-size:13px;"><span>รวม</span><span>${total.toFixed(1)} KB</span></div>`;
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+switchTab('input');
+fixTabBarOffset();
+</script>
+</body>
+</html>
