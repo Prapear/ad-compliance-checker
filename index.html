@@ -208,13 +208,10 @@ textarea.inp{resize:vertical;}
         <option value="together">Together AI</option>
         <option value="openai_compat">Custom URL</option>
       </select>
-      <select id="sel-model" class="hdr-sel" style="max-width:220px;">
+      <select id="sel-model" style="display:none;">
         <option value="gemini-2.0-flash">gemini-2.0-flash</option>
       </select>
-      <button id="btn-fetch-models" onclick="fetchModelsManual()"
-        title="ดึง model list จาก API key ที่ใส่ไว้"
-        style="padding:4px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .2s;"
-        onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
+      <button id="btn-fetch-models" onclick="fetchModelsManual()" style="display:none;">
         🔄 ดึง Models
       </button>
     </div>
