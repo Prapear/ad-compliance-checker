@@ -1557,14 +1557,172 @@ function renderAdminStorageInfo(){
 }
 
 // ══════════════════════════════════════════════════════════
-// INIT — event listeners (GAS CSP blocks inline onclick)
+// INIT — wrapped in DOMContentLoaded for GitHub Pages + GAS
 // ══════════════════════════════════════════════════════════
-document.getElementById('btn-login').addEventListener('click', doLogin);
-document.getElementById('login-pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-document.getElementById('login-eye').addEventListener('click', toggleLoginPwd);
-document.getElementById('btn-logout').addEventListener('click', doLogout);
-switchTab('input');
-fixTabBarOffset();
+function initApp(){
+  // Attach login event listeners
+  const btnLogin  = document.getElementById('btn-login');
+  const pwdInput  = document.getElementById('login-pwd');
+  const eyeBtn    = document.getElementById('login-eye');
+  const btnLogout = document.getElementById('btn-logout');
+
+  if(btnLogin)  btnLogin.addEventListener('click', doLogin);
+  if(pwdInput)  pwdInput.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+  if(eyeBtn)    eyeBtn.addEventListener('click', toggleLoginPwd);
+  if(btnLogout) btnLogout.addEventListener('click', doLogout);
+
+  // Tab buttons
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{ if(!btn.classList.contains('disabled')) switchTab(btn.dataset.tab); });
+  });
+
+  // "ตรวจงานใหม่"
+  const btnNew = document.getElementById('btn-new-job');
+  if(btnNew) btnNew.addEventListener('click',()=>{
+    mediaFiles=[]; document.getElementById('file-list').innerHTML=''; lastResult=null;
+    document.getElementById('tab-results-btn').classList.add('disabled');
+    document.getElementById('tab-report-btn').classList.add('disabled');
+    btnNew.style.display='none';
+    document.getElementById('progress-wrap').style.display='none';
+    const pb=document.getElementById('prog-bar');
+    const npb=pb.cloneNode(false); pb.parentNode.replaceChild(npb,pb);
+    switchTab('input'); updateReadiness();
+  });
+
+  // Project type change
+  document.getElementById('f-projtype').addEventListener('change',function(){
+    const pt=this.value;
+    const wrap=document.getElementById('f-status-wrap');
+    const sel=document.getElementById('f-projstatus');
+    if(!pt){wrap.style.display='none';sel.value='';}
+    else{sel.innerHTML='<option value="">— เลือกสถานะ —</option>'+(STATUS_MAP[pt]||[]).map(o=>`<option>${o}</option>`).join('');wrap.style.display='';}
+    updateClassification();
+  });
+  document.getElementById('f-projstatus').addEventListener('change',updateClassification);
+  document.getElementById('f-media').addEventListener('change',updateClassification);
+  document.getElementById('chips-offer').addEventListener('click',function(e){
+    const btn=e.target.closest('[data-offer]');if(!btn)return;
+    document.querySelectorAll('[data-offer]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active'); updateClassification();
+  });
+
+  // Ticket inputs
+  ['f-jobname','f-sender','f-email','f-phone','f-details'].forEach(id=>{
+    document.getElementById(id).addEventListener('input',updateReadiness);
+  });
+  ['f-company','f-sla'].forEach(id=>{
+    document.getElementById(id).addEventListener('change',updateReadiness);
+  });
+
+  // API key
+  document.getElementById('inp-apikey').addEventListener('input',function(){
+    document.getElementById('api-ok').style.display=this.value?'inline':'none';
+    this.classList.toggle('active',!!this.value);
+    updateReadiness();
+    if(this.value && document.getElementById('sel-provider').value==='gemini') fetchGeminiModels(this.value);
+  });
+  document.getElementById('btn-eye-api').addEventListener('click',function(){
+    const i=document.getElementById('inp-apikey');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈';
+  });
+  document.getElementById('btn-eye-monday').addEventListener('click',function(){
+    const i=document.getElementById('inp-monday');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'👁️':'🙈';
+  });
+
+  // Media files
+  document.getElementById('inp-media-files').addEventListener('change',function(e){ addMediaFiles(Array.from(e.target.files)); e.target.value=''; });
+  const dz=document.getElementById('drop-zone');
+  dz.addEventListener('dragover',e=>e.preventDefault());
+  dz.addEventListener('drop',e=>{e.preventDefault();addMediaFiles(Array.from(e.dataTransfer.files));});
+
+  // MD file uploads
+  document.getElementById('inp-cl1-file').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    const r=new FileReader();
+    r.onload=ev=>{const text=ev.target.result;document.getElementById('ta-cl1').value=text;saveMd('cl1',text,file.name);updateCl1Status(file.name);document.getElementById('cl1-preview').style.display='none';};
+    r.readAsText(file,'UTF-8');e.target.value='';
+  });
+  document.getElementById('ta-cl1').addEventListener('input',function(){saveMd('cl1',this.value,null);updateCl1Status(null);});
+  document.getElementById('inp-cl2-file').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const text=ev.target.result;document.getElementById('ta-cl2').value=text;saveMd('cl2',text,file.name);
+      const kb=(new Blob([text]).size/1024).toFixed(1);const rc=text.split('\n').filter(l=>l.includes('|')).length;
+      const s=document.getElementById('cl2-status');
+      s.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><span>📎</span><div><div style="font-size:13px;font-weight:700;color:#92400e;">${escHtml(file.name)}</div><div style="font-size:11px;color:#64748b;">${rc} ข้อกำหนด · ${kb} KB</div></div><button onclick="clearCl2()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button></div>`;
+      s.style.cssText='padding:6px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;margin-top:6px;';
+      document.getElementById('btn-cl2-toggle').style.display='';document.getElementById('cl2-preview').style.display='none';
+    };
+    r.readAsText(file,'UTF-8');e.target.value='';
+  });
+  document.getElementById('inp-skill-file').addEventListener('change',function(e){
+    const file=e.target.files[0];if(!file)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+      const text=ev.target.result;document.getElementById('ta-skill').value=text;saveMd('skill',text,file.name);
+      const kb=(new Blob([text]).size/1024).toFixed(1);
+      const s=document.getElementById('skill-status');
+      s.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><span>🧠</span><div><div style="font-size:13px;font-weight:700;color:#6d28d9;">${escHtml(file.name)}</div><div style="font-size:11px;color:#64748b;">${kb} KB</div></div><button onclick="clearSkill()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button></div>`;
+      s.style.cssText='padding:6px 12px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;margin-top:6px;';
+      document.getElementById('btn-skill-toggle').style.display='';document.getElementById('skill-preview').style.display='none';
+    };
+    r.readAsText(file,'UTF-8');e.target.value='';
+  });
+
+  // Admin file uploads
+  ['cl1','cl2','skill'].forEach(key=>{
+    const el=document.getElementById('admin-inp-'+key);
+    if(!el) return;
+    el.addEventListener('change',function(e){
+      const file=e.target.files[0];if(!file)return;
+      const r=new FileReader();
+      r.onload=ev=>{
+        document.getElementById('admin-ta-'+key).value=ev.target.result;
+        document.getElementById('admin-'+key+'-name').textContent=file.name;
+        document.getElementById('admin-'+key+'-meta').textContent='📂 พร้อมบันทึก';
+      };
+      r.readAsText(file,'UTF-8');e.target.value='';
+    });
+  });
+
+  // Restore MD files from localStorage
+  (function restoreMdFiles(){
+    const cl1=loadMdStore('cl1');
+    if(cl1?.text){document.getElementById('ta-cl1').value=cl1.text;updateCl1Status(cl1.filename);}
+    else{document.getElementById('ta-cl1').value=DEMO_CHECKLIST;updateCl1Status(null);}
+    const cl2=loadMdStore('cl2');
+    if(cl2?.text){
+      document.getElementById('ta-cl2').value=cl2.text;
+      const s=document.getElementById('cl2-status');
+      s.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><span>📎</span><div><div style="font-size:13px;font-weight:700;color:#92400e;">${escHtml(cl2.filename||'Saved')} <span style="font-size:10px;color:#94a3b8;">💾</span></div></div><button onclick="clearCl2()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button></div>`;
+      s.style.cssText='padding:6px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;margin-top:6px;';
+      document.getElementById('btn-cl2-toggle').style.display='';
+    }
+    const sk=loadMdStore('skill');
+    if(sk?.text){
+      document.getElementById('ta-skill').value=sk.text;
+      const s=document.getElementById('skill-status');
+      s.innerHTML=`<div style="display:flex;align-items:center;gap:8px;"><span>🧠</span><div><div style="font-size:13px;font-weight:700;color:#6d28d9;">${escHtml(sk.filename||'Saved')} <span style="font-size:10px;color:#94a3b8;">💾</span></div></div><button onclick="clearSkill()" style="margin-left:auto;background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;">✕</button></div>`;
+      s.style.cssText='padding:6px 12px;background:#faf5ff;border:1px solid #ddd6fe;border-radius:8px;margin-top:6px;';
+      document.getElementById('btn-skill-toggle').style.display='';
+    }
+  })();
+
+  // Restore session
+  try{
+    const savedRole=sessionStorage.getItem('current_role');
+    if(savedRole&&ROLES[savedRole]) applyRole(savedRole);
+  }catch(e){}
+
+  loadSourceBadges();
+  fixTabBarOffset();
+}
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 </script>
 </body>
 </html>
