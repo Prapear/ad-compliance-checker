@@ -168,12 +168,11 @@ textarea.inp{resize:vertical;}
     <div class="login-field">
       <label>Password</label>
       <div style="position:relative;">
-        <input id="login-pwd" type="password" class="login-inp" placeholder="รหัสผ่าน"
-          onkeydown="if(event.key==='Enter')doLogin()"/>
-        <button onclick="toggleLoginPwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;" id="login-eye">👁️</button>
+        <input id="login-pwd" type="password" class="login-inp" placeholder="รหัสผ่าน"/>
+        <button id="login-eye" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;">👁️</button>
       </div>
     </div>
-    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <button class="login-btn" id="btn-login">เข้าสู่ระบบ</button>
     <div class="login-err" id="login-err">❌ รหัสผ่านไม่ถูกต้อง</div>
     <div style="margin-top:20px;padding:10px 16px;background:rgba(255,255,255,.07);border-radius:8px;font-size:12px;color:rgba(255,255,255,.4);text-align:left;line-height:1.8;">
       Default passwords:<br>
@@ -195,12 +194,12 @@ textarea.inp{resize:vertical;}
     </div>
     <div class="hdr-role">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
-      <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
+      <button id="btn-logout" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
     </div>
   </div>
   <div class="hdr-row2">
     <div class="key-grp">
-      <span class="key-lbl">🤖</span>
+      <span class="key-lbl">🤖 AI Provider</span>
       <select id="sel-provider" class="hdr-sel">
         <option value="gemini">Gemini (Google)</option>
         <option value="openrouter">OpenRouter</option>
@@ -208,15 +207,7 @@ textarea.inp{resize:vertical;}
         <option value="together">Together AI</option>
         <option value="openai_compat">Custom URL</option>
       </select>
-      <select id="sel-model" class="hdr-sel" style="max-width:220px;">
-        <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-      </select>
-      <button id="btn-fetch-models" onclick="fetchModelsManual()"
-        title="ดึง model list จาก API key ที่ใส่ไว้"
-        style="padding:4px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;cursor:pointer;font-size:12px;white-space:nowrap;transition:all .2s;"
-        onmouseover="this.style.background='rgba(255,255,255,.2)'" onmouseout="this.style.background='rgba(255,255,255,.1)'">
-        🔄 ดึง Models
-      </button>
+      <select id="sel-model" style="display:none;"><option value="auto">auto</option></select>
     </div>
     <div class="hdr-div"></div>
     <div class="key-grp">
@@ -633,22 +624,37 @@ LD030 | วิธีจับรางวัล | ต้องระบุวิ
 
 // ── Role & Auth constants ──
 const ROLES = {
-  admin:    { label:'🔴 Super Admin', cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
+  admin:    { label:'🔴 Super Admin',    cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
   reviewer: { label:'🟡 Legal Reviewer', cls:'role-reviewer', tabs:['input','results','report','dashboard'] },
-  user:     { label:'🟢 User',        cls:'role-user',     tabs:['input','results','report'] },
+  user:     { label:'🟢 User',           cls:'role-user',     tabs:['input','results','report'] },
 };
-const PWD_KEYS = { admin:'pwd_admin', reviewer:'pwd_reviewer', user:'pwd_user' };
-const DEFAULT_PWDS = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
+
+// Password store — in-memory (GAS-safe, no localStorage needed)
+// Admin สามารถเปลี่ยนได้จาก Admin tab (จะ reset เมื่อ refresh)
+const PWD_STORE = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
+
+// Load custom passwords from localStorage ถ้ามี (optional — fail silently on GAS)
+try{
+  ['admin','reviewer','user'].forEach(role=>{
+    const saved = localStorage.getItem('pwd_'+role+'_plain');
+    if(saved) PWD_STORE[role] = saved;
+  });
+}catch(e){}
 
 function hashPwd(s){ let h=0; for(const c of s) h=(Math.imul(31,h)+c.charCodeAt(0))|0; return h.toString(36); }
-function getPwd(role){ return localStorage.getItem(PWD_KEYS[role]) || hashPwd(DEFAULT_PWDS[role]); }
+function getPwd(role){ return PWD_STORE[role] || 'ananda2025'; }
+function checkPwd(role, input){ return input === getPwd(role); }
+function setPwd(role, newPwd){
+  PWD_STORE[role] = newPwd;
+  try{ localStorage.setItem('pwd_'+role+'_plain', newPwd); }catch(e){}
+}
 
 // ── Runtime state ──
 let mediaFiles = [];
 let lastResult = null;
 let caseHistory = [];
 let currentRole = null;
-try{ caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]'); }catch(e){}
+try{ caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]'); }catch(e){ caseHistory = []; }
 
 // ══════════════════════════════════════════════════════════
 // LOGIN / LOGOUT
@@ -663,23 +669,24 @@ function doLogin(){
   const role = document.getElementById('login-role').value;
   const pwd  = document.getElementById('login-pwd').value;
   const err  = document.getElementById('login-err');
-  if(hashPwd(pwd) !== getPwd(role)){
-    err.style.display=''; document.getElementById('login-pwd').value='';
-    setTimeout(()=>err.style.display='none',3000); return;
+  if(!checkPwd(role, pwd)){
+    err.style.display='';
+    document.getElementById('login-pwd').value='';
+    setTimeout(()=>err.style.display='none',3000);
+    return;
   }
   currentRole = role;
-  sessionStorage.setItem('current_role', role);
+  try{ sessionStorage.setItem('current_role', role); }catch(e){}
   document.getElementById('login-pwd').value='';
   applyRole(role);
 }
 function doLogout(){
   currentRole = null;
-  sessionStorage.removeItem('current_role');
+  try{ sessionStorage.removeItem('current_role'); }catch(e){}
   document.getElementById('main-header').style.display='none';
   document.getElementById('tab-bar').style.display='none';
   document.getElementById('app-footer').style.display='none';
   document.getElementById('login-screen').style.display='flex';
-  // hide all panels
   document.querySelectorAll('.tab-panel').forEach(p=>p.style.display='none');
   document.getElementById('panel-input').style.display='';
 }
@@ -760,14 +767,16 @@ function getFileInfo(file){
 }
 function isImgExt(f){return['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase());}
 
-// ── MD storage ──
+// ── MD storage — GAS safe (try/catch ทุก storage call) ──
 function saveMd(key,text,filename){ try{localStorage.setItem('md_'+key,JSON.stringify({text,filename,saved:new Date().toISOString()}));}catch(e){} }
 function clearMdStore(key){ try{localStorage.removeItem('md_'+key);}catch(e){} }
 function loadMdStore(key){ try{return JSON.parse(localStorage.getItem('md_'+key)||'null');}catch(e){return null;} }
 
-// Auto-restore session
-const savedRole = sessionStorage.getItem('current_role');
-if(savedRole && ROLES[savedRole]) applyRole(savedRole);
+// Auto-restore session — GAS safe
+try{
+  const savedRole = sessionStorage.getItem('current_role');
+  if(savedRole && ROLES[savedRole]) applyRole(savedRole);
+}catch(e){ /* sessionStorage blocked in GAS — user must login manually */ }
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>{ if(!btn.classList.contains('disabled')) switchTab(btn.dataset.tab); });
 });
@@ -795,33 +804,67 @@ window.addEventListener('resize',fixTabBarOffset);
 // PROVIDER / API KEY UI
 // ══════════════════════════════════════════════════════════
 const PROVIDERS = {
-  gemini:       { label:'Gemini',       placeholder:'AIza...',         vision:true,  models:['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash-preview-04-17','gemini-2.5-pro-preview-03-25'] },
-  openrouter:   { label:'OpenRouter',   placeholder:'sk-or-v1-...',    vision:true,  models:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-7b-instruct:free','qwen/qwen-2.5-72b-instruct:free','microsoft/phi-3-mini-128k-instruct:free'] },
-  groq:         { label:'Groq',         placeholder:'gsk_...',         vision:false, models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','deepseek-r1-distill-llama-70b','mixtral-8x7b-32768'] },
-  together:     { label:'Together AI',  placeholder:'together_...',    vision:false, models:['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free','deepseek-ai/DeepSeek-V3','deepseek-ai/DeepSeek-R1'] },
-  openai_compat:{ label:'Custom URL',   placeholder:'sk-...',          vision:true,  models:['gpt-4o','gpt-4o-mini','custom-model'] },
+  gemini:       { label:'Gemini',      placeholder:'AIza...',      vision:true,  defaultModel:'gemini-2.0-flash',                          models:['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash-preview-04-17'] },
+  openrouter:   { label:'OpenRouter',  placeholder:'sk-or-v1-...', vision:true,  defaultModel:'meta-llama/llama-3.3-70b-instruct:free',    models:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-7b-instruct:free','qwen/qwen-2.5-72b-instruct:free'] },
+  groq:         { label:'Groq',        placeholder:'gsk_...',      vision:false, defaultModel:'llama-3.3-70b-versatile',                   models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','deepseek-r1-distill-llama-70b'] },
+  together:     { label:'Together AI', placeholder:'together_...', vision:false, defaultModel:'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', models:['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free','deepseek-ai/DeepSeek-V3'] },
+  openai_compat:{ label:'Custom URL',  placeholder:'sk-...',       vision:true,  defaultModel:'gpt-4o-mini',                               models:['gpt-4o','gpt-4o-mini'] },
 };
 function initProviderUI(){
-  const sel=document.getElementById('sel-provider');
-  const msel=document.getElementById('sel-model');
-  const lbl=document.getElementById('lbl-apikey');
-  const inp=document.getElementById('inp-apikey');
-  const urlWrap=document.getElementById('custom-url-wrap');
+  const sel    = document.getElementById('sel-provider');
+  const lbl    = document.getElementById('lbl-apikey');
+  const inp    = document.getElementById('inp-apikey');
+  const urlWrap= document.getElementById('custom-url-wrap');
+
   function apply(){
-    const p=PROVIDERS[sel.value];
-    lbl.textContent=p.label+' Key'; inp.placeholder=p.placeholder;
-    msel.innerHTML=p.models.map(m=>`<option value="${m}">${m}</option>`).join('');
-    urlWrap.style.display=sel.value==='openai_compat'?'':'none';
-    // restore saved model
-    const dm=localStorage.getItem('admin_default_model');
-    if(dm){ if(![...msel.options].find(o=>o.value===dm)){const opt=document.createElement('option');opt.value=dm;opt.textContent=dm;msel.insertBefore(opt,msel.firstChild);} msel.value=dm; }
+    const p = PROVIDERS[sel.value];
+    lbl.textContent = p.label + ' Key';
+    inp.placeholder = p.placeholder;
+    urlWrap.style.display = sel.value==='openai_compat' ? '' : 'none';
     updateReadiness();
   }
-  sel.addEventListener('change',apply);
-  // Apply saved provider
-  const dp=localStorage.getItem('admin_default_provider');
-  if(dp&&PROVIDERS[dp]) sel.value=dp;
+  sel.addEventListener('change', apply);
+  const dp = localStorage.getItem('admin_default_provider');
+  if(dp && PROVIDERS[dp]) sel.value = dp;
   apply();
+}
+
+// ── Get best model for provider — tries to fetch from API, falls back to default ──
+async function getBestModel(provider, apiKey){
+  const p = PROVIDERS[provider];
+  try{
+    if(provider==='gemini'){
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}&pageSize=50`);
+      if(!res.ok) return p.defaultModel;
+      const data = await res.json();
+      const models = (data.models||[])
+        .filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent'))
+        .map(m=>m.name.replace('models/',''))
+        .filter(m=>m.startsWith('gemini-2'));
+      return models[0] || p.defaultModel;
+
+    } else if(provider==='openrouter'){
+      const res = await fetch('https://openrouter.ai/api/v1/models',{headers:{'Authorization':`Bearer ${apiKey}`}});
+      if(!res.ok) return p.defaultModel;
+      const data = await res.json();
+      // Prefer free models with large context
+      const free = (data.data||[]).filter(m=>m.id.endsWith(':free')).map(m=>m.id);
+      const preferred = ['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','qwen/qwen-2.5-72b-instruct:free'];
+      return preferred.find(m=>free.includes(m)) || free[0] || p.defaultModel;
+
+    } else if(provider==='groq'){
+      const res = await fetch('https://api.groq.com/openai/v1/models',{headers:{'Authorization':`Bearer ${apiKey}`}});
+      if(!res.ok) return p.defaultModel;
+      const data = await res.json();
+      const ids = (data.data||[]).map(m=>m.id);
+      const preferred = ['llama-3.3-70b-versatile','llama-3.1-70b-versatile','llama-3.1-8b-instant'];
+      return preferred.find(m=>ids.includes(m)) || ids[0] || p.defaultModel;
+
+    } else if(provider==='together'){
+      return p.defaultModel;
+    }
+  } catch(e){}
+  return p.defaultModel;
 }
 
 document.getElementById('inp-apikey').addEventListener('input',function(){
@@ -835,37 +878,7 @@ document.getElementById('inp-apikey').addEventListener('input',function(){
 });
 
 async function fetchGeminiModels(apiKey){
-  // Called automatically when key is typed — silent
-  if(document.getElementById('sel-provider').value !== 'gemini') return;
-  await fetchModelsForProvider('gemini', apiKey, false);
-}
-
-async function fetchModelsManual(){
-  const provider = document.getElementById('sel-provider').value;
-  const apiKey   = getVal('inp-apikey');
-  const btn      = document.getElementById('btn-fetch-models');
-
-  if(!apiKey){
-    btn.textContent = '⚠️ ใส่ API Key ก่อน';
-    btn.style.color = '#fbbf24';
-    setTimeout(()=>{ btn.textContent='🔄 ดึง Models'; btn.style.color='#fff'; }, 2500);
-    return;
-  }
-  btn.textContent = '⏳ กำลังดึง...';
-  btn.style.color = '#fbbf24';
-  btn.disabled = true;
-
-  const count = await fetchModelsForProvider(provider, apiKey, true);
-
-  if(count > 0){
-    btn.textContent = `✅ ${count} models`;
-    btn.style.color = '#4ade80';
-  } else {
-    btn.textContent = '❌ ดึงไม่ได้';
-    btn.style.color = '#fca5a5';
-  }
-  btn.disabled = false;
-  setTimeout(()=>{ btn.textContent='🔄 ดึง Models'; btn.style.color='#fff'; }, 3000);
+  // silent — no longer needed since model is auto-detected at call time
 }
 
 async function fetchModelsForProvider(provider, apiKey, showError){
@@ -1057,26 +1070,28 @@ async function handleSubmit(){
 }
 
 async function doCall(){
-  const provider=document.getElementById('sel-provider').value;
-  const model=document.getElementById('sel-model').value;
-  const apiKey=getVal('inp-apikey');
-  const customUrl=getVal('inp-custom-url');
-  // Read from admin-set MD files
-  const cl1data=loadMdStore('cl1');
-  const cl2data=loadMdStore('cl2');
-  const skdata=loadMdStore('skill');
-  const checklist=cl1data?.text||DEMO_CHECKLIST;
-  const checklist2=cl2data?.text||'';
-  const skillPrompt=skdata?.text||'';
-  const sheets=getSheets(); const mt=getVal('f-media');
-  const provCfg=PROVIDERS[provider];
-  const systemText=skillPrompt||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block';
-  const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
+  const provider  = document.getElementById('sel-provider').value;
+  const apiKey    = getVal('inp-apikey');
+  const customUrl = getVal('inp-custom-url');
+  const provCfg   = PROVIDERS[provider];
 
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const setLbl=txt=>{const el=document.getElementById('prog-lbl');if(el)el.textContent=txt;};
+  const sleep  = ms=>new Promise(r=>setTimeout(r,ms));
+  const setLbl = txt=>{const el=document.getElementById('prog-lbl');if(el)el.textContent=txt;};
+  setLbl('🔍 กำลังเลือก model อัตโนมัติ...');
+  const model = await getBestModel(provider, apiKey);
+  setLbl(`AI กำลังวิเคราะห์... (${model.split('/').pop()})`);
 
-  if(provider==='gemini'){
+  // Read MD files from admin store
+  const cl1data    = loadMdStore('cl1');
+  const cl2data    = loadMdStore('cl2');
+  const skdata     = loadMdStore('skill');
+  const checklist  = cl1data?.text  || DEMO_CHECKLIST;
+  const checklist2 = cl2data?.text  || '';
+  const skillPrompt= skdata?.text   || '';
+  const sheets = getSheets();
+  const mt     = getVal('f-media');
+  const systemText = skillPrompt || 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block';
+  const promptText = `ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
     const parts=[{text:promptText}];
     for(const f of mediaFiles){ const info=getFileInfo(f);if(!info)continue; const b64=await toBase64(f); parts.push({inlineData:{mimeType:info.mime,data:b64}}); }
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -1526,7 +1541,7 @@ function changePwd(role){
   const val=document.getElementById('pwd-new-'+role).value.trim();
   const msg=document.getElementById('pwd-msg-'+role);
   if(!val||val.length<6){ msg.textContent='ต้อง ≥ 6 ตัว'; msg.style.color='#dc2626'; msg.style.display=''; setTimeout(()=>msg.style.display='none',3000); return; }
-  localStorage.setItem(PWD_KEYS[role],hashPwd(val));
+  setPwd(role, val);
   document.getElementById('pwd-new-'+role).value='';
   msg.textContent='✅ เปลี่ยนแล้ว'; msg.style.color='#16a34a'; msg.style.display='';
   setTimeout(()=>msg.style.display='none',3000);
@@ -1542,8 +1557,12 @@ function renderAdminStorageInfo(){
 }
 
 // ══════════════════════════════════════════════════════════
-// INIT
+// INIT — event listeners (GAS CSP blocks inline onclick)
 // ══════════════════════════════════════════════════════════
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-pwd').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+document.getElementById('login-eye').addEventListener('click', toggleLoginPwd);
+document.getElementById('btn-logout').addEventListener('click', doLogout);
 switchTab('input');
 fixTabBarOffset();
 </script>
