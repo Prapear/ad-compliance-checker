@@ -362,13 +362,14 @@ body.role-user .user-only{display:block!important;}
           style="width:100%;padding:12px;border-radius:8px;border:2px solid #1A3A6B;background:#1A3A6B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
           📎 เลือกไฟล์สื่อโฆษณา
         </button>
-        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.csv" style="display:none;"/>
+        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.csv,.mp4,.mov,.avi,.webm" style="display:none;"/>
         <div class="drop-zone" id="drop-zone" style="padding:14px;">
           <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">ประเภทไฟล์ที่รองรับ</div>
           <div style="font-size:12px;color:#64748b;line-height:2;text-align:left;display:inline-block;">
             🖼️ <strong>รูปภาพ</strong> — JPG, PNG, WebP, GIF<br>
             📕 <strong>PDF</strong> — รองรับเต็มรูปแบบ<br>
-            📄 <strong>Text</strong> — TXT, CSV
+            📄 <strong>Text</strong> — TXT, CSV<br>
+            🎬 <strong>วิดีโอ</strong> — MP4, MOV, AVI, WebM <span style="color:#b45309;">(สูงสุด 35MB)</span>
           </div>
           <div style="margin-top:8px;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:11px;color:#92400e;">
             ⚠️ DOCX / PPTX / XLSX — กรุณาแปลงเป็น <strong>PDF</strong> ก่อน upload
@@ -864,14 +865,19 @@ function getFileInfo(file){
   if(ext==='gif')  return{kind:'image', mime:'image/gif'};
   // PDF — Gemini รองรับ base64 ได้
   if(ext==='pdf')  return{kind:'pdf', mime:'application/pdf'};
-  // Office docs — ต้อง extract text ก่อนส่ง (Gemini ไม่รองรับ DOCX/PPTX โดยตรง)
+  // Office docs — ต้อง extract text ก่อนส่ง
   if(['docx','doc'].includes(ext))         return{kind:'office', mime:'docx', ext};
   if(['pptx','ppt'].includes(ext))         return{kind:'office', mime:'pptx', ext};
   if(['xlsx','xls'].includes(ext))         return{kind:'office', mime:'xlsx', ext};
   if(['txt','csv','md'].includes(ext))     return{kind:'text',   mime:'text/plain', ext};
-  // Video/Audio — บันทึกชื่อไว้ใน prompt เท่านั้น
-  if(['mp4','mov','avi','mkv','wmv'].includes(ext)) return{kind:'video', mime:'video/'+ext};
-  if(['mp3','wav','aac','m4a'].includes(ext))       return{kind:'audio', mime:'audio/'+ext};
+  // Video — Gemini รองรับ base64 inline ได้ (สูงสุด ~35MB ไฟล์ต้นฉบับ)
+  if(ext==='mp4')  return{kind:'video', mime:'video/mp4'};
+  if(ext==='mov')  return{kind:'video', mime:'video/quicktime'};
+  if(ext==='avi')  return{kind:'video', mime:'video/x-msvideo'};
+  if(ext==='webm') return{kind:'video', mime:'video/webm'};
+  if(ext==='mpeg'||ext==='mpg') return{kind:'video', mime:'video/mpeg'};
+  // Audio
+  if(['mp3','wav','aac','m4a'].includes(ext)) return{kind:'audio', mime:'audio/'+ext};
   return{kind:'other', mime:'application/octet-stream'};
 }
 function isImgExt(f){return['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase());}
@@ -943,8 +949,8 @@ window.addEventListener('resize',fixTabBarOffset);
 // PROVIDER / API KEY UI
 // ══════════════════════════════════════════════════════════
 const PROVIDERS = {
-  gemini:       { label:'Gemini',       placeholder:'AIza...',         vision:true,  models:['gemini-2.5-flash-lite','gemini-2.0-flash-lite','gemini-2.5-flash-preview-04-17','gemini-2.5-pro-preview-03-25'] },
-  openrouter:   { label:'OpenRouter',   placeholder:'sk-or-v1-...',    vision:true,  models:['meta-llama/llama-3.3-70b-instruct:free','deepseek/deepseek-chat-v3-0324:free','deepseek/deepseek-r1:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-7b-instruct:free'] },
+  gemini:       { label:'Gemini',      placeholder:'AIza...',         vision:true,  defaultModel:'gemini-2.5-flash-lite', models:['gemini-2.5-flash-lite','gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash-preview-04-17'] },
+  openrouter:   { label:'OpenRouter',  placeholder:'sk-or-v1-...',    vision:true,  defaultModel:'meta-llama/llama-3.3-70b-instruct:free', models:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-7b-instruct:free','qwen/qwen-2.5-72b-instruct:free'] },
   groq:         { label:'Groq',         placeholder:'gsk_...',         vision:false, models:['llama-3.3-70b-versatile','llama-3.1-8b-instant','deepseek-r1-distill-llama-70b','mixtral-8x7b-32768'] },
   together:     { label:'Together AI',  placeholder:'together_...',    vision:false, models:['meta-llama/Llama-3.3-70B-Instruct-Turbo-Free','deepseek-ai/DeepSeek-V3','deepseek-ai/DeepSeek-R1'] },
   openai_compat:{ label:'Custom URL',   placeholder:'sk-...',          vision:true,  models:['gpt-4o','gpt-4o-mini','custom-model'] },
@@ -1139,7 +1145,19 @@ document.getElementById('inp-media-files').addEventListener('change',function(e)
 const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>e.preventDefault());
 dz.addEventListener('drop',e=>{e.preventDefault();addMediaFiles(Array.from(e.dataTransfer.files));});
-function addMediaFiles(files){ mediaFiles=[...mediaFiles,...files]; renderFileList(); updateReadiness(); }
+function addMediaFiles(files){
+  const VIDEO_MAX = 35 * 1024 * 1024;
+  const tooBig = files.filter(f=>{
+    const ext=f.name.split('.').pop().toLowerCase();
+    return ['mp4','mov','avi','webm','mpeg'].includes(ext) && f.size > VIDEO_MAX;
+  });
+  if(tooBig.length){
+    const names = tooBig.map(f=>`${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`).join(', ');
+    alert(`⚠️ วิดีโอขนาดเกิน 35MB ส่งไม่ได้:\n${names}\n\nกรุณาบีบอัดไฟล์ให้เล็กลงก่อน หรือใช้ความละเอียดต่ำกว่านี้`);
+  }
+  const ok = files.filter(f=>!tooBig.includes(f));
+  mediaFiles=[...mediaFiles,...ok]; renderFileList(); updateReadiness();
+}
 function removeFile(i){ mediaFiles.splice(i,1); renderFileList(); updateReadiness(); }
 function renderFileList(){
   document.getElementById('file-list').innerHTML=mediaFiles.map((f,i)=>{
@@ -1243,19 +1261,23 @@ async function doCall(){
   // แยกไฟล์ตามประเภท
   const imageFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='image');
   const pdfFiles    = mediaFiles.filter(f=>getFileInfo(f)?.kind==='pdf');
+  const videoFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='video');
   const officeFiles = mediaFiles.filter(f=>getFileInfo(f)?.kind==='office');
   const textFiles   = mediaFiles.filter(f=>getFileInfo(f)?.kind==='text');
-  const videoFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='video');
   const audioFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='audio');
   const otherFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='other');
-  const visualFiles = [...imageFiles, ...pdfFiles]; // ส่งได้ตรงๆ
 
-  // Office files — อ่านเป็น text ผ่าน FileReader (ได้แค่ plain text บางส่วน)
+  // Video size check — Gemini base64 limit ~35MB original file
+  const VIDEO_MAX_BYTES = 35 * 1024 * 1024;
+  const videoOk    = videoFiles.filter(f=>f.size <= VIDEO_MAX_BYTES);
+  const videoToBig = videoFiles.filter(f=>f.size >  VIDEO_MAX_BYTES);
+
+  // Only image+pdf+video(ok) can be sent directly to Gemini
+  const visualFiles = [...imageFiles, ...pdfFiles];
+
+  // Office files — read as text note
   const officeTexts = await Promise.all(officeFiles.map(f=>
-    new Promise(res=>{
-      // DOCX/XLSX เป็น ZIP — อ่านตรงไม่ได้ บอก AI แค่ชื่อและขนาด
-      res(`[ไฟล์: ${f.name} (${(f.size/1024).toFixed(0)} KB) — กรุณาตรวจจากชื่อไฟล์และข้อมูล ticket ที่ให้มา]`);
-    })
+    new Promise(res=>{ res(`[ไฟล์: ${f.name} (${(f.size/1024).toFixed(0)} KB) — กรุณาตรวจจากชื่อไฟล์และข้อมูล ticket ที่ให้มา]`); })
   ));
   const textContents = await Promise.all(textFiles.map(f=>
     new Promise(res=>{
@@ -1266,13 +1288,13 @@ async function doCall(){
     })
   ));
 
-  // สร้าง note สำหรับไฟล์ทุกประเภท
+  // Build fileNote for prompt
   let fileNote = '';
-  if(officeTexts.length) fileNote += '\n\nไฟล์ Office ที่แนบมา:\n' + officeTexts.join('\n');
+  if(officeTexts.length)  fileNote += '\n\nไฟล์ Office ที่แนบมา:\n' + officeTexts.join('\n');
   if(textContents.length) fileNote += '\n\nเนื้อหาไฟล์ Text:\n' + textContents.join('\n');
-  if(videoFiles.length)  fileNote += `\n\nไฟล์วิดีโอ (AI ดูไม่ได้):\n${videoFiles.map(f=>'- '+f.name).join('\n')}`;
-  if(audioFiles.length)  fileNote += `\n\nไฟล์เสียง (AI ฟังไม่ได้):\n${audioFiles.map(f=>'- '+f.name).join('\n')}`;
-  if(otherFiles.length)  fileNote += `\n\nไฟล์อื่นๆ:\n${otherFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(videoToBig.length)   fileNote += `\n\nวิดีโอขนาดเกิน 35MB (ส่งไม่ได้ — แจ้งเพื่อรับทราบ):\n${videoToBig.map(f=>`- ${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`).join('\n')}`;
+  if(audioFiles.length)   fileNote += `\n\nไฟล์เสียง (AI ฟังไม่ได้):\n${audioFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(otherFiles.length)   fileNote += `\n\nไฟล์อื่นๆ:\n${otherFiles.map(f=>'- '+f.name).join('\n')}`;
 
   const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}${fileNote}\n\nกรุณาตอบทุก field ที่เป็นข้อความ (finding, missing, recommendation, penalty, overall_summary) เป็นภาษาไทยเท่านั้น\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
 
@@ -1289,6 +1311,13 @@ async function doCall(){
     for(const f of pdfFiles){
       const b64=await toBase64(f);
       parts.push({inlineData:{mimeType:'application/pdf', data:b64}});
+    }
+    // Video — Gemini รองรับ inline base64 (เฉพาะไฟล์ ≤35MB)
+    for(const f of videoOk){
+      const info=getFileInfo(f);
+      setLbl(`⏳ กำลัง encode วิดีโอ ${f.name}...`);
+      const b64=await toBase64(f);
+      parts.push({inlineData:{mimeType:info.mime, data:b64}});
     }
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const body={systemInstruction:{parts:[{text:systemText}]},contents:[{role:'user',parts}],generationConfig:{temperature:0.1,maxOutputTokens:8192,responseMimeType:'application/json'}};
