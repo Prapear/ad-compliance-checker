@@ -8,14 +8,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;}
-body{margin:0;font-family:'Sarabun',sans-serif;background:#f1f5f9;min-height:100vh;font-size:15px;display:flex;flex-direction:column;}
+body{margin:0;font-family:'Sarabun',sans-serif;background:#edeae5;min-height:100vh;font-size:15px;display:flex;flex-direction:column;}
 input,select,textarea,button{font-family:'Sarabun',sans-serif;font-size:14px;}
 @keyframes spin{to{transform:rotate(360deg);}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 @keyframes prog{to{width:88%;}}
 
 /* ── LOGIN ── */
-#login-screen{position:fixed;inset:0;background:#0f2240;display:flex;align-items:center;justify-content:center;z-index:999;}
+#login-screen{position:fixed;inset:0;background:#0c1e38;display:flex;align-items:center;justify-content:center;z-index:999;}
 .login-box{background:#1a3a6b;border-radius:16px;padding:40px 44px;width:420px;text-align:center;box-shadow:0 24px 64px rgba(0,0,0,.5);}
 .login-logo{font-size:52px;margin-bottom:12px;}
 .login-title{font-size:22px;font-weight:800;color:#fff;margin-bottom:4px;}
@@ -28,9 +28,9 @@ input,select,textarea,button{font-family:'Sarabun',sans-serif;font-size:14px;}
 .login-btn:hover{background:#22c55e;}
 .login-err{color:#fca5a5;font-size:13px;margin-top:10px;display:none;}
 .role-badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;}
-.role-admin{background:#7c3aed;color:#fff;}
-.role-reviewer{background:#f59e0b;color:#fff;}
-.role-user{background:#16a34a;color:#fff;}
+.role-admin{background:#c4b5fd;color:#3b0764;}
+.role-reviewer{background:#fde68a;color:#78350f;}
+.role-user{background:#bbf7d0;color:#14532d;}
 
 /* ── HEADER ── */
 #main-header{background:#1A3A6B;color:#fff;padding:10px 24px;box-shadow:0 2px 10px rgba(0,0,0,.25);position:sticky;top:0;z-index:100;}
@@ -66,7 +66,7 @@ input,select,textarea,button{font-family:'Sarabun',sans-serif;font-size:14px;}
 .gsev{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
 
 /* ── CARD ── */
-.card{background:#fff;border-radius:10px;border:1px solid #e2e8f0;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.04);}
+.card{background:#fff;border-radius:10px;border:1px solid #e8e3dc;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.03);}
 .card-title{margin:0 0 14px;font-size:15px;font-weight:700;color:#1A3A6B;display:flex;align-items:center;gap:6px;}
 
 /* ── FORM ── */
@@ -95,20 +95,20 @@ textarea.inp{resize:vertical;}
 .prog-lbl{font-size:12px;color:#64748b;margin-top:5px;text-align:center;animation:pulse 1.5s ease-in-out infinite;}
 
 /* ── FILE ── */
-.file-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:6px;}
+.file-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#faf9f7;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:6px;}
 .file-icon{width:52px;height:52px;background:#e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;}
 .file-thumb{width:52px;height:52px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0;}
 .file-rm{background:#fee2e2;border:none;color:#ef4444;cursor:pointer;border-radius:6px;padding:4px 8px;font-size:13px;font-weight:700;}
-.drop-zone{border:2px dashed #cbd5e1;border-radius:8px;padding:12px;text-align:center;background:#f8fafc;}
+.drop-zone{border:2px dashed #cbd5e1;border-radius:8px;padding:12px;text-align:center;background:#faf9f7;}
 
 /* ── RESULTS ── */
 .res-layout{display:grid;grid-template-columns:1fr 300px;min-height:calc(100vh - 120px);}
 .res-main{padding:22px 24px 30px 28px;}
 .res-side{background:#fff;border-left:1px solid #e2e8f0;padding:20px 16px;overflow-y:auto;}
 .dtable{width:100%;border-collapse:collapse;font-size:13px;}
-.dtable th{padding:9px 11px;text-align:left;font-weight:700;font-size:12px;white-space:nowrap;}
-.dtable td{padding:9px 11px;border-bottom:1px solid #e2e8f0;}
-.draft-banner{background:#fef9c3;border:2px solid #fbbf24;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
+.dtable th{padding:9px 11px;text-align:left;font-weight:700;font-size:12px;white-space:nowrap;background:#f5f2ee;}
+.dtable td{padding:9px 11px;border-bottom:1px solid #ede9e3;}
+.draft-banner{background:#f0e9d0;border:2px solid #d4b896;border-radius:8px;padding:10px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;}
 .stat-card{border-radius:12px;padding:18px 22px;display:flex;align-items:center;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);border-width:1px;border-style:solid;}
 .sec-note{margin-top:4px;padding:4px 8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:11px;}
 .sec-note.conflict{background:#fff7ed;border-color:#f97316;}
@@ -126,8 +126,8 @@ textarea.inp{resize:vertical;}
 
 /* ── ADMIN ── */
 .admin-section-title{font-size:13px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.8px;margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #e2e8f0;display:flex;align-items:center;gap:6px;}
-.admin-file-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
-.admin-preview-ta{width:100%;font-family:monospace;font-size:12px;line-height:1.65;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;resize:vertical;min-height:140px;outline:none;background:#f8fafc;}
+.admin-file-row{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#faf9f7;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
+.admin-preview-ta{width:100%;font-family:monospace;font-size:12px;line-height:1.65;padding:12px;border:1.5px solid #e2e8f0;border-radius:8px;resize:vertical;min-height:140px;outline:none;background:#faf9f7;}
 .admin-preview-ta:focus{border-color:#1A3A6B;background:#fff;}
 
 /* ── FOOTER ── */
@@ -137,9 +137,9 @@ textarea.inp{resize:vertical;}
 
 /* ── SOURCE BADGE (in Input tab) ── */
 .src-badge{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;font-size:13px;margin-bottom:6px;}
-.src-badge.loaded{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;}
-.src-badge.missing{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;}
-.src-badge.demo{background:#f1f5f9;border:1px solid #e2e8f0;color:#64748b;}
+.src-badge.loaded{background:#d8ead8;border:1px solid #a3c4a3;color:#14532d;}
+.src-badge.missing{background:#f0d9d9;border:1px solid #d4a8a8;color:#7f1d1d;}
+.src-badge.demo{background:#ede9e3;border:1px solid #d9d4cd;color:#64748b;}
 
 @media print{
   #main-header,#tab-bar,.res-side,#report-actions,#app-footer,#login-screen{display:none!important;}
@@ -163,23 +163,23 @@ body.role-user .user-only{display:block!important;}
 .preview-file-item{border:0.5px solid #e2e8f0;border-radius:8px;margin-bottom:10px;overflow:hidden;}
 .preview-file-img{width:100%;display:block;}
 .preview-file-pdf{width:100%;height:300px;border:none;}
-.preview-file-info{padding:8px 12px;background:#f8fafc;font-size:12px;color:#64748b;}
+.preview-file-info{padding:8px 12px;background:#faf9f7;font-size:12px;color:#64748b;}
 /* ── Approve workflow ── */
 .review-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px;}
 .rs-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;}
-.rs-pending{background:#fef9c3;color:#92400e;}
-.rs-approved{background:#f0fdf4;color:#15803d;}
-.rs-changes{background:#fff7ed;color:#c2410c;}
-.rs-rejected{background:#fef2f2;color:#dc2626;}
+.rs-pending{background:#f0e9d0;color:#78350f;}
+.rs-approved{background:#d8ead8;color:#14532d;}
+.rs-changes{background:#f0e4d4;color:#7c2d12;}
+.rs-rejected{background:#f0d9d9;color:#7f1d1d;}
 .btn-approve{padding:9px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
 .btn-changes{padding:9px 20px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
 .btn-reject{padding:9px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
 /* ── User hidden notice ── */
-.legal-notice{padding:10px 14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;text-align:center;font-size:13px;color:#94a3b8;margin-top:8px;}
+.legal-notice{padding:10px 14px;background:#faf9f7;border:1px dashed #cbd5e1;border-radius:8px;text-align:center;font-size:13px;color:#94a3b8;margin-top:8px;}
 /* ── Top violations bar ── */
 .vbar-row{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:6px;}
 .vbar-label{min-width:140px;color:#475569;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vbar-track{flex:1;height:10px;background:#f1f5f9;border-radius:5px;overflow:hidden;}
+.vbar-track{flex:1;height:10px;background:#ede9e4;border-radius:5px;overflow:hidden;}
 .vbar-fill{height:100%;border-radius:5px;background:#dc2626;}
 .vbar-num{min-width:24px;text-align:right;font-weight:700;color:#dc2626;font-size:12px;}
 </style>
@@ -214,9 +214,9 @@ body.role-user .user-only{display:block!important;}
     <div class="login-err" id="login-err">❌ รหัสผ่านไม่ถูกต้อง</div>
     <div style="margin-top:20px;padding:10px 16px;background:rgba(255,255,255,.07);border-radius:8px;font-size:12px;color:rgba(255,255,255,.4);text-align:left;line-height:1.8;">
       Default passwords:<br>
-      🔴 Admin: <code style="color:#fbbf24;">ananda2025</code> &nbsp;
-      🟡 Reviewer: <code style="color:#fbbf24;">legal2025</code> &nbsp;
-      🟢 User: <code style="color:#fbbf24;">check2025</code>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7c3aed;margin-right:5px;vertical-align:middle;"></span>Admin: <code style="color:#fbbf24;">ananda2025</code> &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span>Reviewer: <code style="color:#fbbf24;">legal2025</code> &nbsp;
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span>User: <code style="color:#fbbf24;">check2025</code>
     </div>
   </div>
 </div>
@@ -423,10 +423,10 @@ body.role-user .user-only{display:block!important;}
       <div class="card">
         <h3 class="card-title">🎯 ระดับความเสี่ยง</h3>
         <div class="gsev">
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fee2e2;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#b91c1c;">🔴 Critical</span><span style="font-size:11px;color:#b91c1c;opacity:.8;">— โทษอาญา</span></div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fff7ed;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#c2410c;">🟠 High</span><span style="font-size:11px;color:#c2410c;opacity:.8;">— โทษปรับสูง</span></div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fffbeb;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#b45309;">🟡 Medium</span><span style="font-size:11px;color:#b45309;opacity:.8;">— ต้องแก้</span></div>
-          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0fdf4;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#15803d;">🟢 Low</span><span style="font-size:11px;color:#15803d;opacity:.8;">— แนะนำ</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0d9d9;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#7f1d1d;">🔴 Critical</span><span style="font-size:11px;color:#7f1d1d;opacity:.8;">— โทษอาญา</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0e4d4;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#7c2d12;">🟠 High</span><span style="font-size:11px;color:#7c2d12;opacity:.8;">— โทษปรับสูง</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#f0ecd4;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#713f12;">🟡 Medium</span><span style="font-size:11px;color:#713f12;opacity:.8;">— ต้องแก้</span></div>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#d8ead8;border-radius:8px;"><span style="font-weight:700;font-size:13px;color:#14532d;">🟢 Low</span><span style="font-size:11px;color:#14532d;opacity:.8;">— แนะนำ</span></div>
         </div>
       </div>
 
@@ -569,7 +569,7 @@ body.role-user .user-only{display:block!important;}
       </div>
 
       <!-- STORAGE INFO -->
-      <div class="card" style="background:#f8fafc;">
+      <div class="card" style="background:#faf9f7;">
         <div class="admin-section-title">📦 Storage Info</div>
         <div id="admin-storage-info" style="font-size:13px;line-height:2;color:#475569;"></div>
         <button onclick="renderAdminStorageInfo()" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;margin-top:4px;">🔄 รีเฟรช</button>
@@ -596,7 +596,7 @@ body.role-user .user-only{display:block!important;}
       <h3 id="modal-title" style="margin:0;color:#1A3A6B;font-size:16px;"></h3>
       <button onclick="document.getElementById('modal-report').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;">✕</button>
     </div>
-    <textarea id="modal-json" readonly style="flex:1;padding:12px;font-family:monospace;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;min-height:380px;resize:none;color:#1e293b;background:#f8fafc;"></textarea>
+    <textarea id="modal-json" readonly style="flex:1;padding:12px;font-family:monospace;font-size:12px;border:1px solid #e2e8f0;border-radius:8px;min-height:380px;resize:none;color:#1e293b;background:#faf9f7;"></textarea>
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button id="btn-copy-json" onclick="copyJson()" style="flex:1;padding:10px;background:#1A3A6B;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">📋 Copy JSON</button>
       <button onclick="document.getElementById('modal-report').style.display='none'" style="padding:10px 20px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:14px;">ปิด</button>
@@ -622,10 +622,10 @@ body.role-user .user-only{display:block!important;}
 // ══════════════════════════════════════════════════════════
 const NAVY = '#1A3A6B';
 const SEV_CFG = {
-  Critical:{ label:'🔴 Critical', bg:'#fee2e2', color:'#b91c1c' },
-  High:    { label:'🟠 High',     bg:'#fff7ed', color:'#c2410c' },
-  Medium:  { label:'🟡 Medium',   bg:'#fffbeb', color:'#b45309' },
-  Low:     { label:'🟢 Low',      bg:'#f0fdf4', color:'#15803d' },
+  Critical:{ label:'🔴 Critical', bg:'#f0d9d9', color:'#7f1d1d' },
+  High:    { label:'🟠 High',     bg:'#f0e4d4', color:'#7c2d12' },
+  Medium:  { label:'🟡 Medium',   bg:'#f0ecd4', color:'#713f12' },
+  Low:     { label:'🟢 Low',      bg:'#d8ead8', color:'#14532d' },
 };
 const STATUS_MAP = {
   'บ้าน':         ['ขออนุญาตจัดสรรที่ดินแล้ว','ยังไม่ขออนุญาตจัดสรรที่ดิน'],
@@ -770,8 +770,8 @@ if(savedRole && ROLES[savedRole]) applyRole(savedRole);
 // HELPERS
 // ══════════════════════════════════════════════════════════
 function getVal(id){ return document.getElementById(id).value.trim(); }
-function rcol(v){ return {PASS:'#16a34a',FAIL:'#dc2626','N/A':'#64748b','PASS WITH CONDITIONS':'#d97706'}[v]||'#6b7280'; }
-function rbg(v) { return {PASS:'#f0fdf4',FAIL:'#fef2f2','N/A':'#f8fafc','PASS WITH CONDITIONS':'#fffbeb'}[v]||'#f8fafc'; }
+function rcol(v){ return {PASS:'#14532d',FAIL:'#7f1d1d','N/A':'#475569','PASS WITH CONDITIONS':'#78350f'}[v]||'#475569'; }
+function rbg(v) { return {PASS:'#d8ead8',FAIL:'#f0d9d9','N/A':'#ede9e3','PASS WITH CONDITIONS':'#f0e9d0'}[v]||'#ede9e3'; }
 function escHtml(s){ if(s==null)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function toggleSection(id){ const el=document.getElementById(id); el.style.display=el.style.display==='none'?'':'none'; }
 function getSheets(){
@@ -1085,7 +1085,7 @@ function renderFileList(){
     const thumb=isImgExt(f)
       ?`<img src="${URL.createObjectURL(f)}" class="file-thumb" alt="">`
       :`<div class="file-icon">${getFileIcon(ext)}</div>`;
-    const badge=isVideo?`<span style="font-size:10px;padding:1px 6px;background:#7c3aed;color:#fff;border-radius:8px;margin-left:4px;">AI ดูไม่ได้ — บันทึกชื่อไว้</span>`
+    const badge=isVideo?`<span style="font-size:10px;padding:1px 6px;background:#ddd6fe;color:#4c1d95;border-radius:8px;margin-left:4px;">AI ดูไม่ได้ — บันทึกชื่อไว้</span>`
       :isAudio?`<span style="font-size:10px;padding:1px 6px;background:#0891b2;color:#fff;border-radius:8px;margin-left:4px;">AI ฟังไม่ได้ — บันทึกชื่อไว้</span>`:'';
     return `<div class="file-item">${thumb}
       <div style="flex:1;min-width:0;">
@@ -1347,7 +1347,7 @@ function renderResults(result,errMsg){
             <h3 style="color:${NAVY};margin:0;font-size:14px;">📋 ผลการตรวจรายข้อ</h3>
             <div style="display:flex;gap:6px;">${['PASS','FAIL','N/A'].map(r=>`<span style="padding:2px 10px;border-radius:12px;background:${rbg(r)};color:${rcol(r)};font-weight:700;font-size:12px;">${r}: ${cnt(r)}</span>`).join('')}</div>
           </div>
-          <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f8fafc;">${['Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
+          <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#faf9f7;">${['Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
           <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};const sec=row.secondary_note?`<div class="sec-note${row.conflict?' conflict':''}">${row.conflict?'<span style="color:#c2410c;font-weight:700;">⚡ ขัดแย้ง · </span>':''}📎 ${escHtml(row.secondary_note)}</div>`:'';
           return `<tr style="background:${i%2?'#fafafa':'#fff'};border-bottom:1px solid #e2e8f0;">
             <td style="font-family:monospace;color:#475569;white-space:nowrap;font-size:12px;">${row.rule_id||''}</td>
@@ -1543,7 +1543,7 @@ function renderReportTab(result){
         </div>
         <div style="margin-bottom:22px;">
           <div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;">Executive Summary</div>
-          <p style="margin:0;line-height:1.95;color:#374151;font-size:14px;padding:14px 18px;background:#f8fafc;border-radius:8px;border-left:4px solid ${NAVY};">${escHtml(result.overall_summary)}</p>
+          <p style="margin:0;line-height:1.95;color:#374151;font-size:14px;padding:14px 18px;background:#faf9f7;border-radius:8px;border-left:4px solid ${NAVY};">${escHtml(result.overall_summary)}</p>
         </div>
         ${cl.length?`<div style="margin-bottom:22px;">
           <div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px;">Checklist Results</div>
@@ -1719,7 +1719,7 @@ function renderDashboard(){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-weight:700;color:${NAVY};font-size:14px;">📈 Pass Rate รวม</span><span style="font-size:22px;font-weight:800;color:${passRate>=70?'#16a34a':passRate>=40?'#d97706':'#dc2626'};">${passRate}%</span></div>
       <div style="height:14px;background:#f1f5f9;border-radius:8px;overflow:hidden;display:flex;">
         ${pass>0?`<div style="width:${pass/total*100}%;background:#16a34a;"></div>`:''}
-        ${cond>0?`<div style="width:${cond/total*100}%;background:#f59e0b;"></div>`:''}
+        ${cond>0?`<div style="width:${cond/total*100}%;background:#fde68a;"></div>`:''}
         ${fail>0?`<div style="width:${fail/total*100}%;background:#ef4444;"></div>`:''}
       </div>
       <div style="display:flex;gap:16px;margin-top:8px;">${[['#16a34a','PASS',pass],['#f59e0b','CONDITIONS',cond],['#ef4444','FAIL',fail]].map(([c,l,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block;"></span><span style="color:#64748b;">${l}: <strong>${v}</strong></span></div>`).join('')}</div>
@@ -1741,7 +1741,7 @@ function renderDashboard(){
             <div style="font-size:28px;font-weight:800;color:${slaOverdue.length?'#dc2626':'#16a34a'};">${slaOverdue.length}</div>
             <div style="font-size:12px;color:#64748b;">เกิน SLA</div>
           </div>
-          <div style="text-align:center;flex:1;padding:10px;background:#f8fafc;border-radius:8px;">
+          <div style="text-align:center;flex:1;padding:10px;background:#faf9f7;border-radius:8px;">
             <div style="font-size:28px;font-weight:800;color:#1A3A6B;">${caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length}</div>
             <div style="font-size:12px;color:#64748b;">รอ Review</div>
           </div>
@@ -1762,7 +1762,7 @@ function renderDashboard(){
         <span style="font-weight:700;color:${NAVY};font-size:14px;">🕐 ประวัติล่าสุด</span>
         <span style="font-size:12px;color:#94a3b8;">แสดง ${Math.min(caseHistory.length,20)} เคส</span>
       </div>
-      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f8fafc;">${['วันที่','ชื่องาน','บริษัท','ประเภท','สื่อ','ผล','FAIL'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
+      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#faf9f7;">${['วันที่','ชื่องาน','บริษัท','ประเภท','สื่อ','ผล','FAIL'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
       <tbody>${caseHistory.slice(0,20).map((c,i)=>`<tr style="background:${i%2?'#fafafa':'#fff'};border-bottom:1px solid #f1f5f9;">
         <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
         <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
@@ -1845,7 +1845,7 @@ function renderPwdRows(){
   const el=document.getElementById('pwd-change-rows'); if(!el) return;
   const roleInfo=[['admin','🔴 Super Admin','#7c3aed'],['reviewer','🟡 Legal Reviewer','#f59e0b'],['user','🟢 User','#16a34a']];
   el.innerHTML=roleInfo.map(([role,label,color])=>`
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:#faf9f7;border-radius:8px;border:1px solid #e2e8f0;">
       <span style="min-width:130px;font-size:13px;font-weight:700;color:${color};">${label}</span>
       <input type="password" id="pwd-new-${role}" placeholder="รหัสผ่านใหม่" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;"/>
       <button onclick="changePwd('${role}')" class="btn-navy btn-sm">เปลี่ยน</button>
