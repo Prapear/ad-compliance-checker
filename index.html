@@ -6,6 +6,8 @@
 <title>Ad Compliance Checker — Ananda Development</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;}
 body{margin:0;font-family:'Sarabun',sans-serif;background:#edeae5;min-height:100vh;font-size:15px;display:flex;flex-direction:column;}
@@ -195,28 +197,23 @@ body.role-user .user-only{display:block!important;}
     <div class="login-title">Ad Compliance Checker</div>
     <div class="login-sub">Ananda Development — Legal &amp; Compliance Division</div>
     <div class="login-field">
-      <label>Role</label>
-      <select id="login-role" class="login-inp" style="cursor:pointer;">
-        <option value="admin">🔴 Super Admin</option>
-        <option value="reviewer" selected>🟡 Legal Reviewer</option>
-        <option value="user">🟢 User</option>
-      </select>
+      <label>Username</label>
+      <input id="login-username" type="text" class="login-inp" placeholder="ชื่อผู้ใช้" autocomplete="username"/>
     </div>
     <div class="login-field">
       <label>Password</label>
       <div style="position:relative;">
-        <input id="login-pwd" type="password" class="login-inp" placeholder="รหัสผ่าน"
-          onkeydown="if(event.key==='Enter')doLogin()"/>
-        <button onclick="toggleLoginPwd()" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;" id="login-eye">👁️</button>
+        <input id="login-pwd" type="password" class="login-inp" placeholder="รหัสผ่าน" autocomplete="current-password"/>
+        <button id="login-eye" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;">👁️</button>
       </div>
     </div>
-    <button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
-    <div class="login-err" id="login-err">❌ รหัสผ่านไม่ถูกต้อง</div>
+    <button class="login-btn" id="btn-login">เข้าสู่ระบบ</button>
+    <div class="login-err" id="login-err">❌ Username หรือ Password ไม่ถูกต้อง</div>
     <div style="margin-top:20px;padding:10px 16px;background:rgba(255,255,255,.07);border-radius:8px;font-size:12px;color:rgba(255,255,255,.4);text-align:left;line-height:1.8;">
-      Default passwords:<br>
-      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7c3aed;margin-right:5px;vertical-align:middle;"></span>Admin: <code style="color:#fbbf24;">ananda2025</code> &nbsp;
-      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span>Reviewer: <code style="color:#fbbf24;">legal2025</code> &nbsp;
-      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span>User: <code style="color:#fbbf24;">check2025</code>
+      Default accounts:<br>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7c3aed;margin-right:5px;vertical-align:middle;"></span><code style="color:#fff;">admin</code> / <code style="color:#fbbf24;">ananda2025</code><br>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span><code style="color:#fff;">reviewer</code> / <code style="color:#fbbf24;">legal2025</code><br>
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span><code style="color:#fff;">user</code> / <code style="color:#fbbf24;">check2025</code>
     </div>
   </div>
 </div>
@@ -284,6 +281,8 @@ body.role-user .user-only{display:block!important;}
     <button class="tab-btn disabled" data-tab="results" id="tab-results-btn">📊 Results</button>
     <button class="tab-btn disabled" data-tab="report" id="tab-report-btn">📄 Report</button>
     <button class="tab-btn" data-tab="dashboard" id="tab-dashboard-btn">🏠 Dashboard</button>
+    <button class="tab-btn tab-admin" data-tab="history" id="tab-history-btn" style="display:none;">📋 History</button>
+    <button class="tab-btn tab-admin" data-tab="accounts" id="tab-accounts-btn" style="display:none;">👥 Manage Accounts</button>
     <button class="tab-btn tab-admin" data-tab="admin" id="tab-admin-btn" style="display:none;">⚙️ Admin</button>
   </div>
   <button id="btn-new-job" style="display:none;padding:6px 16px;background:#fff;border:1.5px solid #1A3A6B;border-radius:7px;color:#1A3A6B;font-size:13px;font-weight:700;cursor:pointer;align-items:center;gap:6px;">
@@ -461,6 +460,8 @@ body.role-user .user-only{display:block!important;}
 <div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
 
 <!-- ADMIN TAB -->
+<div id="panel-history" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
+<div id="panel-accounts" class="tab-panel" style="display:none;padding:22px 28px;max-width:900px;margin:0 auto;"></div>
 <div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
     <div>
@@ -686,21 +687,65 @@ LD030 | วิธีจับรางวัล | ต้องระบุวิ
 
 // ── Role & Auth constants ──
 const ROLES = {
-  admin:    { label:'🔴 Super Admin', cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
+  admin:    { label:'🔴 Super Admin',    cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
   reviewer: { label:'🟡 Legal Reviewer', cls:'role-reviewer', tabs:['input','results','report','dashboard'] },
-  user:     { label:'🟢 User',        cls:'role-user',     tabs:['input','results'] },
+  user:     { label:'🟢 User',           cls:'role-user',     tabs:['input','results'] },
 };
-const PWD_KEYS = { admin:'pwd_admin', reviewer:'pwd_reviewer', user:'pwd_user' };
-const DEFAULT_PWDS = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
+
+// ── Multi-user Account System ──
+// Stored as: localStorage['user_accounts'] = JSON array of account objects
+// Each: { id, username, displayName, role, pwdHash, email, active, createdAt }
+const DEFAULT_ACCOUNTS = [
+  { id:'admin_1',    username:'admin',    displayName:'Super Admin',      role:'admin',    pwdHash:'', email:'', active:true, createdAt:new Date().toISOString() },
+  { id:'reviewer_1', username:'reviewer', displayName:'Legal Reviewer',   role:'reviewer', pwdHash:'', email:'', active:true, createdAt:new Date().toISOString() },
+  { id:'user_1',     username:'user',     displayName:'Marketing User',   role:'user',     pwdHash:'', email:'', active:true, createdAt:new Date().toISOString() },
+];
+const DEFAULT_PWDS_MAP = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
 
 function hashPwd(s){ let h=0; for(const c of s) h=(Math.imul(31,h)+c.charCodeAt(0))|0; return h.toString(36); }
-function getPwd(role){ return localStorage.getItem(PWD_KEYS[role]) || hashPwd(DEFAULT_PWDS[role]); }
+
+const ACCOUNT_SCHEMA_VERSION = '2';
+
+function loadAccounts(){
+  try{
+    // Check schema version — reset if old
+    const ver = localStorage.getItem('user_accounts_ver');
+    if(ver === ACCOUNT_SCHEMA_VERSION){
+      const a=JSON.parse(localStorage.getItem('user_accounts')||'null');
+      if(a&&a.length) return a;
+    }
+  }catch(e){}
+  // Clear old keys from previous versions
+  try{
+    ['pwd_admin','pwd_reviewer','pwd_user'].forEach(k=>localStorage.removeItem(k));
+    localStorage.removeItem('user_accounts');
+  }catch(e){}
+  // Init fresh defaults
+  const defaults = DEFAULT_ACCOUNTS.map(a=>({...a, pwdHash: hashPwd(DEFAULT_PWDS_MAP[a.role]||'check2025')}));
+  saveAccounts(defaults); return defaults;
+}
+function saveAccounts(accounts){
+  try{
+    localStorage.setItem('user_accounts', JSON.stringify(accounts));
+    localStorage.setItem('user_accounts_ver', ACCOUNT_SCHEMA_VERSION);
+  }catch(e){}
+}
+function getAccounts(){ return loadAccounts(); }
+function findAccount(username){ return getAccounts().find(a=>a.username===username&&a.active); }
+function checkLogin(username, pwd){
+  const a=findAccount(username); if(!a) return null;
+  const defaultPwd = DEFAULT_PWDS_MAP[a.role]||'';
+  const stored = a.pwdHash || hashPwd(defaultPwd);
+  if(hashPwd(pwd)===stored || (!a.pwdHash && pwd===defaultPwd)) return a;
+  return null;
+}
 
 // ── Runtime state ──
 let mediaFiles = [];
 let lastResult = null;
 let caseHistory = [];
 let currentRole = null;
+let currentAccount = null;
 let lastReviewStatus = null;
 let lastReviewComment = '';
 try{ caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]'); }catch(e){}
@@ -715,21 +760,25 @@ function toggleLoginPwd(){
   b.textContent=i.type==='password'?'👁️':'🙈';
 }
 function doLogin(){
-  const role = document.getElementById('login-role').value;
-  const pwd  = document.getElementById('login-pwd').value;
-  const err  = document.getElementById('login-err');
-  if(hashPwd(pwd) !== getPwd(role)){
-    err.style.display=''; document.getElementById('login-pwd').value='';
+  const username = (document.getElementById('login-username')?.value||'').trim();
+  const pwd      = document.getElementById('login-pwd').value;
+  const err      = document.getElementById('login-err');
+  const account  = checkLogin(username, pwd);
+  if(!account){
+    err.style.display='';
+    document.getElementById('login-pwd').value='';
     setTimeout(()=>err.style.display='none',3000); return;
   }
-  currentRole = role;
-  sessionStorage.setItem('current_role', role);
+  currentRole    = account.role;
+  currentAccount = account;
+  try{ sessionStorage.setItem('current_role', account.role);
+       sessionStorage.setItem('current_username', account.username); }catch(e){}
   document.getElementById('login-pwd').value='';
-  applyRole(role);
+  applyRole(account.role);
 }
 function doLogout(){
-  currentRole = null;
-  sessionStorage.removeItem('current_role');
+  currentRole = null; currentAccount = null;
+  try{ sessionStorage.removeItem('current_role'); sessionStorage.removeItem('current_username'); }catch(e){}
   document.getElementById('main-header').style.display='none';
   document.getElementById('tab-bar').style.display='none';
   document.getElementById('app-footer').style.display='none';
@@ -746,12 +795,16 @@ function applyRole(role){
   document.getElementById('app-footer').style.display='';
   // Set body class for role-based CSS
   document.body.className = 'role-'+role;
-  // Role badge
+  // Role badge — show display name if available
   const badge = document.getElementById('hdr-role-badge');
-  badge.textContent=cfg.label; badge.className='role-badge '+cfg.cls;
+  const displayName = currentAccount?.displayName || cfg.label;
+  badge.textContent = displayName;
+  badge.className='role-badge '+cfg.cls;
   // Show/hide tabs
   document.getElementById('tab-admin-btn').style.display = cfg.tabs.includes('admin')?'':'none';
   document.getElementById('tab-dashboard-btn').style.display = cfg.tabs.includes('dashboard')?'':'none';
+  document.getElementById('tab-history-btn').style.display = cfg.tabs.includes('admin')?'':'none';
+  document.getElementById('tab-accounts-btn').style.display = cfg.tabs.includes('admin')?'':'none';
   // Show/hide report tab for user
   const rptBtn = document.getElementById('tab-report-btn');
   if(role==='user'){
@@ -767,8 +820,15 @@ function applyRole(role){
   updateReadiness();
 }
 // Auto-restore session
-const savedRole = sessionStorage.getItem('current_role');
-if(savedRole && ROLES[savedRole]) applyRole(savedRole);
+try{
+  const savedRole     = sessionStorage.getItem('current_role');
+  const savedUsername = sessionStorage.getItem('current_username');
+  if(savedRole && ROLES[savedRole]){
+    currentRole = savedRole;
+    if(savedUsername) currentAccount = findAccount(savedUsername);
+    applyRole(savedRole);
+  }
+}catch(e){}
 
 // ══════════════════════════════════════════════════════════
 // HELPERS
@@ -833,7 +893,7 @@ function loadMdStore(key){ try{return JSON.parse(localStorage.getItem('md_'+key)
 // ══════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ══════════════════════════════════════════════════════════
-const ALL_TABS=['input','results','report','dashboard','admin'];
+const ALL_TABS=['input','results','report','dashboard','history','accounts','admin'];
 function switchTab(name){
   ALL_TABS.forEach(t=>{
     const p=document.getElementById('panel-'+t);
@@ -849,6 +909,8 @@ function switchTab(name){
   const btn=document.querySelector(`[data-tab="${name}"]`);
   if(btn) btn.classList.add('active');
   if(name==='dashboard') renderDashboard();
+  if(name==='history')   renderHistory();
+  if(name==='accounts')  renderAccounts();
   if(name==='admin') { loadAdminFields(); renderAdminStorageInfo(); renderPwdRows(); }
 }
 document.querySelectorAll('.tab-btn').forEach(btn=>{
@@ -1130,11 +1192,20 @@ async function handleSubmit(){
     const result=await doCall(); lastResult=result;
     const entry={ id:Date.now(), date:new Date().toISOString(),
       jobName:getVal('f-jobname'), sender:getVal('f-sender'), company:getVal('f-company'),
-      projectType:getVal('f-projtype'), mediaType:getVal('f-media'),
-      overall_result:result.overall_result, sla:getVal('f-sla'),
+      projectType:getVal('f-projtype'), projectStatus:getVal('f-projstatus'),
+      mediaType:getVal('f-media'), mediaLabel:MEDIA_LABEL[getVal('f-media')]||getVal('f-media'),
+      offer:document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี',
+      sla:getVal('f-sla'), submittedBy:currentRole,
+      overall_result:result.overall_result,
+      overall_summary:result.overall_summary,
+      total_rules:(result.checklist_results||[]).length,
+      pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,
+      cond_count:(result.checklist_results||[]).filter(x=>x.result==='PASS WITH CONDITIONS'||x.result==='N/A').length,
       fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,
       critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,
       violations:(result.checklist_results||[]).filter(x=>x.result==='FAIL').map(x=>x.topic||'').filter(Boolean),
+      checklist_results: result.checklist_results||[],
+      forbidden_words: result.forbidden_words_found||[],
       reviewStatus:'pending', reviewComment:'', reviewedBy:'', reviewedAt:'',
     };
     caseHistory=[entry,...caseHistory].slice(0,100);
@@ -1584,7 +1655,7 @@ function renderReportTab(result){
           </div>
           <div style="text-align:right;font-size:12px;color:#64748b;line-height:2.4;">
             ${lastReviewStatus==='approved'
-              ? `<div style="color:#15803d;font-weight:700;">✅ อนุมัติโดย: ${currentRole==='admin'?'Super Admin':'Legal Reviewer'}</div>
+              ? `<div style="color:#15803d;font-weight:700;">✅ อนุมัติโดย: ${currentAccount?.displayName||currentRole==='admin'?'Super Admin':'Legal Reviewer'}</div>
                  <div>วันที่อนุมัติ: ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</div>
                  ${lastReviewComment?`<div style="color:#64748b;max-width:280px;font-style:italic;">"${escHtml(lastReviewComment)}"</div>`:''}`
               : `<div>ผู้ตรวจสอบ: _______________________________</div>
@@ -1597,18 +1668,65 @@ function renderReportTab(result){
   </div>`;
 }
 
-function savePDF(){
-  // Set document title to job name for PDF filename
-  const jobName = getVal('f-jobname') || 'AdCompliance_Report';
-  const origTitle = document.title;
-  document.title = `AdCompliance_${jobName}_${new Date().toISOString().slice(0,10)}`;
-  // Switch to report tab for best PDF output
-  const currentTab = document.querySelector('.tab-btn.active')?.dataset?.tab;
-  if(currentTab !== 'report') switchTab('report');
-  setTimeout(()=>{
+async function savePDF(){
+  if(!lastResult){ alert('ยังไม่มีผลการตรวจ'); return; }
+  // Switch to report tab for best layout
+  const prevTab = document.querySelector('.tab-btn.active')?.dataset?.tab;
+  switchTab('report');
+  await new Promise(r=>setTimeout(r,400));
+
+  const btn = document.querySelector('[onclick="savePDF()"]');
+  const actions = document.getElementById('report-actions');
+  if(actions) actions.style.display='none';
+  if(btn) btn.disabled=true;
+
+  try{
+    const reportEl = document.querySelector('#panel-report > div:last-child');
+    if(!reportEl) throw new Error('No report element');
+
+    const canvas = await html2canvas(reportEl, {
+      scale:2, useCORS:true, logging:false,
+      backgroundColor:'#ffffff', windowWidth:960,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW  = pageW - 20;
+    const imgH  = (canvas.height * imgW) / canvas.width;
+    const margin = 10;
+
+    // Multi-page support
+    let yPos = margin;
+    let remaining = imgH;
+    let srcY = 0;
+    while(remaining > 0){
+      const sliceH = Math.min(remaining, pageH - 2*margin);
+      const sliceCanvas = document.createElement('canvas');
+      sliceCanvas.width  = canvas.width;
+      sliceCanvas.height = (sliceH / imgH) * canvas.height;
+      sliceCanvas.getContext('2d').drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+      const imgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+      if(srcY > 0) pdf.addPage();
+      pdf.addImage(imgData,'JPEG', margin, yPos, imgW, sliceH);
+      srcY += sliceCanvas.height;
+      remaining -= sliceH;
+      yPos = margin;
+    }
+
+    const jobName = getVal('f-jobname')||'Report';
+    const fname = `AdCompliance_${jobName}_${new Date().toISOString().slice(0,10)}.pdf`;
+    pdf.save(fname);
+
+  } catch(e){
+    console.error('PDF error:',e);
+    // Fallback to print
     window.print();
-    document.title = origTitle;
-  }, 300);
+  } finally{
+    if(actions) actions.style.display='';
+    if(btn) btn.disabled=false;
+  }
 }
 
 // ══════════════════════════════════════════════════════════
@@ -1791,19 +1909,230 @@ function renderDashboard(){
         <span style="font-weight:700;color:${NAVY};font-size:14px;">🕐 ประวัติล่าสุด</span>
         <span style="font-size:12px;color:#94a3b8;">แสดง ${Math.min(caseHistory.length,20)} เคส</span>
       </div>
-      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#faf9f7;">${['วันที่','ชื่องาน','บริษัท','ประเภท','สื่อ','ผล','FAIL'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
-      <tbody>${caseHistory.slice(0,20).map((c,i)=>`<tr style="background:${i%2?'#fafafa':'#fff'};border-bottom:1px solid #f1f5f9;">
+      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f5f2ee;">${['วันที่','ชื่องาน','บริษัท','สื่อ','ผล','ตรวจ','✓ Pass','⚠ Cond','✕ Fail'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
+      <tbody>${caseHistory.slice(0,20).map((c,i)=>`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
         <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
-        <td style="font-weight:600;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
-        <td style="color:#64748b;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
-        <td style="color:#64748b;">${escHtml(c.projectType||'')}</td>
-        <td><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${c.mediaType||''}</span></td>
+        <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
+        <td style="color:#64748b;font-size:13px;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
+        <td><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${c.mediaLabel||c.mediaType||''}</span></td>
         <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
-        <td>${c.fail_count>0?`<span style="color:#dc2626;font-weight:700;">${c.fail_count}${c.critical_count>0?` (${c.critical_count} Crit)`:''}</span>`:'<span style="color:#16a34a;">—</span>'}</td>
+        <td style="text-align:center;color:#64748b;font-size:13px;">${c.total_rules||'—'}</td>
+        <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
+        <td style="text-align:center;font-weight:700;color:#d97706;">${c.cond_count||0}</td>
+        <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;"> (${c.critical_count}C)</span>`:''}</td>
       </tr>`).join('')}</tbody></table></div>
     </div>`;
 }
 function clearHistory(){ if(!confirm('ลบประวัติทั้งหมด?'))return; caseHistory=[]; try{localStorage.removeItem('case_history');}catch(e){} renderDashboard(); }
+
+// ══════════════════════════════════════════════════════════
+// HISTORY TAB
+// ══════════════════════════════════════════════════════════
+function renderHistory(){
+  const panel=document.getElementById('panel-history');
+  if(!panel) return;
+  if(!caseHistory.length){
+    panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="margin-top:12px;color:#64748b;">ยังไม่มีประวัติการตรวจ</div></div>`; return;
+  }
+  const statusBadge=(s)=>({
+    pending:`<span style="padding:2px 10px;border-radius:12px;background:#f0ecd4;color:#78350f;font-size:12px;font-weight:700;">⏳ รอ Review</span>`,
+    approved:`<span style="padding:2px 10px;border-radius:12px;background:#d8ead8;color:#14532d;font-size:12px;font-weight:700;">✅ Approved</span>`,
+    changes:`<span style="padding:2px 10px;border-radius:12px;background:#f0e4d4;color:#7c2d12;font-size:12px;font-weight:700;">🔄 ขอแก้ไข</span>`,
+    rejected:`<span style="padding:2px 10px;border-radius:12px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;">❌ ไม่อนุมัติ</span>`,
+  })[s||'pending']||'';
+
+  panel.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
+    <div style="font-size:13px;color:#64748b;margin-top:2px;">ประวัติการตรวจทั้งหมด ${caseHistory.length} เคส</div></div>
+  </div>
+  <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <div style="overflow-x:auto;">
+    <table class="dtable">
+      <thead><tr style="background:#f5f2ee;">
+        ${['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','สื่อ','ผล','ตรวจ','✓ Pass','✕ Fail','Status','รายละเอียด']
+          .map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
+      </tr></thead>
+      <tbody>
+        ${caseHistory.map((c,i)=>`
+        <tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
+          <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
+          <td style="font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
+          <td style="color:#64748b;font-size:13px;">${escHtml(c.sender||'')}</td>
+          <td style="color:#64748b;font-size:13px;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
+          <td style="font-size:12px;"><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;">${c.mediaLabel||c.mediaType||''}</span></td>
+          <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
+          <td style="text-align:center;font-size:13px;color:#64748b;">${c.total_rules||'-'}</td>
+          <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
+          <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;"> (${c.critical_count}C)</span>`:''}</td>
+          <td>${statusBadge(c.reviewStatus)}</td>
+          <td><button onclick="showHistoryDetail(${i})" style="padding:4px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">ดูรายละเอียด</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div id="history-detail-panel" style="display:none;margin-top:20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;"></div>`;
+}
+
+function showHistoryDetail(idx){
+  const c=caseHistory[idx]; if(!c) return;
+  const panel=document.getElementById('history-detail-panel');
+  if(!panel) return;
+  const cl=c.checklist_results||[];
+  const fw=c.forbidden_words||[];
+  const cnt=v=>cl.filter(r=>r.result===v).length;
+  panel.style.display='';
+  panel.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;color:${NAVY};font-size:16px;">🔍 รายละเอียด: ${escHtml(c.jobName||'')}</h3>
+      <button onclick="document.getElementById('history-detail-panel').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;font-size:13px;">
+      <div style="padding:10px 14px;background:#f5f2ee;border-radius:8px;">
+        <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:6px;">Ticket</div>
+        ${[['ชื่องาน',c.jobName],['ผู้ส่ง',c.sender],['บริษัท',c.company],['SLA',c.sla],['วันที่',new Date(c.date).toLocaleString('th-TH')]].filter(([,v])=>v).map(([l,v])=>`<div style="margin-bottom:4px;"><span style="color:#94a3b8;">${l}:</span> <strong>${escHtml(v)}</strong></div>`).join('')}
+      </div>
+      <div style="padding:10px 14px;background:${rbg(c.overall_result)};border:1px solid;border-color:${rcol(c.overall_result)}40;border-radius:8px;">
+        <div style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin-bottom:6px;">ผลการตรวจ</div>
+        <div style="font-size:20px;font-weight:800;color:${rcol(c.overall_result)};margin-bottom:6px;">${c.overall_result}</div>
+        <div style="font-size:12px;color:#64748b;">ตรวจ ${c.total_rules||cl.length} ข้อ · ✓${cnt('PASS')} PASS · ✕${cnt('FAIL')} FAIL · —${cnt('N/A')} N/A</div>
+        ${c.reviewStatus&&c.reviewStatus!=='pending'?`<div style="margin-top:6px;font-size:12px;font-weight:700;">Review: ${c.reviewedBy||''} ${c.reviewedAt?'· '+new Date(c.reviewedAt).toLocaleDateString('th-TH'):''}</div>`:''}
+      </div>
+    </div>
+    ${c.overall_summary?`<div style="padding:10px 14px;background:#f5f2ee;border-radius:8px;font-size:13px;line-height:1.7;margin-bottom:12px;border-left:3px solid ${NAVY};"><strong>สรุป:</strong> ${escHtml(c.overall_summary)}</div>`:''}
+    ${cl.length?`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
+      <thead><tr style="background:#f5f2ee;">${['หัวข้อ','กฎหมาย','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
+      <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};
+        return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
+          <td style="font-weight:600;">${escHtml(row.topic||'')} <span class="sev" style="background:${cfg.bg};color:${cfg.color};font-size:10px;">${cfg.label}</span></td>
+          <td style="color:#64748b;font-size:11px;">${escHtml(row.law||'')}</td>
+          <td><span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};">${row.result==='PASS'?'✓':'✕'} ${row.result}</span></td>
+          <td style="max-width:250px;line-height:1.5;">${row.finding?`<div>${escHtml(row.finding)}</div>`:''}${row.recommendation?`<div style="color:#2563eb;font-size:11px;">💡 ${escHtml(row.recommendation)}</div>`:''}</td>
+        </tr>`;}).join('')}</tbody></table></div>`:''}
+    ${fw.length?`<div style="margin-top:12px;"><div style="font-weight:700;color:#7f1d1d;font-size:13px;margin-bottom:6px;">⚠️ ข้อควรระวัง (${fw.length} จุด)</div>${fw.map(w=>`<span style="display:inline-block;margin:2px 4px;padding:3px 10px;background:#f0d9d9;color:#7f1d1d;border-radius:12px;font-size:12px;">${escHtml(w.word)}</span>`).join('')}</div>`:''}
+  `;
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// ══════════════════════════════════════════════════════════
+// MANAGE ACCOUNTS TAB
+// ══════════════════════════════════════════════════════════
+function renderAccounts(){
+  const panel=document.getElementById('panel-accounts');
+  if(!panel) return;
+  const accounts=getAccounts();
+  const roleColors={admin:'#7c3aed',reviewer:'#f59e0b',user:'#16a34a'};
+  const roleLabels={admin:'🔴 Super Admin',reviewer:'🟡 Legal Reviewer',user:'🟢 User'};
+  panel.innerHTML=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+    <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">👥 จัดการ Account</h2>
+    <div style="font-size:13px;color:#64748b;margin-top:2px;">${accounts.filter(a=>a.active).length} account ที่ใช้งานอยู่</div></div>
+    <button onclick="showAddAccountForm()" class="btn-navy">+ เพิ่ม Account ใหม่</button>
+  </div>
+  <div id="add-account-form" style="display:none;background:#fff;border:1px solid #c4b5fd;border-radius:12px;padding:20px;margin-bottom:20px;">
+    <h3 style="color:#7c3aed;margin:0 0 16px;font-size:15px;">+ เพิ่ม Account ใหม่</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label class="field-lbl">Username *</label><input id="new-username" class="inp" placeholder="ตัวพิมพ์เล็ก ไม่มีช่องว่าง"/></div>
+      <div class="field"><label class="field-lbl">ชื่อที่แสดง *</label><input id="new-displayname" class="inp" placeholder="เช่น สมชาย กฎหมาย"/></div>
+      <div class="field"><label class="field-lbl">Role *</label>
+        <select id="new-role" class="inp">
+          <option value="user">🟢 User</option>
+          <option value="reviewer">🟡 Legal Reviewer</option>
+          <option value="admin">🔴 Super Admin</option>
+        </select>
+      </div>
+      <div class="field"><label class="field-lbl">Email</label><input id="new-email" class="inp" type="email" placeholder="name@ananda.co.th"/></div>
+      <div class="field"><label class="field-lbl">Password *</label><input id="new-pwd" class="inp" type="password" placeholder="อย่างน้อย 6 ตัวอักษร"/></div>
+      <div class="field"><label class="field-lbl">ยืนยัน Password *</label><input id="new-pwd2" class="inp" type="password" placeholder="พิมพ์ซ้ำ"/></div>
+    </div>
+    <div id="add-account-err" style="color:#dc2626;font-size:13px;margin:8px 0;display:none;"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button onclick="submitAddAccount()" class="btn-navy">💾 บันทึก</button>
+      <button onclick="document.getElementById('add-account-form').style.display='none'" class="btn-ghost">ยกเลิก</button>
+    </div>
+  </div>
+  <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <table class="dtable">
+      <thead><tr style="background:#f5f2ee;">${['Username','ชื่อที่แสดง','Role','Email','สถานะ','จัดการ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${accounts.map((acc,i)=>`
+        <tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;${!acc.active?'opacity:.5;':''}">
+          <td style="font-family:monospace;font-weight:700;">${escHtml(acc.username)}</td>
+          <td>${escHtml(acc.displayName)}</td>
+          <td><span style="padding:2px 10px;border-radius:12px;background:${roleColors[acc.role]}22;color:${roleColors[acc.role]};font-size:12px;font-weight:700;">${roleLabels[acc.role]||acc.role}</span></td>
+          <td style="color:#64748b;font-size:13px;">${escHtml(acc.email||'—')}</td>
+          <td><span style="padding:2px 10px;border-radius:12px;background:${acc.active?'#d8ead8':'#f0d9d9'};color:${acc.active?'#14532d':'#7f1d1d'};font-size:12px;font-weight:700;">${acc.active?'✅ Active':'❌ Inactive'}</span></td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="showEditPwd('${acc.id}')" style="padding:4px 10px;background:#f5f2ee;border:0.5px solid #e2e8f0;border-radius:6px;cursor:pointer;font-size:12px;">🔑 เปลี่ยน Password</button>
+              ${acc.active
+                ?`<button onclick="toggleAccountActive('${acc.id}',false)" style="padding:4px 10px;background:#f0d9d9;border:none;border-radius:6px;cursor:pointer;font-size:12px;color:#7f1d1d;">🚫 Deactivate</button>`
+                :`<button onclick="toggleAccountActive('${acc.id}',true)" style="padding:4px 10px;background:#d8ead8;border:none;border-radius:6px;cursor:pointer;font-size:12px;color:#14532d;">✅ Activate</button>`}
+            </div>
+            <div id="edit-pwd-${acc.id}" style="display:none;margin-top:8px;display:none;">
+              <input type="password" id="epwd-${acc.id}" placeholder="Password ใหม่" style="padding:5px 8px;border:0.5px solid #cbd5e1;border-radius:6px;font-size:12px;width:140px;margin-right:4px;"/>
+              <button onclick="saveEditPwd('${acc.id}')" style="padding:4px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">บันทึก</button>
+              <button onclick="document.getElementById('edit-pwd-${acc.id}').style.display='none'" style="padding:4px 8px;background:none;border:none;cursor:pointer;font-size:12px;color:#64748b;">✕</button>
+            </div>
+          </td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function showAddAccountForm(){
+  document.getElementById('add-account-form').style.display='';
+  document.getElementById('new-username').focus();
+}
+function submitAddAccount(){
+  const username    = document.getElementById('new-username').value.trim().toLowerCase();
+  const displayName = document.getElementById('new-displayname').value.trim();
+  const role        = document.getElementById('new-role').value;
+  const email       = document.getElementById('new-email').value.trim();
+  const pwd         = document.getElementById('new-pwd').value;
+  const pwd2        = document.getElementById('new-pwd2').value;
+  const errEl       = document.getElementById('add-account-err');
+  errEl.style.display='none';
+  if(!username||!displayName||!pwd){ errEl.textContent='กรุณากรอกข้อมูลที่จำเป็นให้ครบ'; errEl.style.display=''; return; }
+  if(!/^[a-z0-9_]+$/.test(username)){ errEl.textContent='Username ใช้ได้เฉพาะ a-z, 0-9, _ เท่านั้น'; errEl.style.display=''; return; }
+  if(pwd.length<6){ errEl.textContent='Password ต้องมีอย่างน้อย 6 ตัวอักษร'; errEl.style.display=''; return; }
+  if(pwd!==pwd2){ errEl.textContent='Password ไม่ตรงกัน'; errEl.style.display=''; return; }
+  const accounts=getAccounts();
+  if(accounts.find(a=>a.username===username)){ errEl.textContent='Username นี้มีอยู่แล้ว'; errEl.style.display=''; return; }
+  accounts.push({ id:'usr_'+Date.now(), username, displayName, role, email, pwdHash:hashPwd(pwd), active:true, createdAt:new Date().toISOString() });
+  saveAccounts(accounts);
+  document.getElementById('add-account-form').style.display='none';
+  ['new-username','new-displayname','new-email','new-pwd','new-pwd2'].forEach(id=>document.getElementById(id).value='');
+  renderAccounts();
+  const flash=document.createElement('div');
+  flash.style.cssText='position:fixed;top:80px;right:20px;padding:12px 20px;border-radius:10px;background:#d8ead8;color:#14532d;font-weight:700;font-size:14px;z-index:999;border:1px solid #a3c4a3;';
+  flash.textContent=`✅ เพิ่ม account "${username}" สำเร็จ`;
+  document.body.appendChild(flash); setTimeout(()=>flash.remove(),3000);
+}
+function toggleAccountActive(id, active){
+  const accounts=getAccounts();
+  const acc=accounts.find(a=>a.id===id); if(!acc) return;
+  if(!active && acc.username===currentAccount?.username){ alert('ไม่สามารถ Deactivate account ของตัวเองได้'); return; }
+  acc.active=active; saveAccounts(accounts); renderAccounts();
+}
+function showEditPwd(id){
+  document.querySelectorAll('[id^="edit-pwd-"]').forEach(el=>el.style.display='none');
+  document.getElementById('edit-pwd-'+id).style.display='';
+}
+function saveEditPwd(id){
+  const pwd=document.getElementById('epwd-'+id).value;
+  if(!pwd||pwd.length<6){ alert('Password ต้องมีอย่างน้อย 6 ตัวอักษร'); return; }
+  const accounts=getAccounts();
+  const acc=accounts.find(a=>a.id===id); if(!acc) return;
+  acc.pwdHash=hashPwd(pwd); saveAccounts(accounts);
+  document.getElementById('edit-pwd-'+id).style.display='none';
+  const flash=document.createElement('div');
+  flash.style.cssText='position:fixed;top:80px;right:20px;padding:12px 20px;border-radius:10px;background:#d8ead8;color:#14532d;font-weight:700;font-size:14px;z-index:999;border:1px solid #a3c4a3;';
+  flash.textContent=`✅ เปลี่ยน Password "${acc.username}" สำเร็จ`;
+  document.body.appendChild(flash); setTimeout(()=>flash.remove(),2500);
+}
 
 // ══════════════════════════════════════════════════════════
 // JSON MODAL
@@ -1903,6 +2232,13 @@ function renderAdminStorageInfo(){
 // ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
+// Login event listeners
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-pwd').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('login-username').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('login-pwd').focus(); });
+document.getElementById('login-eye').addEventListener('click', toggleLoginPwd);
+document.getElementById('btn-logout').addEventListener('click', doLogout);
+
 switchTab('input');
 fixTabBarOffset();
 </script>
