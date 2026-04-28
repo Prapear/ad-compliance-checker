@@ -326,9 +326,9 @@ textarea.inp{resize:vertical;}
           style="width:100%;padding:12px;border-radius:8px;border:2px solid #1A3A6B;background:#1A3A6B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
           📎 เลือกไฟล์จากเครื่อง
         </button>
-        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.pdf,.docx,.webp" style="display:none;"/>
+        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.mp4,.mov,.avi,.mkv,.wmv,.mp3,.wav,.txt,.csv" style="display:none;"/>
         <div class="drop-zone" id="drop-zone">
-          <div style="font-size:12px;color:#94a3b8;">หรือลากไฟล์มาวางที่นี่ · JPG · PNG · PDF · DOCX</div>
+          <div style="font-size:12px;color:#94a3b8;">หรือลากไฟล์มาวางที่นี่<br>📷 JPG PNG · 📕 PDF · 📘 DOCX DOC · 📙 PPTX · 🎬 MP4 MOV · 🎵 MP3</div>
         </div>
         <div id="file-list" style="margin-top:10px;"></div>
       </div>
@@ -730,14 +730,37 @@ function isValid(){
 function toBase64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);}); }
 function getFileInfo(file){
   const ext=file.name.split('.').pop().toLowerCase();
-  if(['jpg','jpeg'].includes(ext))return{kind:'image',mime:'image/jpeg'};
-  if(ext==='png')return{kind:'image',mime:'image/png'};
-  if(ext==='webp')return{kind:'image',mime:'image/webp'};
-  if(ext==='pdf')return{kind:'document',mime:'application/pdf'};
-  if(ext==='docx')return{kind:'document',mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
-  return null;
+  // Images — สามารถส่งให้ AI ดูได้โดยตรง
+  if(['jpg','jpeg'].includes(ext)) return{kind:'image', mime:'image/jpeg'};
+  if(ext==='png')  return{kind:'image', mime:'image/png'};
+  if(ext==='webp') return{kind:'image', mime:'image/webp'};
+  if(ext==='gif')  return{kind:'image', mime:'image/gif'};
+  // Documents — ส่งเป็น base64 document
+  if(ext==='pdf')  return{kind:'document', mime:'application/pdf'};
+  if(ext==='docx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
+  if(ext==='doc')  return{kind:'document', mime:'application/msword'};
+  if(ext==='pptx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};
+  if(ext==='ppt')  return{kind:'document', mime:'application/vnd.ms-powerpoint'};
+  if(ext==='xlsx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+  if(ext==='xls')  return{kind:'document', mime:'application/vnd.ms-excel'};
+  if(ext==='txt')  return{kind:'document', mime:'text/plain'};
+  if(ext==='csv')  return{kind:'document', mime:'text/csv'};
+  // Video/Audio — แนบเป็น reference (AI ดูไม่ได้ แต่บันทึกชื่อไว้ใน prompt)
+  if(['mp4','mov','avi','mkv','wmv'].includes(ext)) return{kind:'video', mime:'video/'+ext};
+  if(['mp3','wav','aac','m4a'].includes(ext)) return{kind:'audio', mime:'audio/'+ext};
+  // Unknown — แนบชื่อไฟล์ไว้ใน prompt
+  return{kind:'other', mime:'application/octet-stream'};
 }
 function isImgExt(f){return['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase());}
+function getFileIcon(ext){
+  const icons={
+    pdf:'📕', docx:'📘', doc:'📘', pptx:'📙', ppt:'📙',
+    xlsx:'📗', xls:'📗', txt:'📄', csv:'📊',
+    mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', wmv:'🎬',
+    mp3:'🎵', wav:'🎵', aac:'🎵', m4a:'🎵',
+  };
+  return icons[ext]||'📎';
+}
 
 // ── MD storage ──
 function saveMd(key,text,filename){ try{localStorage.setItem('md_'+key,JSON.stringify({text,filename,saved:new Date().toISOString()}));}catch(e){} }
@@ -992,13 +1015,21 @@ function addMediaFiles(files){ mediaFiles=[...mediaFiles,...files]; renderFileLi
 function removeFile(i){ mediaFiles.splice(i,1); renderFileList(); updateReadiness(); }
 function renderFileList(){
   document.getElementById('file-list').innerHTML=mediaFiles.map((f,i)=>{
-    const ext=f.name.split('.').pop().toUpperCase();
-    const icon={PDF:'📕',DOCX:'📘',DOC:'📘'}[ext]||'📄';
-    const thumb=isImgExt(f)?`<img src="${URL.createObjectURL(f)}" class="file-thumb" alt="">`:
-      `<div class="file-icon">${icon}</div>`;
+    const ext=f.name.split('.').pop().toLowerCase();
+    const extUp=ext.toUpperCase();
+    const info=getFileInfo(f);
+    const isVideo=info?.kind==='video';
+    const isAudio=info?.kind==='audio';
+    const thumb=isImgExt(f)
+      ?`<img src="${URL.createObjectURL(f)}" class="file-thumb" alt="">`
+      :`<div class="file-icon">${getFileIcon(ext)}</div>`;
+    const badge=isVideo?`<span style="font-size:10px;padding:1px 6px;background:#7c3aed;color:#fff;border-radius:8px;margin-left:4px;">AI ดูไม่ได้ — บันทึกชื่อไว้</span>`
+      :isAudio?`<span style="font-size:10px;padding:1px 6px;background:#0891b2;color:#fff;border-radius:8px;margin-left:4px;">AI ฟังไม่ได้ — บันทึกชื่อไว้</span>`:'';
     return `<div class="file-item">${thumb}
-      <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</div>
-      <div style="font-size:11px;color:#94a3b8;">${ext} · ${(f.size/1024).toFixed(0)} KB</div></div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}${badge}</div>
+        <div style="font-size:11px;color:#94a3b8;">${extUp} · ${(f.size/1024).toFixed(0)} KB</div>
+      </div>
       <button class="file-rm" onclick="removeFile(${i})">✕</button></div>`;
   }).join('');
 }
@@ -1067,15 +1098,32 @@ async function doCall(){
   const skillPrompt=skdata?.text||'';
   const sheets=getSheets(); const mt=getVal('f-media');
   const provCfg=PROVIDERS[provider];
-  const systemText=skillPrompt||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block';
-  const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
+  const systemText=skillPrompt||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block กรุณาใช้ภาษาไทยใน finding, missing, recommendation, penalty และ overall_summary ทุกครั้ง';
+
+  // แยกไฟล์ตามประเภท
+  const visualFiles = mediaFiles.filter(f=>{ const k=getFileInfo(f)?.kind; return k==='image'||k==='document'; });
+  const videoFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='video');
+  const audioFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='audio');
+  const otherFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='other');
+
+  // สร้าง note สำหรับไฟล์ที่ AI ดูไม่ได้
+  let fileNote = '';
+  if(videoFiles.length)  fileNote += `\n\nไฟล์วิดีโอที่แนบมา (AI ไม่สามารถดูได้ แต่รับทราบว่ามีอยู่):\n${videoFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(audioFiles.length)  fileNote += `\n\nไฟล์เสียงที่แนบมา (AI ไม่สามารถฟังได้ แต่รับทราบว่ามีอยู่):\n${audioFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(otherFiles.length)  fileNote += `\n\nไฟล์อื่นๆ:\n${otherFiles.map(f=>'- '+f.name).join('\n')}`;
+
+  const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}${fileNote}\n\nกรุณาตอบทุก field ที่เป็นข้อความ (finding, missing, recommendation, penalty, overall_summary) เป็นภาษาไทยเท่านั้น\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const setLbl=txt=>{const el=document.getElementById('prog-lbl');if(el)el.textContent=txt;};
 
   if(provider==='gemini'){
     const parts=[{text:promptText}];
-    for(const f of mediaFiles){ const info=getFileInfo(f);if(!info)continue; const b64=await toBase64(f); parts.push({inlineData:{mimeType:info.mime,data:b64}}); }
+    for(const f of visualFiles){
+      const info=getFileInfo(f); if(!info) continue;
+      const b64=await toBase64(f);
+      parts.push({inlineData:{mimeType:info.mime,data:b64}});
+    }
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const body={systemInstruction:{parts:[{text:systemText}]},contents:[{role:'user',parts}],generationConfig:{temperature:0.1,maxOutputTokens:8192,responseMimeType:'application/json'}};
     const callOnce=async()=>{
@@ -1100,9 +1148,20 @@ async function doCall(){
   // OpenAI-compat
   const ENDPOINTS={openrouter:'https://openrouter.ai/api/v1/chat/completions',groq:'https://api.groq.com/openai/v1/chat/completions',together:'https://api.together.xyz/v1/chat/completions',openai_compat:customUrl||'https://api.openai.com/v1/chat/completions'};
   const endpoint=ENDPOINTS[provider];
-  let userContent; const hasFiles=mediaFiles.length>0&&provCfg.vision;
-  if(hasFiles){ const arr=[{type:'text',text:promptText}]; for(const f of mediaFiles){ const info=getFileInfo(f);if(!info||info.kind!=='image')continue; const b64=await toBase64(f); arr.push({type:'image_url',image_url:{url:`data:${info.mime};base64,${b64}`}});} userContent=arr; }
-  else{ userContent=mediaFiles.length>0?promptText+'\n\n[Provider นี้ไม่รองรับ vision]':promptText; }
+  let userContent;
+  const hasVisual = visualFiles.length>0 && provCfg.vision;
+  if(hasVisual){
+    const arr=[{type:'text',text:promptText}];
+    for(const f of visualFiles){
+      const info=getFileInfo(f);
+      if(!info||info.kind!=='image') continue;  // OpenAI-compat: images only
+      const b64=await toBase64(f);
+      arr.push({type:'image_url',image_url:{url:`data:${info.mime};base64,${b64}`}});
+    }
+    userContent=arr;
+  } else {
+    userContent=promptText;
+  }
   const headers={'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`};
   if(provider==='openrouter'){headers['HTTP-Referer']=window.location.href||'https://ananda.co.th';headers['X-Title']='Ad Compliance Checker';}
 
