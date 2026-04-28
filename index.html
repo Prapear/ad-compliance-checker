@@ -688,7 +688,7 @@ LD030 | วิธีจับรางวัล | ต้องระบุวิ
 const ROLES = {
   admin:    { label:'🔴 Super Admin', cls:'role-admin',    tabs:['input','results','report','dashboard','admin'] },
   reviewer: { label:'🟡 Legal Reviewer', cls:'role-reviewer', tabs:['input','results','report','dashboard'] },
-  user:     { label:'🟢 User',        cls:'role-user',     tabs:['input','results','report'] },
+  user:     { label:'🟢 User',        cls:'role-user',     tabs:['input','results'] },
 };
 const PWD_KEYS = { admin:'pwd_admin', reviewer:'pwd_reviewer', user:'pwd_user' };
 const DEFAULT_PWDS = { admin:'ananda2025', reviewer:'legal2025', user:'check2025' };
@@ -754,7 +754,11 @@ function applyRole(role){
   document.getElementById('tab-dashboard-btn').style.display = cfg.tabs.includes('dashboard')?'':'none';
   // Show/hide report tab for user
   const rptBtn = document.getElementById('tab-report-btn');
-  if(role==='user') rptBtn.classList.add('disabled');
+  if(role==='user'){
+    rptBtn.style.display='none';
+  } else {
+    rptBtn.style.display='';
+  }
   // Fix tab-bar offset
   setTimeout(fixTabBarOffset, 50);
   switchTab('input');
@@ -1136,7 +1140,7 @@ async function handleSubmit(){
     caseHistory=[entry,...caseHistory].slice(0,100);
     try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
     document.getElementById('tab-results-btn').classList.remove('disabled');
-    document.getElementById('tab-report-btn').classList.remove('disabled');
+    if(currentRole !== 'user') document.getElementById('tab-report-btn').classList.remove('disabled');
     document.getElementById('btn-new-job').style.display='flex';
     renderResults(result,null); renderReportTab(result); switchTab('results');
   }catch(err){
@@ -1402,10 +1406,19 @@ function renderResults(result,errMsg){
     }
     const fw=result.forbidden_words_found||[];
     if(fw.length){
-      html+=`<div style="background:#fff;border:1px solid #fecaca;border-radius:10px;margin-bottom:18px;overflow:hidden;">
-        <div style="padding:12px 18px;border-bottom:1px solid #fecaca;background:#fef2f2;"><h3 style="color:#dc2626;margin:0;font-size:14px;">⚠️ ข้อควรระวัง (${fw.length} คำ)</h3></div>
-        <table class="dtable"><thead><tr style="background:#fef2f2;">${['คำที่พบ','ตำแหน่ง','Rule','ระดับ'].map(h=>`<th style="border-bottom:1px solid #fecaca;color:#7f1d1d;">${h}</th>`).join('')}</tr></thead>
-        <tbody>${fw.map(w=>{const ic=w.severity==='Critical';return`<tr style="border-bottom:1px solid #fee2e2;"><td style="font-weight:700;color:#dc2626;">"${escHtml(w.word)}"</td><td style="color:#64748b;">${escHtml(w.location||'')}</td><td style="font-family:monospace;font-size:12px;">${w.rule_id||''}</td><td><span style="padding:2px 10px;border-radius:12px;background:${ic?'#fee2e2':'#fef9c3'};color:${ic?'#dc2626':'#92400e'};font-weight:700;font-size:12px;">${ic?'🔴 Critical':'🟡 Warning'}</span></td></tr>`;}).join('')}</tbody></table></div>`;
+      const isUser = currentRole==='user';
+      const headers = isUser ? ['จุดที่พบ','ตำแหน่ง','ระดับ'] : ['จุดที่พบ','ตำแหน่ง','Rule','ระดับ'];
+      html+=`<div style="background:#fff;border:1px solid #f0d9d9;border-radius:10px;margin-bottom:18px;overflow:hidden;">
+        <div style="padding:12px 18px;border-bottom:1px solid #f0d9d9;background:#f0d9d9;"><h3 style="color:#7f1d1d;margin:0;font-size:14px;">⚠️ ข้อควรระวัง (${fw.length} จุด)</h3></div>
+        <table class="dtable"><thead><tr style="background:#f5f2ee;">${headers.map(h=>`<th style="border-bottom:1px solid #e2e2d9;color:#7f1d1d;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${fw.map(w=>{const ic=w.severity==='Critical';
+          return`<tr style="border-bottom:1px solid #ede9e3;">
+            <td style="font-weight:700;color:#dc2626;">${escHtml(w.word)}</td>
+            <td style="color:#64748b;">${escHtml(w.location||'')}</td>
+            ${!isUser?`<td style="font-family:monospace;font-size:12px;color:#64748b;">${w.rule_id||''}</td>`:''}
+            <td><span style="padding:2px 10px;border-radius:12px;background:${ic?'#f0d9d9':'#f0ecd4'};color:${ic?'#7f1d1d':'#713f12'};font-weight:700;font-size:12px;">${ic?'🔴 Critical':'🟡 Warning'}</span></td>
+          </tr>`;}).join('')}
+        </tbody></table></div>`;
     }
     html+=`<div style="display:flex;gap:10px;flex-wrap:wrap;">
       <button class="btn-navy admin-reviewer" onclick="showJsonModal()">📄 ดู JSON</button>
