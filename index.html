@@ -321,14 +321,22 @@ textarea.inp{resize:vertical;}
 
       <!-- File Attach -->
       <div class="card">
-        <h3 class="card-title">📎 แนบไฟล์สื่อ</h3>
+        <h3 class="card-title">📎 แนบไฟล์สื่อโฆษณา</h3>
         <button onclick="document.getElementById('inp-media-files').click()"
           style="width:100%;padding:12px;border-radius:8px;border:2px solid #1A3A6B;background:#1A3A6B;color:#fff;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
-          📎 เลือกไฟล์จากเครื่อง
+          📎 เลือกไฟล์สื่อโฆษณา
         </button>
-        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.docx,.doc,.pptx,.ppt,.xlsx,.xls,.mp4,.mov,.avi,.mkv,.wmv,.mp3,.wav,.txt,.csv" style="display:none;"/>
-        <div class="drop-zone" id="drop-zone">
-          <div style="font-size:12px;color:#94a3b8;">หรือลากไฟล์มาวางที่นี่<br>📷 JPG PNG · 📕 PDF · 📘 DOCX DOC · 📙 PPTX · 🎬 MP4 MOV · 🎵 MP3</div>
+        <input id="inp-media-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.csv" style="display:none;"/>
+        <div class="drop-zone" id="drop-zone" style="padding:14px;">
+          <div style="font-size:13px;font-weight:700;color:#475569;margin-bottom:8px;">ประเภทไฟล์ที่รองรับ</div>
+          <div style="font-size:12px;color:#64748b;line-height:2;text-align:left;display:inline-block;">
+            🖼️ <strong>รูปภาพ</strong> — JPG, PNG, WebP, GIF<br>
+            📕 <strong>PDF</strong> — รองรับเต็มรูปแบบ<br>
+            📄 <strong>Text</strong> — TXT, CSV
+          </div>
+          <div style="margin-top:8px;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:11px;color:#92400e;">
+            ⚠️ DOCX / PPTX / XLSX — กรุณาแปลงเป็น <strong>PDF</strong> ก่อน upload
+          </div>
         </div>
         <div id="file-list" style="margin-top:10px;"></div>
       </div>
@@ -730,25 +738,21 @@ function isValid(){
 function toBase64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);}); }
 function getFileInfo(file){
   const ext=file.name.split('.').pop().toLowerCase();
-  // Images — สามารถส่งให้ AI ดูได้โดยตรง
+  // Images — AI ดูได้ทุก provider
   if(['jpg','jpeg'].includes(ext)) return{kind:'image', mime:'image/jpeg'};
   if(ext==='png')  return{kind:'image', mime:'image/png'};
   if(ext==='webp') return{kind:'image', mime:'image/webp'};
   if(ext==='gif')  return{kind:'image', mime:'image/gif'};
-  // Documents — ส่งเป็น base64 document
-  if(ext==='pdf')  return{kind:'document', mime:'application/pdf'};
-  if(ext==='docx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
-  if(ext==='doc')  return{kind:'document', mime:'application/msword'};
-  if(ext==='pptx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.presentationml.presentation'};
-  if(ext==='ppt')  return{kind:'document', mime:'application/vnd.ms-powerpoint'};
-  if(ext==='xlsx') return{kind:'document', mime:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
-  if(ext==='xls')  return{kind:'document', mime:'application/vnd.ms-excel'};
-  if(ext==='txt')  return{kind:'document', mime:'text/plain'};
-  if(ext==='csv')  return{kind:'document', mime:'text/csv'};
-  // Video/Audio — แนบเป็น reference (AI ดูไม่ได้ แต่บันทึกชื่อไว้ใน prompt)
+  // PDF — Gemini รองรับ base64 ได้
+  if(ext==='pdf')  return{kind:'pdf', mime:'application/pdf'};
+  // Office docs — ต้อง extract text ก่อนส่ง (Gemini ไม่รองรับ DOCX/PPTX โดยตรง)
+  if(['docx','doc'].includes(ext))         return{kind:'office', mime:'docx', ext};
+  if(['pptx','ppt'].includes(ext))         return{kind:'office', mime:'pptx', ext};
+  if(['xlsx','xls'].includes(ext))         return{kind:'office', mime:'xlsx', ext};
+  if(['txt','csv','md'].includes(ext))     return{kind:'text',   mime:'text/plain', ext};
+  // Video/Audio — บันทึกชื่อไว้ใน prompt เท่านั้น
   if(['mp4','mov','avi','mkv','wmv'].includes(ext)) return{kind:'video', mime:'video/'+ext};
-  if(['mp3','wav','aac','m4a'].includes(ext)) return{kind:'audio', mime:'audio/'+ext};
-  // Unknown — แนบชื่อไฟล์ไว้ใน prompt
+  if(['mp3','wav','aac','m4a'].includes(ext))       return{kind:'audio', mime:'audio/'+ext};
   return{kind:'other', mime:'application/octet-stream'};
 }
 function isImgExt(f){return['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase());}
@@ -1101,15 +1105,37 @@ async function doCall(){
   const systemText=skillPrompt||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist และกฎหมายที่กำหนด ตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น ไม่มี markdown backtick หรือ code block กรุณาใช้ภาษาไทยใน finding, missing, recommendation, penalty และ overall_summary ทุกครั้ง';
 
   // แยกไฟล์ตามประเภท
-  const visualFiles = mediaFiles.filter(f=>{ const k=getFileInfo(f)?.kind; return k==='image'||k==='document'; });
+  const imageFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='image');
+  const pdfFiles    = mediaFiles.filter(f=>getFileInfo(f)?.kind==='pdf');
+  const officeFiles = mediaFiles.filter(f=>getFileInfo(f)?.kind==='office');
+  const textFiles   = mediaFiles.filter(f=>getFileInfo(f)?.kind==='text');
   const videoFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='video');
   const audioFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='audio');
   const otherFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='other');
+  const visualFiles = [...imageFiles, ...pdfFiles]; // ส่งได้ตรงๆ
 
-  // สร้าง note สำหรับไฟล์ที่ AI ดูไม่ได้
+  // Office files — อ่านเป็น text ผ่าน FileReader (ได้แค่ plain text บางส่วน)
+  const officeTexts = await Promise.all(officeFiles.map(f=>
+    new Promise(res=>{
+      // DOCX/XLSX เป็น ZIP — อ่านตรงไม่ได้ บอก AI แค่ชื่อและขนาด
+      res(`[ไฟล์: ${f.name} (${(f.size/1024).toFixed(0)} KB) — กรุณาตรวจจากชื่อไฟล์และข้อมูล ticket ที่ให้มา]`);
+    })
+  ));
+  const textContents = await Promise.all(textFiles.map(f=>
+    new Promise(res=>{
+      const r=new FileReader();
+      r.onload=ev=>res(`[เนื้อหาจาก ${f.name}]\n${ev.target.result.slice(0,3000)}`);
+      r.onerror=()=>res(`[${f.name} — อ่านไม่ได้]`);
+      r.readAsText(f,'UTF-8');
+    })
+  ));
+
+  // สร้าง note สำหรับไฟล์ทุกประเภท
   let fileNote = '';
-  if(videoFiles.length)  fileNote += `\n\nไฟล์วิดีโอที่แนบมา (AI ไม่สามารถดูได้ แต่รับทราบว่ามีอยู่):\n${videoFiles.map(f=>'- '+f.name).join('\n')}`;
-  if(audioFiles.length)  fileNote += `\n\nไฟล์เสียงที่แนบมา (AI ไม่สามารถฟังได้ แต่รับทราบว่ามีอยู่):\n${audioFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(officeTexts.length) fileNote += '\n\nไฟล์ Office ที่แนบมา:\n' + officeTexts.join('\n');
+  if(textContents.length) fileNote += '\n\nเนื้อหาไฟล์ Text:\n' + textContents.join('\n');
+  if(videoFiles.length)  fileNote += `\n\nไฟล์วิดีโอ (AI ดูไม่ได้):\n${videoFiles.map(f=>'- '+f.name).join('\n')}`;
+  if(audioFiles.length)  fileNote += `\n\nไฟล์เสียง (AI ฟังไม่ได้):\n${audioFiles.map(f=>'- '+f.name).join('\n')}`;
   if(otherFiles.length)  fileNote += `\n\nไฟล์อื่นๆ:\n${otherFiles.map(f=>'- '+f.name).join('\n')}`;
 
   const promptText=`ข้อมูล Ticket:\n- ชื่องาน: ${getVal('f-jobname')}\n- ผู้ส่ง: ${getVal('f-sender')} (${getVal('f-email')||'-'}, ${getVal('f-phone')||'-'})\n- บริษัท: ${getVal('f-company')}\n- SLA: ${getVal('f-sla')}\n- รายละเอียด: ${getVal('f-details')||'-'}\n\nClassification:\n- ประเภทโครงการ: ${getVal('f-projtype')}\n- สถานะโครงการ: ${getVal('f-projstatus')}\n- ประเภทสื่อ: ${mt} — ${MEDIA_LABEL[mt]||mt}\n- ข้อเสนอพิเศษ: ${document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี'}\n\nSheets ที่ใช้ตรวจ: ${sheets.join(', ')}\n\n═══ PRIMARY SOURCE (ยึดเป็นหลัก) ═══\n${checklist}\n${checklist2?`\n═══ SECONDARY SOURCE ═══\n${checklist2}`:''}\n\nตรวจสื่อโฆษณาที่แนบมา PRIMARY ชนะเสมอถ้าขัดแย้ง${checklist2?'\nถ้า PRIMARY/SECONDARY ขัดแย้ง ให้ระบุ conflict:true':''}${fileNote}\n\nกรุณาตอบทุก field ที่เป็นข้อความ (finding, missing, recommendation, penalty, overall_summary) เป็นภาษาไทยเท่านั้น\n\nตอบเป็น JSON เท่านั้น ไม่มีข้อความอื่น:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"สรุป 3-5 ประโยค","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":"","secondary_note":null,"conflict":false}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":"Critical"}],"images_reviewed":[{"image_ref":"","image_type":"perspective|ai_generated|photo","has_disclaimer":true,"result":"PASS|FAIL"}]}`;
@@ -1119,10 +1145,14 @@ async function doCall(){
 
   if(provider==='gemini'){
     const parts=[{text:promptText}];
-    for(const f of visualFiles){
-      const info=getFileInfo(f); if(!info) continue;
+    for(const f of imageFiles){
+      const info=getFileInfo(f);
       const b64=await toBase64(f);
-      parts.push({inlineData:{mimeType:info.mime,data:b64}});
+      parts.push({inlineData:{mimeType:info.mime, data:b64}});
+    }
+    for(const f of pdfFiles){
+      const b64=await toBase64(f);
+      parts.push({inlineData:{mimeType:'application/pdf', data:b64}});
     }
     const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     const body={systemInstruction:{parts:[{text:systemText}]},contents:[{role:'user',parts}],generationConfig:{temperature:0.1,maxOutputTokens:8192,responseMimeType:'application/json'}};
