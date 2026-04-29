@@ -236,7 +236,7 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
         <div id="notif-row" style="display:none;gap:4px;">
           <div style="position:relative;">
             <button id="btn-bell" onclick="toggleBellDropdown()" title="Recent Tickets"
-              style="position:relative;padding:4px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;cursor:pointer;font-size:14px;line-height:1;">
+              style="position:relative;padding:6px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:18px;line-height:1;">
               🔔 <span id="bell-count" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 4px;min-width:14px;text-align:center;"></span>
             </button>
             <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:280px;z-index:500;overflow:hidden;">
@@ -249,7 +249,7 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
           </div>
           <div style="position:relative;">
             <button id="btn-clock" onclick="toggleClockDropdown()" title="Pending Approve"
-              style="position:relative;padding:4px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;cursor:pointer;font-size:14px;line-height:1;">
+              style="position:relative;padding:6px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:18px;line-height:1;">
               ⏰ <span id="clock-count" style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 4px;min-width:14px;text-align:center;"></span>
             </button>
             <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:300px;z-index:500;overflow:hidden;">
@@ -1416,6 +1416,8 @@ async function handleSubmit(){
       mediaType:getVal('f-media'), mediaLabel:MEDIA_LABEL[getVal('f-media')]||getVal('f-media'),
       offer:document.querySelector('.chip.active[data-offer]')?.dataset.offer||'ไม่มี',
       sla:getVal('f-sla'), submittedBy:currentRole,
+      // Store file metadata (name, size, type) — not actual file content
+      attachedFiles: mediaFiles.map(f=>({name:f.name, size:f.size, type:f.type||''})),
       overall_result:result.overall_result,
       overall_summary:result.overall_summary,
       total_rules:(result.checklist_results||[]).length,
@@ -2058,8 +2060,9 @@ function exportDashboardExcel(){
 // ══════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════
-let dashFilter = 'all'; // 'all','day','month','year'
+let dashFilter = 'all'; // 'all','today','month','year','range'
 let dashYear = new Date().getFullYear();
+let dashRangeFrom = ''; let dashRangeTo = '';
 
 function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');
@@ -2068,9 +2071,14 @@ function renderDashboard(){
   // Filter
   const filtered=caseHistory.filter(c=>{
     const d=new Date(c.date);
-    if(dashFilter==='today')   return d.toDateString()===now.toDateString();
+    if(dashFilter==='today') return d.toDateString()===now.toDateString();
     if(dashFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     if(dashFilter==='year')  return d.getFullYear()===dashYear;
+    if(dashFilter==='range'&&dashRangeFrom&&dashRangeTo){
+      const from=new Date(dashRangeFrom); from.setHours(0,0,0,0);
+      const to=new Date(dashRangeTo); to.setHours(23,59,59,999);
+      return d>=from&&d<=to;
+    }
     return true;
   });
 
@@ -2124,10 +2132,19 @@ function renderDashboard(){
   const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:{TYPE1:'Social/ดิจิทัล',TYPE2:'Billboard',TYPE3:'วิทยุ',TYPE4:'โทรทัศน์'}[m]||m,total:filtered.filter(c=>c.mediaType===m).length,fail:filtered.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
 
   // Filter buttons (ข้อ 3: all/today/month/year)
-  const filterBtns=['all','today','month','year'].map(f=>{
-    const labels={all:'All',today:'Today',month:'Month',year:'Year'};
+  const filterBtns=['all','today','month','year','range'].map(f=>{
+    const labels={all:'All',today:'Today',month:'Month',year:'Year',range:'📅 Range'};
     return `<button onclick="dashFilter='${f}';${f==='year'?`dashYear=${now.getFullYear()};`:''}renderDashboard()" style="padding:5px 16px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:${dashFilter===f?NAVY:'#f5f2ee'};color:${dashFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
   }).join('');
+
+  const rangePicker=dashFilter==='range'?`
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:#64748b;">จาก</label>
+      <input type="date" value="${dashRangeFrom}" onchange="dashRangeFrom=this.value;renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+      <label style="font-size:12px;color:#64748b;">ถึง</label>
+      <input type="date" value="${dashRangeTo}" onchange="dashRangeTo=this.value;renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+      ${dashRangeFrom&&dashRangeTo?`<span style="font-size:12px;color:#7c3aed;font-weight:600;">${filtered.length} เคส</span>`:''}
+    </div>`:'';
 
   // Year nav arrows (ข้อ 3: ไปข้างหน้า/ย้อนหลัง)
   const allYears=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>a-b);
@@ -2178,6 +2195,7 @@ function renderDashboard(){
         <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
         <div style="font-size:13px;color:#64748b;margin-top:2px;">${total} เคส${dashFilter!=='all'?` · กรองแล้ว (ทั้งหมด ${caseHistory.length})`:''}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
+        ${rangePicker}
         ${yearNav}
       </div>
       <div style="display:flex;gap:8px;">
@@ -2287,6 +2305,7 @@ function renderDashboard(){
 function clearHistory(){ if(!confirm('ลบประวัติทั้งหมด?'))return; caseHistory=[]; try{localStorage.removeItem('case_history');}catch(e){} renderDashboard(); }
 let histFilter='all'; let histYear=new Date().getFullYear();
 let _histPage=0;
+let histRangeFrom=''; let histRangeTo='';
 
 function exportHistoryCSV(data){
   const headers=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','ประเภทสื่อ','ผล','ตรวจ','Pass','Cond','Fail','Critical','Status','Key Flags'];
@@ -2339,6 +2358,11 @@ function renderHistory(){
     if(histFilter==='today') return d.toDateString()===now.toDateString();
     if(histFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     if(histFilter==='year')  return d.getFullYear()===histYear;
+    if(histFilter==='range'&&histRangeFrom&&histRangeTo){
+      const from=new Date(histRangeFrom); from.setHours(0,0,0,0);
+      const to=new Date(histRangeTo); to.setHours(23,59,59,999);
+      return d>=from&&d<=to;
+    }
     return true;
   });
 
@@ -2354,10 +2378,19 @@ function renderHistory(){
   })[s||'pending']||'';
 
   // Filter buttons (all/today/month/year)
-  const filterBtns=['all','today','month','year'].map(f=>{
-    const labels={all:'All',today:'Today',month:'Month',year:'Year'};
+  const filterBtns=['all','today','month','year','range'].map(f=>{
+    const labels={all:'All',today:'Today',month:'Month',year:'Year',range:'📅 Range'};
     return `<button onclick="histFilter='${f}';_histPage=0;renderHistory()" style="padding:4px 14px;border-radius:16px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${histFilter===f?NAVY:'#f5f2ee'};color:${histFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
   }).join('');
+
+  const histRangePicker=histFilter==='range'?`
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <label style="font-size:12px;color:#64748b;">จาก</label>
+      <input type="date" value="${histRangeFrom}" onchange="histRangeFrom=this.value;_histPage=0;renderHistory()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+      <label style="font-size:12px;color:#64748b;">ถึง</label>
+      <input type="date" value="${histRangeTo}" onchange="histRangeTo=this.value;_histPage=0;renderHistory()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+      ${histRangeFrom&&histRangeTo?`<span style="font-size:12px;color:#7c3aed;font-weight:600;">${filtered.length} เคส</span>`:''}
+    </div>`:'';
 
   // Year nav arrows
   const allYears=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>a-b);
@@ -2390,6 +2423,7 @@ function renderHistory(){
       <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
       <div style="font-size:13px;color:#64748b;margin-top:2px;">${filtered.length} เคส${histFilter!=='all'?` · กรองแล้ว (ทั้งหมด ${caseHistory.length})`:''}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
+      ${histRangePicker}
       ${yearNav}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -2518,7 +2552,27 @@ function showHistoryDetail(idx){
       </div>
     </div>
     ${c.overall_summary?`<div style="padding:10px 14px;background:#f5f2ee;border-radius:8px;font-size:13px;line-height:1.7;margin-bottom:12px;border-left:3px solid ${NAVY};"><strong>สรุป:</strong> ${escHtml(c.overall_summary)}</div>`:''}
-    ${cl.length?`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
+    ${(()=>{
+      const files=c.attachedFiles||[];
+      if(!files.length) return `<div style="padding:10px 14px;background:#fef9c3;border-radius:8px;font-size:12px;color:#92400e;margin-bottom:12px;">📎 ไม่มีข้อมูลไฟล์แนบ (งานที่ตรวจก่อนอัปเดต)</div>`;
+      const icons={'video/mp4':'🎬','video/quicktime':'🎬','image/jpeg':'🖼️','image/png':'🖼️','application/pdf':'📕'};
+      return `<div style="margin-bottom:12px;padding:12px 14px;background:#f5f2ee;border-radius:8px;">
+        <div style="font-size:13px;font-weight:700;color:${NAVY};margin-bottom:8px;">📎 ไฟล์ที่แนบมา (${files.length} ไฟล์)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${files.map(f=>{
+            const icon=icons[f.type]||'📄';
+            const sizeMB=(f.size/1024/1024).toFixed(1);
+            return `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;">
+              <span style="font-size:18px;">${icon}</span>
+              <div>
+                <div style="font-size:12px;font-weight:600;color:#1e293b;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}</div>
+                <div style="font-size:10px;color:#94a3b8;">${sizeMB} MB</div>
+              </div>
+            </div>`;}).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#94a3b8;">⚠️ ไฟล์ต้นฉบับถูกเก็บไว้ใน browser session เท่านั้น — ไม่สามารถเปิดดูย้อนหลังได้จาก History</div>
+      </div>`;
+    })()}?`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
       <thead><tr style="background:#f5f2ee;">${['หัวข้อ','กฎหมาย','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
       <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};
         return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
