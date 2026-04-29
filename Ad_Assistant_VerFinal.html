@@ -231,37 +231,38 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
     </div>
     <div class="hdr-role">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
-      <div class="admin-reviewer" style="display:flex;gap:6px;align-items:center;position:relative;">
-        <!-- Bell: show new cases dropdown -->
-        <div style="position:relative;">
-          <button id="btn-bell" onclick="toggleBellDropdown()" title="งานใหม่ใน 24 ชั่วโมง"
+      <!-- Bell + Clock side by side + logout - all in one flex row -->
+      <div style="display:flex;align-items:center;gap:6px;">
+        <!-- Bell: Recent Tickets -->
+        <div class="admin-reviewer" style="position:relative;">
+          <button id="btn-bell" onclick="toggleBellDropdown()" title="Recent Tickets"
             style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
             🔔 <span id="bell-count" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
           </button>
-          <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:260px;z-index:500;overflow:hidden;">
-            <div style="padding:10px 14px;background:#1A3A6B;color:#fff;font-size:13px;font-weight:700;">🔔 งานใหม่ใน 24 ชั่วโมง</div>
-            <div id="bell-list" style="max-height:240px;overflow-y:auto;"></div>
+          <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:280px;z-index:500;overflow:hidden;">
+            <div style="padding:10px 14px;background:#1A3A6B;color:#fff;font-size:13px;font-weight:700;">🔔 Recent Tickets (24h)</div>
+            <div id="bell-list" style="max-height:280px;overflow-y:auto;"></div>
             <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
               <button onclick="toggleBellDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">ดูทั้งหมดใน History →</button>
             </div>
           </div>
         </div>
-        <!-- Clock: show pending cases dropdown -->
-        <div style="position:relative;">
-          <button id="btn-clock" onclick="toggleClockDropdown()" title="งานรอ Approve"
+        <!-- Clock: Pending Approve -->
+        <div class="admin-reviewer" style="position:relative;">
+          <button id="btn-clock" onclick="toggleClockDropdown()" title="Pending Approve"
             style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
             ⏰ <span id="clock-count" style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
           </button>
-          <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:260px;z-index:500;overflow:hidden;">
-            <div style="padding:10px 14px;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;">⏰ งานรอ Approve</div>
-            <div id="clock-list" style="max-height:240px;overflow-y:auto;"></div>
+          <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:300px;z-index:500;overflow:hidden;">
+            <div style="padding:10px 14px;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;">⏰ Pending Approve</div>
+            <div id="clock-list" style="max-height:320px;overflow-y:auto;"></div>
             <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
-              <button onclick="toggleClockDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">Approve ในหน้า History →</button>
+              <button onclick="toggleClockDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">จัดการทั้งหมดใน History →</button>
             </div>
           </div>
         </div>
+        <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
       </div>
-      <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
     </div>
   </div>
   <div class="hdr-row2">
@@ -1005,16 +1006,25 @@ function renderBellList(){
 function renderClockList(){
   const list=document.getElementById('clock-list'); if(!list) return;
   const pending=caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending');
-  if(!pending.length){ list.innerHTML=`<div style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">ไม่มีงานรอ Approve</div>`; return; }
+  if(!pending.length){ list.innerHTML=`<div style="padding:14px;text-align:center;color:#94a3b8;font-size:13px;">ไม่มีงานรอ Approve ✅</div>`; return; }
   list.innerHTML=pending.map(c=>{
     const realIdx=caseHistory.findIndex(x=>x.id===c.id);
-    return`<div style="padding:10px 14px;border-bottom:0.5px solid #f1f5f9;">
-      <div style="font-size:13px;font-weight:700;color:#1A3A6B;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'—')}</div>
-      <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">${escHtml(c.sender||'')} · ${new Date(c.date).toLocaleDateString('th-TH')}</div>
-      <div style="display:flex;gap:4px;">
-        <button onclick="toggleClockDropdown();quickApprove(${realIdx},'approved')" style="padding:4px 12px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;">✅ Approve</button>
-        <button onclick="toggleClockDropdown();quickApprove(${realIdx},'changes')" style="padding:4px 12px;background:#f59e0b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;">🔄 ขอแก้</button>
-        <button onclick="toggleClockDropdown();quickApprove(${realIdx},'rejected')" style="padding:4px 12px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;">❌ ปฏิเสธ</button>
+    const failCount=c.fail_count||0;
+    const critCount=c.critical_count||0;
+    return`<div style="padding:12px 14px;border-bottom:0.5px solid #f1f5f9;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:5px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;font-weight:700;color:#1A3A6B;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'—')}</div>
+          <div style="font-size:11px;color:#94a3b8;">${escHtml(c.sender||'')} · ${new Date(c.date).toLocaleDateString('th-TH')}</div>
+        </div>
+        <span style="padding:2px 8px;border-radius:8px;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};font-size:11px;font-weight:700;white-space:nowrap;">${{PASS:'✅ PASS','PASS WITH CONDITIONS':'⚠️ COND',FAIL:'❌ FAIL'}[c.overall_result]||''}</span>
+      </div>
+      ${failCount>0?`<div style="font-size:11px;color:#dc2626;margin-bottom:5px;">✕ ${failCount} ไม่ผ่าน${critCount>0?` · ${critCount} Critical`:''}</div>`:''}
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button onclick="quickApprove(${realIdx},'approved');toggleClockDropdown();" style="padding:5px 10px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">✅ Approve</button>
+        <button onclick="quickApprove(${realIdx},'changes');toggleClockDropdown();" style="padding:5px 10px;background:#f59e0b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🔄 ขอแก้</button>
+        <button onclick="quickApprove(${realIdx},'rejected');toggleClockDropdown();" style="padding:5px 10px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">❌ ปฏิเสธ</button>
+        <button onclick="toggleClockDropdown();switchTab('history');setTimeout(()=>showHistoryDetail(${realIdx}),300);" style="padding:5px 10px;background:#f5f2ee;color:#1A3A6B;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🔍 ดูรายละเอียด</button>
       </div>
     </div>`;}).join('');
 }
