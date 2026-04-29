@@ -1885,8 +1885,8 @@ function renderReportTab(result){
               <td style="padding:8px 10px;font-size:12px;color:#374151;line-height:1.6;max-width:280px;">${row.finding?`<div>${escHtml(row.finding)}</div>`:''}${row.missing?`<div style="color:#dc2626;">⛔ ${escHtml(row.missing)}</div>`:''}${row.recommendation?`<div style="color:#2563eb;">💡 ${escHtml(row.recommendation)}</div>`:''}${row.penalty&&row.result==='FAIL'?`<div style="color:#7c3aed;">⚖️ ${escHtml(row.penalty)}</div>`:''}</td>
             </tr>`;}).join('')}</tbody></table></div>`:''}
         ${(()=>{
-          const fw=r.forbidden_words_found||[];
-          const failItems=(r.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical');
+          const fw=result.forbidden_words_found||[];
+          const failItems=(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical');
           if(!fw.length&&!failItems.length) return '';
           return `<div style="margin-bottom:24px;padding:14px 18px;background:#f0d9d9;border-left:4px solid #dc2626;border-radius:8px;">
             <div style="font-weight:700;color:#7f1d1d;font-size:14px;margin-bottom:10px;">🚩 Key Flags — ประเด็นสำคัญที่ต้องแก้ไขก่อน</div>
