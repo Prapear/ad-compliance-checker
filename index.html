@@ -1935,12 +1935,12 @@ let dashYear = new Date().getFullYear();
 
 function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');
-
-  // Apply date filter
   const now=new Date();
-  const filtered = caseHistory.filter(c=>{
+
+  // Filter
+  const filtered=caseHistory.filter(c=>{
     const d=new Date(c.date);
-    if(dashFilter==='day')   return d.toDateString()===now.toDateString();
+    if(dashFilter==='today')   return d.toDateString()===now.toDateString();
     if(dashFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     if(dashFilter==='year')  return d.getFullYear()===dashYear;
     return true;
@@ -1959,162 +1959,231 @@ function renderDashboard(){
       <button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 ไปหน้า Input</button>
     </div>`; return;
   }
+
   const bar=(v,max,col)=>`<div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:${max?v/max*100:0}%;height:100%;background:${col};border-radius:4px;"></div></div>`;
-  const byCompany=['Ananda Development','The Works','Anvinest'].map(co=>({name:co.replace('Ananda Development','Ananda'),total:filtered.filter(c=>c.company===co).length,pass:filtered.filter(c=>c.company===co&&c.overall_result==='PASS').length,fail:filtered.filter(c=>c.company===co&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
-  const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:{TYPE1:'Social/ดิจิทัล',TYPE2:'Billboard',TYPE3:'วิทยุ',TYPE4:'โทรทัศน์'}[m]||m,total:filtered.filter(c=>c.mediaType===m).length,fail:filtered.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
 
   // Top violations
   const violationMap={};
   filtered.forEach(c=>{(c.violations||[]).forEach(v=>{violationMap[v]=(violationMap[v]||0)+1;});});
-  const topViolations=Object.entries(violationMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topViolations=Object.entries(violationMap).sort((a,b)=>b[1]-a[1]).slice(0,7);
   const maxViol=topViolations[0]?.[1]||1;
 
-  // Monthly trend for bar chart (year-on-year)
+  // Key flags from filtered cases
+  const keyFlagMap={};
+  filtered.forEach(c=>{(c.forbidden_words||[]).forEach(w=>{const k=w.word||w;keyFlagMap[k]=(keyFlagMap[k]||0)+1;});});
+  const keyFlags=Object.entries(keyFlagMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Monthly line chart data
   const years=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>b-a).slice(0,3);
-  const months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const monthsLbl=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
   const yearColors=['#1A3A6B','#7c3aed','#16a34a'];
   const monthlyData=years.map((yr,yi)=>({
     year:yr, color:yearColors[yi]||'#64748b',
-    data:months.map((_,mi)=>caseHistory.filter(c=>{ const d=new Date(c.date); return d.getFullYear()===yr&&d.getMonth()===mi; }).length)
+    data:monthsLbl.map((_,mi)=>caseHistory.filter(c=>{ const d=new Date(c.date); return d.getFullYear()===yr&&d.getMonth()===mi; }).length)
   }));
   const maxMonth=Math.max(1,...monthlyData.flatMap(y=>y.data));
 
   // SLA
   const slaMap={'1 วันทำการ':1,'2 วันทำการ':2,'3 วันทำการ':3,'5 วันทำการ':5,'7 วันทำการ':7};
-  const nowTs=new Date();
   const slaOverdue=filtered.filter(c=>{
     if(c.reviewStatus==='approved') return false;
     const days=slaMap[c.sla]||3;
-    const elapsed=(nowTs-new Date(c.date))/(1000*60*60*24);
-    return elapsed>days;
+    return (now-new Date(c.date))/(1000*60*60*24)>days;
   });
 
-  const filterBtns=['all','day','month','year'].map(f=>{
-    const labels={all:'ทั้งหมด',day:'วันนี้',month:'เดือนนี้',year:'รายปี'};
-    return `<button onclick="dashFilter='${f}';${f==='year'?`dashYear=${new Date().getFullYear()};`:''}renderDashboard()" style="padding:5px 14px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:${dashFilter===f?NAVY:'#f5f2ee'};color:${dashFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
+  // By company/media
+  const byCompany=['Ananda Development','The Works','Anvinest'].map(co=>({name:co.replace('Ananda Development','Ananda'),total:filtered.filter(c=>c.company===co).length,pass:filtered.filter(c=>c.company===co&&c.overall_result==='PASS').length,fail:filtered.filter(c=>c.company===co&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+  const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:{TYPE1:'Social/ดิจิทัล',TYPE2:'Billboard',TYPE3:'วิทยุ',TYPE4:'โทรทัศน์'}[m]||m,total:filtered.filter(c=>c.mediaType===m).length,fail:filtered.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+
+  // Filter buttons (ข้อ 3: all/today/month/year)
+  const filterBtns=['all','today','month','year'].map(f=>{
+    const labels={all:'All',today:'Today',month:'Month',year:'Year'};
+    return `<button onclick="dashFilter='${f}';${f==='year'?`dashYear=${now.getFullYear()};`:''}renderDashboard()" style="padding:5px 16px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:${dashFilter===f?NAVY:'#f5f2ee'};color:${dashFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
   }).join('');
-  const yearBtns=dashFilter==='year'?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${years.map(yr=>`<button onclick="dashYear=${yr};renderDashboard()" style="padding:3px 12px;border-radius:12px;border:none;cursor:pointer;font-size:12px;background:${dashYear===yr?'#7c3aed':'#f5f2ee'};color:${dashYear===yr?'#fff':'#475569'};">${yr}</button>`).join('')}</div>`:'';
+
+  // Year nav arrows (ข้อ 3: ไปข้างหน้า/ย้อนหลัง)
+  const allYears=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>a-b);
+  const minYear=allYears[0]||now.getFullYear();
+  const maxYear=allYears[allYears.length-1]||now.getFullYear();
+  const yearNav=dashFilter==='year'?`
+    <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+      <button onclick="if(dashYear>${minYear}){dashYear--;renderDashboard();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:14px;">‹</button>
+      <span style="font-size:14px;font-weight:700;color:${NAVY};min-width:40px;text-align:center;">${dashYear}</span>
+      <button onclick="if(dashYear<${maxYear+1}){dashYear++;renderDashboard();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:14px;">›</button>
+      <span style="font-size:12px;color:#94a3b8;">(${total} เคส)</span>
+    </div>`:'';
+
+  // SVG line chart (ข้อ 4)
+  const chartW=600; const chartH=100; const padL=8; const padR=8; const padT=8; const padB=20;
+  const innerW=chartW-padL-padR; const innerH=chartH-padT-padB;
+  const pts=(data)=>data.map((v,i)=>`${padL+i/(11)*innerW},${padT+innerH-(v/maxMonth*innerH)}`).join(' ');
+  const linePath=(data,col)=>{
+    const p=data.map((v,i)=>({x:padL+i/11*innerW,y:padT+innerH-(v/maxMonth*innerH)}));
+    const d=p.map((pt,i)=>i===0?`M${pt.x},${pt.y}`:`L${pt.x},${pt.y}`).join(' ');
+    return `<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>
+      ${p.map((pt,i)=>monthlyData.find(y=>y.color===col)?.data[i]>0?`<circle cx="${pt.x}" cy="${pt.y}" r="3" fill="${col}"><title>${monthlyData.find(y=>y.color===col)?.year}: ${monthlyData.find(y=>y.color===col)?.data[i]} เคส</title></circle>`:``).join('')}`;
+  };
+  const lineChart=`<div style="overflow-x:auto;"><svg viewBox="0 0 ${chartW} ${chartH}" style="width:100%;min-width:400px;height:${chartH}px;">
+    ${[0,Math.round(maxMonth/2),maxMonth].map(v=>`<line x1="${padL}" y1="${padT+innerH-(v/maxMonth*innerH)}" x2="${chartW-padR}" y2="${padT+innerH-(v/maxMonth*innerH)}" stroke="#f1f5f9" stroke-width="1"/>
+      <text x="0" y="${padT+innerH-(v/maxMonth*innerH)+4}" font-size="8" fill="#94a3b8">${v}</text>`).join('')}
+    ${monthsLbl.map((m,i)=>`<text x="${padL+i/11*innerW}" y="${chartH-2}" font-size="8" fill="#94a3b8" text-anchor="middle">${m}</text>`).join('')}
+    ${monthlyData.map(yd=>linePath(yd.data,yd.color)).join('')}
+  </svg></div>`;
+
+  // Recent activity pagination (ข้อ 5,6: 25/page)
+  const PAGE=25;
+  const dashPage=window._dashPage||0;
+  const pageData=filtered.slice(dashPage*PAGE,(dashPage+1)*PAGE);
+  const totalPages=Math.ceil(filtered.length/PAGE);
+
+  // Key flags for recent activity rows
+  const flagBadge=(c)=>{
+    const fw=c.forbidden_words||[];
+    if(!fw.length) return '';
+    return `<span style="padding:1px 6px;border-radius:8px;background:#f0d9d9;color:#7f1d1d;font-size:10px;font-weight:700;white-space:nowrap;">🚩 ${fw.length} flag</span>`;
+  };
 
   panel.innerHTML=`
+    <!-- Header -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
       <div>
         <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
-        <div style="font-size:13px;color:#64748b;margin-top:2px;">${total} เคส${dashFilter!=='all'?` (กรองแล้ว จากทั้งหมด ${caseHistory.length})`:''}</div>
+        <div style="font-size:13px;color:#64748b;margin-top:2px;">${total} เคส${dashFilter!=='all'?` · กรองแล้ว (ทั้งหมด ${caseHistory.length})`:''}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
-        ${yearBtns}
+        ${yearNav}
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="window.print()" class="btn-ghost">🖨️ Export PDF</button>
         <button onclick="clearHistory()" style="padding:7px 16px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">🗑️ ล้างประวัติ</button>
       </div>
     </div>
+
+    <!-- KPI Cards -->
     <div class="g4" style="margin-bottom:22px;">
-      ${[['📁','ทั้งหมด',total,'เคส','#f8fafc',NAVY],['✅','PASS',pass,Math.round(pass/total*100)+'%','#f0fdf4','#16a34a'],['⚠️','CONDITIONS',cond,Math.round(cond/total*100)+'%','#fffbeb','#d97706'],['❌','FAIL',fail,Math.round(fail/total*100)+'%','#fef2f2','#dc2626']].map(([ic,lb,va,su,bg,co])=>`
+      ${[['📁','ทั้งหมด',total,'เคส','#f8fafc',NAVY],['✅','PASS',pass,total?Math.round(pass/total*100)+'%':'0%','#d8ead8','#14532d'],['⚠️','CONDITIONS',cond,total?Math.round(cond/total*100)+'%':'0%','#f0ecd4','#78350f'],['❌','FAIL',fail,total?Math.round(fail/total*100)+'%':'0%','#f0d9d9','#7f1d1d']].map(([ic,lb,va,su,bg,co])=>`
       <div class="stat-card" style="background:${bg};border-color:${co}22;"><div style="font-size:36px;">${ic}</div><div>
         <div style="font-size:32px;font-weight:800;color:${co};line-height:1;">${va}</div>
         <div style="font-size:13px;font-weight:600;color:#475569;margin-top:3px;">${lb}</div>
         <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${su}</div>
       </div></div>`).join('')}
     </div>
+
+    <!-- Pass Rate Bar -->
     <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;margin-bottom:22px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-weight:700;color:${NAVY};font-size:14px;">📈 Pass Rate รวม</span><span style="font-size:22px;font-weight:800;color:${passRate>=70?'#16a34a':passRate>=40?'#d97706':'#dc2626'};">${passRate}%</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"><span style="font-weight:700;color:${NAVY};font-size:14px;">📈 Pass Rate รวม</span><span style="font-size:22px;font-weight:800;color:${passRate>=70?'#14532d':passRate>=40?'#78350f':'#7f1d1d'};">${passRate}%</span></div>
       <div style="height:14px;background:#f1f5f9;border-radius:8px;overflow:hidden;display:flex;">
-        ${pass>0?`<div style="width:${pass/total*100}%;background:#16a34a;"></div>`:''}
-        ${cond>0?`<div style="width:${cond/total*100}%;background:#fde68a;"></div>`:''}
-        ${fail>0?`<div style="width:${fail/total*100}%;background:#ef4444;"></div>`:''}
+        ${pass>0&&total?`<div style="width:${pass/total*100}%;background:#16a34a;transition:width .4s;"></div>`:''}
+        ${cond>0&&total?`<div style="width:${cond/total*100}%;background:#fde68a;transition:width .4s;"></div>`:''}
+        ${fail>0&&total?`<div style="width:${fail/total*100}%;background:#ef4444;transition:width .4s;"></div>`:''}
       </div>
-      <div style="display:flex;gap:16px;margin-top:8px;">${[['#16a34a','PASS',pass],['#f59e0b','CONDITIONS',cond],['#ef4444','FAIL',fail]].map(([c,l,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block;"></span><span style="color:#64748b;">${l}: <strong>${v}</strong></span></div>`).join('')}</div>
+      <div style="display:flex;gap:16px;margin-top:8px;">${[['#14532d','PASS',pass],['#78350f','CONDITIONS',cond],['#7f1d1d','FAIL',fail]].map(([c,l,v])=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><span style="width:10px;height:10px;border-radius:2px;background:${c==='#14532d'?'#16a34a':c==='#78350f'?'#fde68a':'#ef4444'};display:inline-block;"></span><span style="color:#64748b;">${l}: <strong>${v}</strong></span></div>`).join('')}</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;">
-      ${topViolations.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;">
-        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🚨 ข้อที่ผิดบ่อยที่สุด</div>
-        ${topViolations.map(([topic,count])=>`<div class="vbar-row"><span class="vbar-label">${escHtml(topic)}</span><div class="vbar-track"><div class="vbar-fill" style="width:${count/maxViol*100}%"></div></div><span class="vbar-num">${count}</span></div>`).join('')}
-    </div>
-    </div>
-    <!-- Monthly trend bar chart (Year-on-Year) -->
+
+    <!-- Top Violations FULL WIDTH (ข้อ 1) -->
     <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;margin-bottom:22px;">
-      <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:6px;">📊 งานเข้ารายเดือน (Year-on-Year)</div>
-      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
-        ${yearColors.slice(0,years.length).map((c,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><div style="width:12px;height:12px;border-radius:2px;background:${c};"></div>${years[i]}</div>`).join('')}
-      </div>
-      <div style="overflow-x:auto;">
-        <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;min-width:600px;">
-          ${months.map((m,mi)=>`
-            <div style="text-align:center;">
-              <div style="display:flex;flex-direction:column-reverse;gap:2px;height:80px;justify-content:flex-start;align-items:center;">
-                ${monthlyData.map(yd=>{
-                  const h=yd.data[mi]?Math.max(4,Math.round(yd.data[mi]/maxMonth*72)):0;
-                  return yd.data[mi]>0?`<div title="${yd.year}: ${yd.data[mi]} เคส" style="width:14px;height:${h}px;background:${yd.color};border-radius:2px 2px 0 0;cursor:default;"></div>`:'';
-                }).join('')}
-              </div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:3px;">${m}</div>
-            </div>`).join('')}
-        </div>
-      </div>
+      <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🚨 ข้อที่ผิดบ่อยที่สุด</div>
+      ${topViolations.length
+        ? topViolations.map(([topic,count])=>`
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="min-width:160px;font-size:13px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(topic)}</span>
+            <div style="flex:1;height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;">
+              <div style="width:${count/maxViol*100}%;height:100%;background:#dc2626;border-radius:6px;transition:width .4s;"></div>
+            </div>
+            <span style="min-width:28px;text-align:right;font-weight:700;color:#dc2626;font-size:13px;">${count}</span>
+          </div>`).join('')
+        : `<div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">ข้อมูลจะสะสมเมื่อตรวจงานเพิ่ม</div>`}
     </div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:8px;">* บันทึกจากผลการตรวจสะสม</div>
-      </div>`:
-      `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;">
-        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🚨 ข้อที่ผิดบ่อยที่สุด</div>
-        <div style="text-align:center;padding:20px;color:#94a3b8;font-size:13px;">ข้อมูลจะสะสมเมื่อตรวจงานเพิ่ม</div>
-      </div>`}
-      <div style="background:#fff;border-radius:12px;border:1px solid ${slaOverdue.length?'#fecaca':'#e2e8f0'};padding:18px 22px;">
-        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">⏱️ SLA Tracking</div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <div style="text-align:center;flex:1;padding:10px;background:${slaOverdue.length?'#fef2f2':'#f0fdf4'};border-radius:8px;">
-            <div style="font-size:28px;font-weight:800;color:${slaOverdue.length?'#dc2626':'#16a34a'};">${slaOverdue.length}</div>
-            <div style="font-size:12px;color:#64748b;">เกิน SLA</div>
-          </div>
-          <div style="text-align:center;flex:1;padding:10px;background:#faf9f7;border-radius:8px;">
-            <div style="font-size:28px;font-weight:800;color:#1A3A6B;">${caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length}</div>
-            <div style="font-size:12px;color:#64748b;">รอ Review</div>
-          </div>
-          <div style="text-align:center;flex:1;padding:10px;background:#f0fdf4;border-radius:8px;">
-            <div style="font-size:28px;font-weight:800;color:#16a34a;">${caseHistory.filter(c=>c.reviewStatus==='approved').length}</div>
-            <div style="font-size:12px;color:#64748b;">Approved</div>
-          </div>
-        </div>
-        ${slaOverdue.length?`<div style="font-size:12px;color:#dc2626;font-weight:700;margin-bottom:6px;">งานที่เกิน SLA:</div>${slaOverdue.slice(0,3).map(c=>`<div style="font-size:12px;color:#64748b;padding:4px 0;border-bottom:0.5px solid #f1f5f9;">· ${escHtml(c.jobName||'—')} <span style="color:#dc2626;">(${c.sla||'3 วัน'})</span></div>`).join('')}`:'<div style="font-size:13px;color:#16a34a;">✅ ทุกงานอยู่ใน SLA</div>'}
+
+    <!-- Key Flags (ข้อ 2) -->
+    ${keyFlags.length?`<div style="background:#fff;border-radius:12px;border:1px solid #f0d9d9;padding:18px 22px;margin-bottom:22px;">
+      <div style="font-weight:700;color:#7f1d1d;font-size:14px;margin-bottom:10px;">🚩 Key Flags — ข้อควรระวังที่พบบ่อย</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${keyFlags.map(([w,n])=>`<span style="padding:4px 12px;background:#f0d9d9;color:#7f1d1d;border-radius:20px;font-size:13px;font-weight:600;">${escHtml(w)} <span style="opacity:.7;">(${n})</span></span>`).join('')}
       </div>
+    </div>`:''}
+
+    <!-- Line Chart (ข้อ 4) -->
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;margin-bottom:22px;">
+      <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:10px;">📊 งานเข้ารายเดือน</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;">
+        ${monthlyData.map(yd=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><div style="width:16px;height:3px;border-radius:2px;background:${yd.color};"></div><span style="color:#475569;">${yd.year}</span></div>`).join('')}
+      </div>
+      ${lineChart}
     </div>
+
+    <!-- SLA + Company/Media Grid -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:22px;">
-      ${byCompany.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🏢 แยกตามบริษัท</div>${byCompany.map(c=>`<div style="margin-bottom:12px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span style="font-weight:600;">${c.name}</span><span style="color:#64748b;">${c.total} เคส · FAIL ${c.fail}</span></div><div style="display:flex;gap:4px;align-items:center;">${bar(c.pass,c.total,'#16a34a')}${bar(c.total-c.pass-c.fail,c.total,'#f59e0b')}${bar(c.fail,c.total,'#ef4444')}</div></div>`).join('')}</div>`:''}
-      ${byMedia.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📺 แยกตามสื่อ</div>${byMedia.map(m=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;"><span style="font-weight:700;font-size:13px;min-width:80px;color:${NAVY};">${m.name}</span>${bar(m.total-m.fail,m.total,'#16a34a')}<span style="font-size:12px;color:#64748b;white-space:nowrap;">${m.total} เคส</span>${m.fail>0?`<span style="font-size:12px;color:#dc2626;font-weight:700;">FAIL ${m.fail}</span>`:''}</div>`).join('')}</div>`:''}
-    </div>
-    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-      <div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
-        <span style="font-weight:700;color:${NAVY};font-size:14px;">🕐 ประวัติล่าสุด</span>
-        <span style="font-size:12px;color:#94a3b8;">แสดง ${Math.min(caseHistory.length,20)} เคส</span>
+      <div style="background:#fff;border-radius:12px;border:1px solid ${slaOverdue.length?'#f0d9d9':'#e2e8f0'};padding:18px 22px;">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">⏱️ SLA Tracking</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          ${[['เกิน SLA',slaOverdue.length,'#f0d9d9','#7f1d1d'],['รอ Review',caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length,'#faf9f7',NAVY],['Approved',caseHistory.filter(c=>c.reviewStatus==='approved').length,'#d8ead8','#14532d']].map(([lb,v,bg,co])=>`
+          <div style="flex:1;text-align:center;padding:10px 6px;background:${bg};border-radius:8px;">
+            <div style="font-size:24px;font-weight:800;color:${co};">${v}</div>
+            <div style="font-size:11px;color:#64748b;">${lb}</div>
+          </div>`).join('')}
+        </div>
+        ${slaOverdue.length?`<div style="font-size:12px;color:#7f1d1d;font-weight:700;margin-bottom:4px;">งานที่เกิน SLA:</div>${slaOverdue.slice(0,3).map(c=>`<div style="font-size:12px;color:#64748b;padding:4px 0;border-bottom:0.5px solid #f5f2ee;">· ${escHtml(c.jobName||'—')} <span style="color:#dc2626;">(${c.sla||'3 วัน'})</span></div>`).join('')}`:'<div style="font-size:13px;color:#14532d;">✅ ทุกงานอยู่ใน SLA</div>'}
       </div>
-      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f5f2ee;">${['วันที่','ชื่องาน','บริษัท','สื่อ','ผล','ตรวจ','✓ Pass','⚠ Cond','✕ Fail'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}</tr></thead>
-      <tbody>${caseHistory.slice(0,20).map((c,i)=>`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
-        <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
-        <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
-        <td style="color:#64748b;font-size:13px;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
-        <td><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${c.mediaLabel||c.mediaType||''}</span></td>
-        <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
-        <td style="text-align:center;color:#64748b;font-size:13px;">${c.total_rules||'—'}</td>
-        <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
-        <td style="text-align:center;font-weight:700;color:#d97706;">${c.cond_count||0}</td>
-        <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;"> (${c.critical_count}C)</span>`:''}</td>
-      </tr>`).join('')}</tbody></table></div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        ${byCompany.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:14px 18px;"><div style="font-weight:700;color:${NAVY};font-size:13px;margin-bottom:10px;">🏢 แยกตามบริษัท</div>${byCompany.map(c=>`<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;"><span style="font-weight:600;">${c.name}</span><span style="color:#64748b;">${c.total} เคส</span></div><div style="display:flex;gap:3px;align-items:center;">${bar(c.pass,c.total,'#16a34a')}${bar(c.total-c.pass-c.fail,c.total,'#fde68a')}${bar(c.fail,c.total,'#ef4444')}</div></div>`).join('')}</div>`:''}
+        ${byMedia.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:14px 18px;"><div style="font-weight:700;color:${NAVY};font-size:13px;margin-bottom:10px;">📺 แยกตามสื่อ</div>${byMedia.map(m=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:12px;min-width:72px;color:${NAVY};font-weight:600;">${m.name}</span>${bar(m.total-m.fail,m.total,'#16a34a')}<span style="font-size:11px;color:#64748b;white-space:nowrap;">${m.total}</span>${m.fail>0?`<span style="font-size:11px;color:#dc2626;font-weight:700;">✕${m.fail}</span>`:''}</div>`).join('')}</div>`:''}
+      </div>
+    </div>
+
+    <!-- Recent Activity with pagination (ข้อ 5,6) -->
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+      <div style="padding:14px 20px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <span style="font-weight:700;color:${NAVY};font-size:14px;">🕐 Recent Activity</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:12px;color:#94a3b8;">หน้า ${dashPage+1}/${Math.max(1,totalPages)} · ${filtered.length} เคส</span>
+          <button onclick="if(window._dashPage>0){window._dashPage--;renderDashboard();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:${dashPage>0?'#fff':'#f5f2ee'};cursor:${dashPage>0?'pointer':'default'};font-size:14px;">‹</button>
+          <button onclick="if(window._dashPage<${totalPages-1}){window._dashPage++;renderDashboard();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:${dashPage<totalPages-1?'#fff':'#f5f2ee'};cursor:${dashPage<totalPages-1?'pointer':'default'};font-size:14px;">›</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f5f2ee;">
+        ${['วันที่','ชื่องาน','สื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
+      </tr></thead>
+      <tbody>${pageData.length===0?`<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">ไม่มีข้อมูลในช่วงนี้</td></tr>`:''}
+        ${pageData.map((c,i)=>`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
+          <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+          <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
+          <td><span style="padding:2px 7px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${(c.mediaLabel||c.mediaType||'').replace(' / Social Media','').replace('สิ่งพิมพ์ / ดิจิทัล','Social')}</span></td>
+          <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></td>
+          <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
+          <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
+          <td>${flagBadge(c)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>
     </div>`;
 }
 function clearHistory(){ if(!confirm('ลบประวัติทั้งหมด?'))return; caseHistory=[]; try{localStorage.removeItem('case_history');}catch(e){} renderDashboard(); }
-
-// ══════════════════════════════════════════════════════════
-// HISTORY TAB
-// ══════════════════════════════════════════════════════════
 let histFilter='all'; let histYear=new Date().getFullYear();
+let _histPage=0;
+
+function exportHistoryCSV(data){
+  const headers=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','สื่อ','ผล','ตรวจ','Pass','Fail','Status','Key Flags'];
+  const rows=data.map(c=>[
+    new Date(c.date).toLocaleDateString('th-TH'),
+    c.jobName||'', c.sender||'', c.company||'',
+    c.mediaLabel||c.mediaType||'', c.overall_result||'',
+    c.total_rules||0, c.pass_count||0, c.fail_count||0,
+    c.reviewStatus||'pending',
+    (c.forbidden_words||[]).map(w=>w.word||w).join('; ')
+  ]);
+  const csv='\uFEFF'+[headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=`History_${histFilter}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
 
 function renderHistory(){
   const panel=document.getElementById('panel-history');
   if(!panel) return;
-
   const now=new Date();
   const filtered=caseHistory.filter(c=>{
     const d=new Date(c.date);
-    if(histFilter==='day')   return d.toDateString()===now.toDateString();
+    if(histFilter==='today') return d.toDateString()===now.toDateString();
     if(histFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
     if(histFilter==='year')  return d.getFullYear()===histYear;
     return true;
@@ -2123,56 +2192,88 @@ function renderHistory(){
   if(!caseHistory.length){
     panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="margin-top:12px;color:#64748b;">ยังไม่มีประวัติการตรวจ</div></div>`; return;
   }
+
   const statusBadge=(s)=>({
-    pending:`<span style="padding:2px 10px;border-radius:12px;background:#f0ecd4;color:#78350f;font-size:12px;font-weight:700;">⏳ รอ Review</span>`,
-    approved:`<span style="padding:2px 10px;border-radius:12px;background:#d8ead8;color:#14532d;font-size:12px;font-weight:700;">✅ Approved</span>`,
-    changes:`<span style="padding:2px 10px;border-radius:12px;background:#f0e4d4;color:#7c2d12;font-size:12px;font-weight:700;">🔄 ขอแก้ไข</span>`,
-    rejected:`<span style="padding:2px 10px;border-radius:12px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;">❌ ไม่อนุมัติ</span>`,
+    pending:`<span style="padding:2px 8px;border-radius:10px;background:#f0ecd4;color:#78350f;font-size:11px;font-weight:700;">⏳ รอ</span>`,
+    approved:`<span style="padding:2px 8px;border-radius:10px;background:#d8ead8;color:#14532d;font-size:11px;font-weight:700;">✅ OK</span>`,
+    changes:`<span style="padding:2px 8px;border-radius:10px;background:#f0e4d4;color:#7c2d12;font-size:11px;font-weight:700;">🔄 แก้</span>`,
+    rejected:`<span style="padding:2px 8px;border-radius:10px;background:#f0d9d9;color:#7f1d1d;font-size:11px;font-weight:700;">❌ ปฏิเสธ</span>`,
   })[s||'pending']||'';
 
-  const years=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>b-a);
-  const filterBtns=['all','day','month','year'].map(f=>{
-    const labels={all:'ทั้งหมด',day:'วันนี้',month:'เดือนนี้',year:'รายปี'};
-    return `<button onclick="histFilter='${f}';renderHistory()" style="padding:4px 12px;border-radius:16px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${histFilter===f?NAVY:'#f5f2ee'};color:${histFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
+  // Filter buttons (all/today/month/year)
+  const filterBtns=['all','today','month','year'].map(f=>{
+    const labels={all:'All',today:'Today',month:'Month',year:'Year'};
+    return `<button onclick="histFilter='${f}';_histPage=0;renderHistory()" style="padding:4px 14px;border-radius:16px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${histFilter===f?NAVY:'#f5f2ee'};color:${histFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
   }).join('');
-  const yearBtns=histFilter==='year'?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${years.map(yr=>`<button onclick="histYear=${yr};renderHistory()" style="padding:2px 10px;border-radius:10px;border:none;cursor:pointer;font-size:11px;background:${histYear===yr?'#7c3aed':'#f5f2ee'};color:${histYear===yr?'#fff':'#475569'};">${yr}</button>`).join('')}</div>`:'';
+
+  // Year nav arrows
+  const allYears=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>a-b);
+  const minY=allYears[0]||now.getFullYear(); const maxY=allYears[allYears.length-1]||now.getFullYear();
+  const yearNav=histFilter==='year'?`
+    <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+      <button onclick="if(histYear>${minY}){histYear--;_histPage=0;renderHistory();}" style="width:26px;height:26px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;cursor:pointer;">‹</button>
+      <span style="font-size:14px;font-weight:700;color:${NAVY};min-width:36px;text-align:center;">${histYear}</span>
+      <button onclick="if(histYear<${maxY+1}){histYear++;_histPage=0;renderHistory();}" style="width:26px;height:26px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;cursor:pointer;">›</button>
+    </div>`:'';
+
+  // Pagination
+  const PAGE=25;
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE));
+  if(_histPage>=totalPages) _histPage=0;
+  const pageData=filtered.slice(_histPage*PAGE,(_histPage+1)*PAGE);
 
   panel.innerHTML=`
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
     <div>
       <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
-      <div style="font-size:13px;color:#64748b;margin-top:2px;">${filtered.length} เคส${histFilter!=='all'?` (กรองแล้ว จากทั้งหมด ${caseHistory.length})`:''}
-      </div>
+      <div style="font-size:13px;color:#64748b;margin-top:2px;">${filtered.length} เคส${histFilter!=='all'?` · กรองแล้ว (ทั้งหมด ${caseHistory.length})`:''}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
-      ${yearBtns}
+      ${yearNav}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button onclick="exportHistoryCSV(caseHistory.filter(c=>{const d=new Date(c.date);if(histFilter==='today')return d.toDateString()===new Date().toDateString();if(histFilter==='month')return d.getMonth()===new Date().getMonth()&&d.getFullYear()===new Date().getFullYear();if(histFilter==='year')return d.getFullYear()===histYear;return true;}))" class="btn-ghost">📥 Export CSV</button>
     </div>
   </div>
   <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
+    <div style="padding:10px 16px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+      <span style="font-size:13px;color:#64748b;">หน้า ${_histPage+1}/${totalPages} · แสดง ${pageData.length} จาก ${filtered.length} เคส</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="if(_histPage>0){_histPage--;renderHistory();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:${_histPage>0?'#fff':'#f5f2ee'};cursor:${_histPage>0?'pointer':'default'};font-size:14px;">‹</button>
+        <span style="font-size:13px;color:${NAVY};font-weight:700;">${_histPage+1}</span>
+        <button onclick="if(_histPage<${totalPages-1}){_histPage++;renderHistory();}" style="width:28px;height:28px;border-radius:50%;border:1px solid #e2e8f0;background:${_histPage<totalPages-1?'#fff':'#f5f2ee'};cursor:${_histPage<totalPages-1?'pointer':'default'};font-size:14px;">›</button>
+      </div>
+    </div>
     <div style="overflow-x:auto;">
     <table class="dtable">
       <thead><tr style="background:#f5f2ee;">
-        ${['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','สื่อ','ผล','ตรวจ','✓ Pass','✕ Fail','Status','รายละเอียด']
+        ${['วันที่','ชื่องาน','ผู้ส่ง','สื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags','Status','รายละเอียด']
           .map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
       </tr></thead>
       <tbody>
-        ${filtered.length===0?`<tr><td colspan="11" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
-        ${filtered.map((c,i)=>`
-        <tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
-          <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
-          <td style="font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
-          <td style="color:#64748b;font-size:13px;">${escHtml(c.sender||'')}</td>
-          <td style="color:#64748b;font-size:13px;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
-          <td style="font-size:12px;"><span style="padding:2px 8px;background:#dbeafe;color:#1d4ed8;border-radius:10px;">${c.mediaLabel||c.mediaType||''}</span></td>
-          <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
-          <td style="text-align:center;font-size:13px;color:#64748b;">${c.total_rules||'-'}</td>
-          <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
-          <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;"> (${c.critical_count}C)</span>`:''}</td>
-          <td>${statusBadge(c.reviewStatus)}</td>
-          <td><button onclick="showHistoryDetail(${i})" style="padding:4px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;">ดูรายละเอียด</button></td>
-        </tr>`).join('')}
+        ${pageData.length===0?`<tr><td colspan="10" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
+        ${pageData.map((c,i)=>{
+          const fw=c.forbidden_words||[];
+          const flagCell=fw.length?`<span style="padding:2px 8px;border-radius:8px;background:#f0d9d9;color:#7f1d1d;font-size:11px;font-weight:700;">🚩 ${fw.length}</span>`:'<span style="color:#94a3b8;font-size:11px;">—</span>';
+          const realIdx=caseHistory.indexOf(c);
+          return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
+            <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
+            <td style="font-weight:700;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
+            <td style="color:#64748b;font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.sender||'')}</td>
+            <td><span style="padding:2px 7px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${(c.mediaLabel||c.mediaType||'').replace('สิ่งพิมพ์ / ดิจิทัล / Social Media','Social').replace('ป้ายโฆษณา / Billboard / สแตนดี้','Billboard')}</span></td>
+            <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></td>
+            <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
+            <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
+            <td>${flagCell}</td>
+            <td>${statusBadge(c.reviewStatus)}</td>
+            <td><button onclick="showHistoryDetail(${realIdx})" style="padding:4px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;">ดูรายละเอียด</button></td>
+          </tr>`;}).join('')}
       </tbody>
     </table>
     </div>
+    ${totalPages>1?`<div style="padding:10px 16px;border-top:1px solid #e2e8f0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+      ${Array.from({length:Math.min(totalPages,10)},(_, i)=>`<button onclick="_histPage=${i};renderHistory()" style="width:28px;height:28px;border-radius:50%;border:1px solid ${_histPage===i?NAVY:'#e2e8f0'};background:${_histPage===i?NAVY:'#fff'};color:${_histPage===i?'#fff':'#475569'};cursor:pointer;font-size:12px;font-weight:700;">${i+1}</button>`).join('')}
+      ${totalPages>10?`<span style="line-height:28px;color:#94a3b8;">...</span>`:''}
+    </div>`:''}
   </div>
   <div id="history-detail-panel" style="display:none;margin-top:20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;"></div>`;
 }
