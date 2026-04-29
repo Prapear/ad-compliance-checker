@@ -2572,7 +2572,8 @@ function showHistoryDetail(idx){
         </div>
         <div style="margin-top:8px;font-size:11px;color:#94a3b8;">⚠️ ไฟล์ต้นฉบับถูกเก็บไว้ใน browser session เท่านั้น — ไม่สามารถเปิดดูย้อนหลังได้จาก History</div>
       </div>`;
-    })()}?`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
+    })()}
+    ${cl.length?`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
       <thead><tr style="background:#f5f2ee;">${['หัวข้อ','กฎหมาย','ผล','สิ่งที่พบ'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;">${h}</th>`).join('')}</tr></thead>
       <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};
         return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
