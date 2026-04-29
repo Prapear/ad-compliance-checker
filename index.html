@@ -741,21 +741,21 @@ function hashPwd(s){ let h=0; for(const c of s) h=(Math.imul(31,h)+c.charCodeAt(
 const ACCOUNT_SCHEMA_VERSION = '3';
 
 function loadAccounts(){
+  // Try localStorage first
   try{
     const ver = localStorage.getItem('user_accounts_ver');
-    if(ver === ACCOUNT_SCHEMA_VERSION){
-      const a=JSON.parse(localStorage.getItem('user_accounts')||'null');
-      // Validate structure
+    const raw = localStorage.getItem('user_accounts');
+    if(ver === ACCOUNT_SCHEMA_VERSION && raw){
+      const a=JSON.parse(raw);
       if(a&&a.length&&a[0].pwdHash) return a;
     }
   }catch(e){}
-  // Reset — clear all old keys
+  // localStorage unavailable or empty — reset and init
   try{
     ['pwd_admin','pwd_reviewer','pwd_user','user_accounts','user_accounts_ver'].forEach(k=>localStorage.removeItem(k));
   }catch(e){}
-  // Init fresh defaults with hashed passwords
   const defaults = DEFAULT_ACCOUNTS.map(a=>({...a, pwdHash: hashPwd(DEFAULT_PWDS_MAP[a.role]||'check2025')}));
-  saveAccounts(defaults);
+  try{ saveAccounts(defaults); }catch(e){}
   return defaults;
 }
 function saveAccounts(accounts){
@@ -767,10 +767,21 @@ function saveAccounts(accounts){
 function getAccounts(){ return loadAccounts(); }
 function findAccount(username){ return getAccounts().find(a=>a.username===username&&a.active); }
 function checkLogin(username, pwd){
-  const a=findAccount(username); if(!a) return null;
-  const defaultPwd = DEFAULT_PWDS_MAP[a.role]||'';
-  const stored = a.pwdHash || hashPwd(defaultPwd);
-  if(hashPwd(pwd)===stored || (!a.pwdHash && pwd===defaultPwd)) return a;
+  // ALWAYS check default passwords first (works even without localStorage)
+  if(DEFAULT_PWDS_MAP[username] && pwd === DEFAULT_PWDS_MAP[username]){
+    // Find role from default accounts
+    const def = DEFAULT_ACCOUNTS.find(a=>a.username===username);
+    if(def){
+      // Try to get full account from localStorage, fallback to default
+      const stored = findAccount(username);
+      return stored || {...def, active:true, displayName:def.displayName||def.username};
+    }
+  }
+  // Check localStorage accounts (for custom users)
+  const a = findAccount(username);
+  if(!a) return null;
+  const stored = a.pwdHash || hashPwd(DEFAULT_PWDS_MAP[a.role]||'');
+  if(hashPwd(pwd) === stored) return a;
   return null;
 }
 
