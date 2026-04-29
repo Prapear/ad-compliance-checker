@@ -229,42 +229,10 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
       <span style="font-size:24px;">⚖️</span>
       <span class="hdr-title">Ad Compliance Checker</span>
     </div>
-    <div class="hdr-role" style="gap:10px;">
+    <!-- Row1 right: badge + logout — aligned with title -->
+    <div class="hdr-role" style="gap:8px;">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
-      <!-- Bell notification -->
-      <div id="notif-row" style="display:none;gap:6px;align-items:center;">
-        <div style="position:relative;">
-          <button id="btn-bell" onclick="toggleBellDropdown()" title="Recent Tickets (24h)"
-            style="position:relative;width:38px;height:38px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">
-            🔔<span id="bell-count" style="position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
-          </button>
-          <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);border:1px solid #e2e8f0;min-width:290px;z-index:600;overflow:hidden;">
-            <div style="padding:10px 16px;background:#1A3A6B;color:#fff;font-size:13px;font-weight:700;">🔔 Recent Tickets (24h)</div>
-            <div id="bell-list" style="max-height:280px;overflow-y:auto;"></div>
-            <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
-              <button onclick="toggleBellDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">ดูทั้งหมดใน History →</button>
-            </div>
-          </div>
-        </div>
-        <!-- Clock notification -->
-        <div style="position:relative;">
-          <button id="btn-clock" onclick="toggleClockDropdown()" title="Pending Approve"
-            style="position:relative;width:38px;height:38px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;">
-            ⏰<span id="clock-count" style="position:absolute;top:-5px;right:-5px;background:#f59e0b;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
-          </button>
-          <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);border:1px solid #e2e8f0;min-width:300px;z-index:600;overflow:hidden;">
-            <div style="padding:10px 16px;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;">⏰ Pending Approve</div>
-            <div id="clock-list" style="max-height:320px;overflow-y:auto;"></div>
-            <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
-              <button onclick="toggleClockDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">จัดการทั้งหมดใน History →</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Divider -->
-      <div style="width:1px;height:24px;background:rgba(255,255,255,.2);"></div>
-      <!-- Logout -->
-      <button onclick="doLogout()" style="padding:8px 16px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">ออกจากระบบ</button>
+      <button onclick="doLogout()" style="padding:6px 16px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;">ออกจากระบบ</button>
     </div>
   </div>
   <div class="hdr-row2">
@@ -305,6 +273,37 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
         <button class="key-eye" id="btn-eye-monday">👁️</button>
       </div>
       <span class="key-opt">optional</span>
+    </div>
+    <!-- Row2 right: bell + clock — aligned with API key row -->
+    <div style="margin-left:auto;">
+      <div id="notif-row" style="display:none;gap:6px;align-items:center;">
+        <div style="position:relative;">
+          <button id="btn-bell" onclick="toggleBellDropdown()" title="Recent Tickets (24h)"
+            style="position:relative;width:34px;height:34px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;">
+            🔔<span id="bell-count" style="position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
+          </button>
+          <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);border:1px solid #e2e8f0;min-width:290px;z-index:600;overflow:hidden;">
+            <div style="padding:10px 16px;background:#1A3A6B;color:#fff;font-size:13px;font-weight:700;">🔔 Recent Tickets (24h)</div>
+            <div id="bell-list" style="max-height:280px;overflow-y:auto;"></div>
+            <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
+              <button onclick="toggleBellDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">ดูทั้งหมดใน History →</button>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative;">
+          <button id="btn-clock" onclick="toggleClockDropdown()" title="Pending Approve"
+            style="position:relative;width:34px;height:34px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;cursor:pointer;font-size:17px;display:flex;align-items:center;justify-content:center;">
+            ⏰<span id="clock-count" style="position:absolute;top:-5px;right:-5px;background:#f59e0b;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
+          </button>
+          <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);border:1px solid #e2e8f0;min-width:300px;z-index:600;overflow:hidden;">
+            <div style="padding:10px 16px;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;">⏰ Pending Approve</div>
+            <div id="clock-list" style="max-height:320px;overflow-y:auto;"></div>
+            <div style="padding:8px 14px;border-top:1px solid #f1f5f9;text-align:center;">
+              <button onclick="toggleClockDropdown();histFilter='all';_histPage=0;switchTab('history');" style="font-size:12px;color:#1A3A6B;background:none;border:none;cursor:pointer;font-weight:600;">จัดการทั้งหมดใน History →</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>
