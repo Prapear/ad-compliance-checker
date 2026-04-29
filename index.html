@@ -493,7 +493,7 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
 <div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
 
 <!-- ADMIN TAB -->
-<div id="panel-history" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
+<div id="panel-history" class="tab-panel" style="display:none;padding:22px 28px;"></div>
 <div id="panel-accounts" class="tab-panel" style="display:none;padding:22px 28px;max-width:900px;margin:0 auto;"></div>
 <div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
@@ -2141,17 +2141,17 @@ function renderDashboard(){
         </div>
       </div>
       <div style="overflow-x:auto;"><table class="dtable"><thead><tr style="background:#f5f2ee;">
-        ${['วันที่','ชื่องาน','สื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
+        ${['วันที่','ชื่องาน','ประเภทสื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags'].map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;padding:10px 12px;">${h}</th>`).join('')}
       </tr></thead>
       <tbody>${pageData.length===0?`<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">ไม่มีข้อมูลในช่วงนี้</td></tr>`:''}
         ${pageData.map((c,i)=>`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
-          <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
-          <td style="font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
-          <td><span style="padding:2px 7px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${(c.mediaLabel||c.mediaType||'').replace(' / Social Media','').replace('สิ่งพิมพ์ / ดิจิทัล','Social')}</span></td>
-          <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></td>
-          <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
-          <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
-          <td>${flagBadge(c)}</td>
+          <td style="color:#94a3b8;font-size:11px;white-space:nowrap;padding:10px 12px;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</td>
+          <td style="font-weight:600;min-width:140px;padding:10px 12px;">${escHtml(c.jobName||'')}</td>
+          <td style="padding:10px 12px;"><span style="padding:3px 10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:12px;font-weight:700;white-space:nowrap;">${c.mediaLabel||c.mediaType||''}</span></td>
+          <td style="white-space:nowrap;padding:10px 12px;"><span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
+          <td style="text-align:center;font-weight:700;color:#14532d;padding:10px 12px;">${c.pass_count||0}</td>
+          <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};padding:10px 12px;">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
+          <td style="padding:10px 12px;">${flagBadge(c)}</td>
         </tr>`).join('')}
       </tbody></table></div>
     </div>`;
@@ -2161,20 +2161,45 @@ let histFilter='all'; let histYear=new Date().getFullYear();
 let _histPage=0;
 
 function exportHistoryCSV(data){
-  const headers=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','สื่อ','ผล','ตรวจ','Pass','Fail','Status','Key Flags'];
+  const headers=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','ประเภทสื่อ','ผล','ตรวจ','Pass','Cond','Fail','Critical','Status','Key Flags'];
   const rows=data.map(c=>[
-    new Date(c.date).toLocaleDateString('th-TH'),
+    new Date(c.date).toLocaleString('th-TH'),
     c.jobName||'', c.sender||'', c.company||'',
     c.mediaLabel||c.mediaType||'', c.overall_result||'',
-    c.total_rules||0, c.pass_count||0, c.fail_count||0,
+    c.total_rules||0, c.pass_count||0, c.cond_count||0, c.fail_count||0, c.critical_count||0,
     c.reviewStatus||'pending',
     (c.forbidden_words||[]).map(w=>w.word||w).join('; ')
   ]);
   const csv='\uFEFF'+[headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download=`History_${histFilter}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
+  a.href=url; a.download=`History_${histFilter}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function exportHistoryExcel(data){
+  if(typeof XLSX==='undefined'){ alert('ไม่สามารถ Export Excel ได้'); return; }
+  const headers=['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','ประเภทสื่อ','ผล','ตรวจ','Pass','Cond','Fail','Critical','Status','Key Flags'];
+  const rows=data.map(c=>[
+    new Date(c.date).toLocaleString('th-TH'),
+    c.jobName||'', c.sender||'', c.company||'',
+    c.mediaLabel||c.mediaType||'', c.overall_result||'',
+    c.total_rules||0, c.pass_count||0, c.cond_count||0, c.fail_count||0, c.critical_count||0,
+    c.reviewStatus||'pending',
+    (c.forbidden_words||[]).map(w=>w.word||w).join('; ')
+  ]);
+  const ws=XLSX.utils.aoa_to_sheet([headers,...rows]);
+  ws['!cols']=[{wch:20},{wch:26},{wch:16},{wch:20},{wch:30},{wch:18},{wch:6},{wch:6},{wch:6},{wch:6},{wch:8},{wch:12},{wch:30}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'History');
+  XLSX.writeFile(wb,`History_${histFilter}_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
+function exportHistoryPDF(){
+  // Switch to history tab and print
+  switchTab('history');
+  setTimeout(()=>window.print(), 300);
 }
 
 function renderHistory(){
@@ -2231,7 +2256,9 @@ function renderHistory(){
       ${yearNav}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button onclick="exportHistoryCSV(caseHistory.filter(c=>{const d=new Date(c.date);if(histFilter==='today')return d.toDateString()===new Date().toDateString();if(histFilter==='month')return d.getMonth()===new Date().getMonth()&&d.getFullYear()===new Date().getFullYear();if(histFilter==='year')return d.getFullYear()===histYear;return true;}))" class="btn-ghost">📥 Export CSV</button>
+      <button onclick="exportHistoryCSV(caseHistory.filter(c=>{const d=new Date(c.date);if(histFilter==='today')return d.toDateString()===new Date().toDateString();if(histFilter==='month')return d.getMonth()===new Date().getMonth()&&d.getFullYear()===new Date().getFullYear();if(histFilter==='year')return d.getFullYear()===histYear;return true;}))" class="btn-ghost">📥 CSV</button>
+      <button onclick="exportHistoryExcel(caseHistory.filter(c=>{const d=new Date(c.date);if(histFilter==='today')return d.toDateString()===new Date().toDateString();if(histFilter==='month')return d.getMonth()===new Date().getMonth()&&d.getFullYear()===new Date().getFullYear();if(histFilter==='year')return d.getFullYear()===histYear;return true;}))" class="btn-ghost">📊 Excel</button>
+      <button onclick="exportHistoryPDF()" class="btn-ghost">🖨️ PDF</button>
     </div>
   </div>
   <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
@@ -2244,28 +2271,35 @@ function renderHistory(){
       </div>
     </div>
     <div style="overflow-x:auto;">
-    <table class="dtable">
+    <table class="dtable" style="min-width:900px;">
       <thead><tr style="background:#f5f2ee;">
-        ${['วันที่','ชื่องาน','ผู้ส่ง','สื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags','Status','รายละเอียด']
-          .map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
+        ${['วันที่','ชื่องาน','ผู้ส่ง','บริษัท','ประเภทสื่อ','ผล','✓ Pass','✕ Fail','🚩 Flags','Status','รายละเอียด']
+          .map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;padding:10px 12px;">${h}</th>`).join('')}
       </tr></thead>
       <tbody>
-        ${pageData.length===0?`<tr><td colspan="10" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
+        ${pageData.length===0?`<tr><td colspan="11" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
         ${pageData.map((c,i)=>{
           const fw=c.forbidden_words||[];
-          const flagCell=fw.length?`<span style="padding:2px 8px;border-radius:8px;background:#f0d9d9;color:#7f1d1d;font-size:11px;font-weight:700;">🚩 ${fw.length}</span>`:'<span style="color:#94a3b8;font-size:11px;">—</span>';
+          const flagCell=fw.length?`<span style="padding:2px 10px;border-radius:8px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;">🚩 ${fw.length}</span>`:'<span style="color:#94a3b8;">—</span>';
+          const statusCell=({
+            pending:`<span style="padding:3px 10px;border-radius:10px;background:#f0ecd4;color:#78350f;font-size:12px;font-weight:700;white-space:nowrap;">⏳ รอ Review</span>`,
+            approved:`<span style="padding:3px 10px;border-radius:10px;background:#d8ead8;color:#14532d;font-size:12px;font-weight:700;white-space:nowrap;">✅ Approved</span>`,
+            changes:`<span style="padding:3px 10px;border-radius:10px;background:#f0e4d4;color:#7c2d12;font-size:12px;font-weight:700;white-space:nowrap;">🔄 ขอแก้ไข</span>`,
+            rejected:`<span style="padding:3px 10px;border-radius:10px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;white-space:nowrap;">❌ ไม่อนุมัติ</span>`,
+          })[c.reviewStatus||'pending']||'';
           const realIdx=caseHistory.indexOf(c);
           return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
-            <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
-            <td style="font-weight:700;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
-            <td style="color:#64748b;font-size:12px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.sender||'')}</td>
-            <td><span style="padding:2px 7px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:11px;font-weight:700;">${(c.mediaLabel||c.mediaType||'').replace('สิ่งพิมพ์ / ดิจิทัล / Social Media','Social').replace('ป้ายโฆษณา / Billboard / สแตนดี้','Billboard')}</span></td>
-            <td><span class="rbadge" style="white-space:nowrap;background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></td>
-            <td style="text-align:center;font-weight:700;color:#14532d;">${c.pass_count||0}</td>
-            <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
-            <td>${flagCell}</td>
-            <td>${statusBadge(c.reviewStatus)}</td>
-            <td><button onclick="showHistoryDetail(${realIdx})" style="padding:4px 10px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;">ดูรายละเอียด</button></td>
+            <td style="color:#94a3b8;font-size:11px;white-space:nowrap;padding:10px 12px;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
+            <td style="font-weight:700;min-width:130px;padding:10px 12px;">${escHtml(c.jobName||'')}</td>
+            <td style="color:#64748b;font-size:12px;padding:10px 12px;white-space:nowrap;">${escHtml(c.sender||'')}</td>
+            <td style="color:#64748b;font-size:12px;padding:10px 12px;white-space:nowrap;">${escHtml((c.company||'').replace('Ananda Development','Ananda'))}</td>
+            <td style="padding:10px 12px;"><span style="padding:3px 10px;background:#dbeafe;color:#1d4ed8;border-radius:10px;font-size:12px;font-weight:700;white-space:nowrap;">${(c.mediaLabel||c.mediaType||'').replace('สิ่งพิมพ์ / ดิจิทัล / Social Media','Social/ดิจิทัล').replace('ป้ายโฆษณา / Billboard / สแตนดี้','Billboard')}</span></td>
+            <td style="white-space:nowrap;padding:10px 12px;"><span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ CONDITIONS'}[c.overall_result]||c.overall_result}</span></td>
+            <td style="text-align:center;font-weight:700;color:#14532d;padding:10px 12px;">${c.pass_count||0}</td>
+            <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};padding:10px 12px;">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
+            <td style="padding:10px 12px;">${flagCell}</td>
+            <td style="padding:10px 12px;">${statusCell}</td>
+            <td style="padding:10px 12px;"><button onclick="showHistoryDetail(${realIdx})" style="padding:5px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">ดูรายละเอียด</button></td>
           </tr>`;}).join('')}
       </tbody>
     </table>
