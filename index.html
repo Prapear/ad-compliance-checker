@@ -231,14 +231,12 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
     </div>
     <div class="hdr-role">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
-      <!-- Logout + notifications stacked -->
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
         <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
-        <!-- Bell + Clock side by side below logout -->
-        <div style="display:flex;gap:4px;">
-          <div class="admin-reviewer" style="position:relative;">
+        <div id="notif-row" style="display:none;gap:4px;">
+          <div style="position:relative;">
             <button id="btn-bell" onclick="toggleBellDropdown()" title="Recent Tickets"
-              style="position:relative;padding:3px 8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;cursor:pointer;font-size:13px;display:none;line-height:1;">
+              style="position:relative;padding:4px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;cursor:pointer;font-size:14px;line-height:1;">
               🔔 <span id="bell-count" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 4px;min-width:14px;text-align:center;"></span>
             </button>
             <div id="bell-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:280px;z-index:500;overflow:hidden;">
@@ -249,9 +247,9 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
               </div>
             </div>
           </div>
-          <div class="admin-reviewer" style="position:relative;">
+          <div style="position:relative;">
             <button id="btn-clock" onclick="toggleClockDropdown()" title="Pending Approve"
-              style="position:relative;padding:3px 8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:6px;color:#fff;cursor:pointer;font-size:13px;display:none;line-height:1;">
+              style="position:relative;padding:4px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;cursor:pointer;font-size:14px;line-height:1;">
               ⏰ <span id="clock-count" style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 4px;min-width:14px;text-align:center;"></span>
             </button>
             <div id="clock-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);border:1px solid #e2e8f0;min-width:300px;z-index:500;overflow:hidden;">
@@ -960,16 +958,28 @@ function overrideSLA(val){
 
 function updateNotifications(){
   if(!currentRole||currentRole==='user') return;
-  const bell=document.getElementById('btn-bell');
-  const clock=document.getElementById('btn-clock');
-  if(!bell||!clock) return;
+  const row=document.getElementById('notif-row');
+  const bellCount=document.getElementById('bell-count');
+  const clockCount=document.getElementById('clock-count');
+  if(!row) return;
+
   const now=Date.now();
   const newCases=caseHistory.filter(c=>(now-new Date(c.date).getTime())<86400000).length;
   const pendingCases=caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length;
-  bell.style.display=newCases>0?'':'none';
-  if(newCases>0) document.getElementById('bell-count').textContent=newCases;
-  clock.style.display=pendingCases>0?'':'none';
-  if(pendingCases>0) document.getElementById('clock-count').textContent=pendingCases;
+
+  // Show the row if admin/reviewer
+  row.style.display='flex';
+
+  // Bell badge
+  if(bellCount){
+    bellCount.textContent=newCases;
+    bellCount.style.display=newCases>0?'':'none';
+  }
+  // Clock badge
+  if(clockCount){
+    clockCount.textContent=pendingCases;
+    clockCount.style.display=pendingCases>0?'':'none';
+  }
 }
 function toggleBellDropdown(){
   const dd=document.getElementById('bell-dropdown');
@@ -1025,7 +1035,7 @@ function renderClockList(){
         <button onclick="quickApprove(${realIdx},'approved');toggleClockDropdown();" style="padding:5px 10px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">✅ Approve</button>
         <button onclick="quickApprove(${realIdx},'changes');toggleClockDropdown();" style="padding:5px 10px;background:#f59e0b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🔄 ขอแก้</button>
         <button onclick="quickApprove(${realIdx},'rejected');toggleClockDropdown();" style="padding:5px 10px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">❌ ปฏิเสธ</button>
-        <button onclick="toggleClockDropdown();switchTab('history');setTimeout(()=>showHistoryDetail(${realIdx}),300);" style="padding:5px 10px;background:#f5f2ee;color:#1A3A6B;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🔍 ดูรายละเอียด</button>
+        <button onclick="toggleClockDropdown();histFilter='all';_histPage=0;switchTab('history');setTimeout(()=>{showHistoryDetail(${realIdx});},400);" style="padding:5px 10px;background:#f5f2ee;color:#1A3A6B;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">🔍 ดูรายละเอียด</button>
       </div>
     </div>`;}).join('');
 }
@@ -2479,7 +2489,12 @@ function quickApprove(caseIdx, status){
 
 function showHistoryDetail(idx){
   const c=caseHistory[idx]; if(!c) return;
-  const panel=document.getElementById('history-detail-panel');
+  // If history panel not rendered yet, render it first
+  let panel=document.getElementById('history-detail-panel');
+  if(!panel){
+    renderHistory();
+    panel=document.getElementById('history-detail-panel');
+  }
   if(!panel) return;
   const cl=c.checklist_results||[];
   const fw=c.forbidden_words||[];
