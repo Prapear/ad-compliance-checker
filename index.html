@@ -231,11 +231,11 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
     <div class="hdr-role">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
       <div class="admin-reviewer" style="display:flex;gap:6px;align-items:center;">
-        <button id="btn-bell" onclick="switchTab('results')" title="งานใหม่ที่รอตรวจ"
+        <button id="btn-bell" onclick="histFilter='all';_histPage=0;switchTab('history');setTimeout(()=>scrollToFirstPending(),300);" title="งานใหม่ที่รอตรวจ (24h)"
           style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
           🔔 <span id="bell-count" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
         </button>
-        <button id="btn-clock" onclick="switchTab('history')" title="งานที่รอ Approve"
+        <button id="btn-clock" onclick="histFilter='all';_histPage=0;switchTab('history');setTimeout(()=>scrollToFirstPending(),300);" title="งานที่รอ Approve"
           style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
           ⏰ <span id="clock-count" style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
         </button>
@@ -2247,7 +2247,16 @@ function renderHistory(){
   if(_histPage>=totalPages) _histPage=0;
   const pageData=filtered.slice(_histPage*PAGE,(_histPage+1)*PAGE);
 
+  const pendingCount=caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length;
+
   panel.innerHTML=`
+  ${pendingCount>0?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:20px;">⏰</span>
+    <div>
+      <div style="font-weight:700;color:#78350f;font-size:14px;">มีงานรอ Approve ${pendingCount} เคส</div>
+      <div style="font-size:12px;color:#92400e;">แถวสีเหลืองด้านล่างรอการตรวจสอบ — กด ✅ Approve / 🔄 ขอแก้ / ❌ ปฏิเสธ ได้เลย</div>
+    </div>
+  </div>`:''}
   <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
     <div>
       <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
@@ -2287,8 +2296,17 @@ function renderHistory(){
             changes:`<span style="padding:3px 10px;border-radius:10px;background:#f0e4d4;color:#7c2d12;font-size:12px;font-weight:700;white-space:nowrap;">🔄 ขอแก้ไข</span>`,
             rejected:`<span style="padding:3px 10px;border-radius:10px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;white-space:nowrap;">❌ ไม่อนุมัติ</span>`,
           })[c.reviewStatus||'pending']||'';
-          const realIdx=caseHistory.indexOf(c);
-          return`<tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
+          const isPending=!c.reviewStatus||c.reviewStatus==='pending';
+          const approveCell=isPending?`
+            <div style="min-width:220px;">
+              <input id="qa-comment-${realIdx}" type="text" placeholder="หมายเหตุ (optional)" style="width:100%;padding:4px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-size:11px;margin-bottom:5px;"/>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button onclick="quickApprove(${realIdx},'approved')" style="padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">✅ Approve</button>
+                <button onclick="quickApprove(${realIdx},'changes')" style="padding:4px 10px;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">🔄 ขอแก้</button>
+                <button onclick="quickApprove(${realIdx},'rejected')" style="padding:4px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">❌ ปฏิเสธ</button>
+              </div>
+            </div>`:statusCell;
+          return`<tr style="background:${isPending?'#fffbeb':i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;${isPending?'border-left:3px solid #f59e0b;':''}" ${isPending?'data-pending="1"':''}>
             <td style="color:#94a3b8;font-size:11px;white-space:nowrap;padding:10px 12px;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
             <td style="font-weight:700;min-width:130px;padding:10px 12px;">${escHtml(c.jobName||'')}</td>
             <td style="color:#64748b;font-size:12px;padding:10px 12px;white-space:nowrap;">${escHtml(c.sender||'')}</td>
@@ -2298,7 +2316,7 @@ function renderHistory(){
             <td style="text-align:center;font-weight:700;color:#14532d;padding:10px 12px;">${c.pass_count||0}</td>
             <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};padding:10px 12px;">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
             <td style="padding:10px 12px;">${flagCell}</td>
-            <td style="padding:10px 12px;">${statusCell}</td>
+            <td style="padding:10px 12px;">${approveCell}</td>
             <td style="padding:10px 12px;"><button onclick="showHistoryDetail(${realIdx})" style="padding:5px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">ดูรายละเอียด</button></td>
           </tr>`;}).join('')}
       </tbody>
@@ -2312,7 +2330,30 @@ function renderHistory(){
   <div id="history-detail-panel" style="display:none;margin-top:20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:20px;"></div>`;
 }
 
-function showHistoryDetail(idx){
+function scrollToFirstPending(){
+  // Highlight pending rows in history
+  const rows=document.querySelectorAll('#panel-history tr[data-pending]');
+  if(rows.length) rows[0].scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function quickApprove(caseIdx, status){
+  const c=caseHistory[caseIdx]; if(!c) return;
+  const comment=document.getElementById('qa-comment-'+caseIdx)?.value||'';
+  c.reviewStatus=status;
+  c.reviewComment=comment;
+  c.reviewedBy=currentAccount?.displayName||currentRole;
+  c.reviewedAt=new Date().toISOString();
+  try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
+  updateNotifications();
+  renderHistory();
+  const labels={approved:'✅ Approved',changes:'🔄 ส่งคืนให้แก้ไข',rejected:'❌ ไม่อนุมัติ'};
+  const colors={approved:'#d8ead8',changes:'#f0e4d4',rejected:'#f0d9d9'};
+  const tcolors={approved:'#14532d',changes:'#7c2d12',rejected:'#7f1d1d'};
+  const flash=document.createElement('div');
+  flash.style.cssText=`position:fixed;top:80px;right:20px;padding:12px 20px;border-radius:10px;background:${colors[status]};color:${tcolors[status]};font-weight:700;font-size:14px;z-index:999;border:1px solid currentColor;`;
+  flash.textContent=labels[status]+' — '+escHtml(c.jobName||'');
+  document.body.appendChild(flash); setTimeout(()=>flash.remove(),3000);
+}
   const c=caseHistory[idx]; if(!c) return;
   const panel=document.getElementById('history-detail-panel');
   if(!panel) return;
