@@ -158,14 +158,15 @@ body.role-reviewer .reviewer-only{display:block!important;}
 body.role-reviewer .admin-reviewer{display:block!important;}
 body.role-user .user-only{display:block!important;}
 /* ── File preview panel ── */
-.preview-panel{position:fixed;right:0;top:0;bottom:0;width:400px;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;}
+.preview-panel{position:fixed;right:0;top:0;bottom:0;width:48vw;min-width:360px;max-width:760px;background:#fff;border-left:1px solid #e2e8f0;box-shadow:-4px 0 20px rgba(0,0,0,.12);z-index:150;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;}
 .preview-panel.open{transform:translateX(0);}
+body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
 .preview-hdr{padding:14px 16px;background:#1A3A6B;color:#fff;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
 .preview-body{flex:1;overflow-y:auto;padding:12px;}
 .preview-file-item{border:0.5px solid #e2e8f0;border-radius:8px;margin-bottom:10px;overflow:hidden;}
-.preview-file-img{width:100%;display:block;}
-.preview-file-pdf{width:100%;height:300px;border:none;}
-.preview-file-info{padding:8px 12px;background:#faf9f7;font-size:12px;color:#64748b;}
+.preview-file-img{width:100%;display:block;cursor:zoom-in;}
+.preview-file-pdf{width:100%;height:420px;border:none;}
+.preview-file-info{padding:8px 12px;background:#faf9f7;font-size:12px;color:#64748b;display:flex;justify-content:space-between;align-items:center;}
 /* ── Approve workflow ── */
 .review-bar{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px;}
 .rs-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700;}
@@ -229,6 +230,16 @@ body.role-user .user-only{display:block!important;}
     </div>
     <div class="hdr-role">
       <span id="hdr-role-badge" class="role-badge role-reviewer">🟡 Reviewer</span>
+      <div class="admin-reviewer" style="display:flex;gap:6px;align-items:center;">
+        <button id="btn-bell" onclick="switchTab('results')" title="งานใหม่ที่รอตรวจ"
+          style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
+          🔔 <span id="bell-count" style="position:absolute;top:-4px;right:-4px;background:#dc2626;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
+        </button>
+        <button id="btn-clock" onclick="switchTab('history')" title="งานที่รอ Approve"
+          style="position:relative;padding:5px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:16px;display:none;">
+          ⏰ <span id="clock-count" style="position:absolute;top:-4px;right:-4px;background:#f59e0b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;"></span>
+        </button>
+      </div>
       <button onclick="doLogout()" style="padding:5px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;color:#fff;cursor:pointer;font-size:13px;">ออกจากระบบ</button>
     </div>
   </div>
@@ -263,7 +274,7 @@ body.role-user .user-only{display:block!important;}
       <input id="inp-custom-url" type="text" placeholder="https://..." style="padding:5px 10px;border-radius:7px;border:2px solid #334155;background:#0f2240;color:#fff;font-size:13px;width:200px;" autocomplete="off"/>
     </div>
     <div class="hdr-div"></div>
-    <div class="key-grp">
+    <div class="key-grp" style="display:none;">
       <span class="key-lbl">📋 Monday</span>
       <div class="key-wrap">
         <input id="inp-monday" type="password" placeholder="eyJhbGci..." class="key-inp" autocomplete="off"/>
@@ -296,19 +307,20 @@ body.role-user .user-only{display:block!important;}
     <!-- LEFT -->
     <div>
       <div class="card">
-        <h3 class="card-title">📌 ข้อมูล Ticket</h3>
+        <h3 class="card-title">📌 ข้อมูลสื่อโฆษณา</h3>
         <div class="field">
-          <label class="field-lbl">ชื่องาน *</label>
-          <input id="f-jobname" class="inp" placeholder="เช่น Review_Banner_TheWork_April2025"/>
+          <label class="field-lbl">ชื่องาน <span style="color:#dc2626;">*</span></label>
+          <input id="f-jobname" class="inp" placeholder="เช่น Review_Banner_TheWork_April2025" required/>
         </div>
         <div class="g2">
           <div class="field">
-            <label class="field-lbl">ชื่อผู้ส่ง *</label>
-            <input id="f-sender" class="inp" placeholder="ชื่อ-นามสกุล"/>
+            <label class="field-lbl">ชื่อผู้ส่ง <span style="color:#dc2626;">*</span></label>
+            <input id="f-sender" class="inp" placeholder="ชื่อ-นามสกุล" required/>
           </div>
           <div class="field">
-            <label class="field-lbl">บริษัท *</label>
-            <select id="f-company" class="inp">
+            <label class="field-lbl">บริษัท <span style="color:#dc2626;">*</span></label>
+            <select id="f-company" class="inp" required>
+              <option value="">— เลือกบริษัท —</option>
               <option>Ananda Development</option>
               <option>The Works</option>
               <option>Anvinest</option>
@@ -317,24 +329,44 @@ body.role-user .user-only{display:block!important;}
         </div>
         <div class="g2">
           <div class="field">
-            <label class="field-lbl">อีเมล</label>
-            <input id="f-email" class="inp" type="email" placeholder="name@ananda.co.th"/>
+            <label class="field-lbl">อีเมล <span style="color:#dc2626;">*</span></label>
+            <input id="f-email" class="inp" type="email" placeholder="name@ananda.co.th" required/>
           </div>
           <div class="field">
-            <label class="field-lbl">เบอร์โทร</label>
-            <input id="f-phone" class="inp" placeholder="08x-xxx-xxxx"/>
+            <label class="field-lbl">เบอร์โทร <span style="color:#dc2626;">*</span></label>
+            <input id="f-phone" class="inp" placeholder="08x-xxx-xxxx" required/>
           </div>
         </div>
         <div class="field">
-          <label class="field-lbl">SLA</label>
-          <select id="f-sla" class="inp">
-            <option>1 วันทำการ</option><option>2 วันทำการ</option>
-            <option selected>3 วันทำการ</option><option>5 วันทำการ</option><option>7 วันทำการ</option>
+          <label class="field-lbl">SLA <span style="color:#dc2626;">*</span>
+            <span class="admin-reviewer" style="font-size:11px;color:#7c3aed;font-weight:400;margin-left:6px;">(Admin/Reviewer แก้ไขได้)</span>
+          </label>
+          <select id="f-sla" class="inp" required>
+            <option value="">— เลือก SLA —</option>
+            <option>1 วันทำการ</option>
+            <option>2 วันทำการ</option>
+            <option selected>3 วันทำการ</option>
+            <option>5 วันทำการ</option>
+            <option>7 วันทำการ</option>
           </select>
+          <!-- Admin/Reviewer SLA override buttons -->
+          <div class="admin-reviewer" id="sla-override-wrap" style="margin-top:6px;display:none;">
+            <div style="font-size:12px;color:#7c3aed;margin-bottom:4px;">🔧 ปรับ SLA (Admin/Reviewer):</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button onclick="overrideSLA('1 วันทำการ')" style="padding:4px 12px;border-radius:6px;border:1px solid #c4b5fd;background:#faf5ff;color:#7c3aed;cursor:pointer;font-size:12px;">1 วัน</button>
+              <button onclick="overrideSLA('2 วันทำการ')" style="padding:4px 12px;border-radius:6px;border:1px solid #c4b5fd;background:#faf5ff;color:#7c3aed;cursor:pointer;font-size:12px;">2 วัน</button>
+              <button onclick="overrideSLA('3 วันทำการ')" style="padding:4px 12px;border-radius:6px;border:1px solid #c4b5fd;background:#faf5ff;color:#7c3aed;cursor:pointer;font-size:12px;">3 วัน</button>
+              <button onclick="overrideSLA('5 วันทำการ')" style="padding:4px 12px;border-radius:6px;border:1px solid #c4b5fd;background:#faf5ff;color:#7c3aed;cursor:pointer;font-size:12px;">5 วัน</button>
+              <button onclick="overrideSLA('7 วันทำการ')" style="padding:4px 12px;border-radius:6px;border:1px solid #c4b5fd;background:#faf5ff;color:#7c3aed;cursor:pointer;font-size:12px;">7 วัน</button>
+            </div>
+          </div>
         </div>
         <div class="field">
           <label class="field-lbl">รายละเอียดงาน</label>
           <textarea id="f-details" class="inp" rows="3" placeholder="อธิบายสื่อที่ต้องการตรวจ..."></textarea>
+        </div>
+        <div id="form-required-err" style="display:none;padding:8px 12px;background:#f0d9d9;border-radius:8px;color:#7f1d1d;font-size:13px;">
+          ⚠️ กรุณากรอกข้อมูลที่จำเป็น: <span id="form-required-list"></span>
         </div>
       </div>
 
@@ -369,7 +401,7 @@ body.role-user .user-only{display:block!important;}
             🖼️ <strong>รูปภาพ</strong> — JPG, PNG, WebP, GIF<br>
             📕 <strong>PDF</strong> — รองรับเต็มรูปแบบ<br>
             📄 <strong>Text</strong> — TXT, CSV<br>
-            🎬 <strong>วิดีโอ</strong> — MP4, MOV, AVI, WebM <span style="color:#b45309;">(สูงสุด 35MB)</span>
+            🎬 <strong>วิดีโอ</strong> — MP4, MOV, AVI, WebM <span style="color:#b45309;">(สูงสุด 50MB)</span>
           </div>
           <div style="margin-top:8px;padding:6px 10px;background:#fef9c3;border-radius:6px;font-size:11px;color:#92400e;">
             ⚠️ DOCX / PPTX / XLSX — กรุณาแปลงเป็น <strong>PDF</strong> ก่อน upload
@@ -819,6 +851,10 @@ function applyRole(role){
   initProviderUI();
   loadSourceBadges();
   updateReadiness();
+  updateNotifications();
+  // Show SLA override for reviewer/admin
+  const slaWrap=document.getElementById('sla-override-wrap');
+  if(slaWrap) slaWrap.style.display=(role==='admin'||role==='reviewer')?'':'none';
 }
 // Auto-restore session
 try{
@@ -853,7 +889,33 @@ function getSheets(){
 }
 function isValid(){
   return !!(getVal('inp-apikey')&&getVal('f-jobname')&&getVal('f-sender')&&
-            getVal('f-company')&&getVal('f-projtype')&&getVal('f-projstatus')&&getVal('f-media'));
+            getVal('f-company')&&getVal('f-email')&&getVal('f-phone')&&
+            getVal('f-sla')&&getVal('f-projtype')&&getVal('f-media'));
+}
+
+function overrideSLA(val){
+  document.getElementById('f-sla').value=val;
+  updateReadiness();
+  const flash=document.createElement('div');
+  flash.style.cssText='position:fixed;top:80px;right:20px;padding:10px 18px;border-radius:8px;background:#ddd6fe;color:#4c1d95;font-weight:700;font-size:13px;z-index:999;';
+  flash.textContent=`⏱️ SLA ปรับเป็น ${val}`;
+  document.body.appendChild(flash); setTimeout(()=>flash.remove(),2000);
+}
+
+function updateNotifications(){
+  if(!currentRole||currentRole==='user') return;
+  const bell=document.getElementById('btn-bell');
+  const clock=document.getElementById('btn-clock');
+  if(!bell||!clock) return;
+  // New cases in last 24h
+  const now=Date.now();
+  const newCases=caseHistory.filter(c=>(now-new Date(c.date).getTime())<86400000).length;
+  // Pending cases
+  const pendingCases=caseHistory.filter(c=>!c.reviewStatus||c.reviewStatus==='pending').length;
+  if(newCases>0){ bell.style.display=''; document.getElementById('bell-count').textContent=newCases; }
+  else { bell.style.display='none'; }
+  if(pendingCases>0){ clock.style.display=''; document.getElementById('clock-count').textContent=pendingCases; }
+  else { clock.style.display='none'; }
 }
 function toBase64(file){ return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);}); }
 function getFileInfo(file){
@@ -1123,8 +1185,10 @@ function updateReadiness(){
     {label:'ชื่องาน',ok:!!getVal('f-jobname')},
     {label:'ชื่อผู้ส่ง',ok:!!getVal('f-sender')},
     {label:'บริษัท',ok:!!getVal('f-company')},
+    {label:'อีเมล',ok:!!getVal('f-email')},
+    {label:'เบอร์โทร',ok:!!getVal('f-phone')},
+    {label:'SLA',ok:!!getVal('f-sla')},
     {label:'ประเภทโครงการ',ok:!!getVal('f-projtype')},
-    {label:'สถานะโครงการ',ok:!!getVal('f-projstatus')},
     {label:'ประเภทสื่อ',ok:!!getVal('f-media')},
     {label:'ไฟล์สื่อ (optional)',ok:mediaFiles.length>0,opt:true},
   ];
@@ -1146,16 +1210,22 @@ const dz=document.getElementById('drop-zone');
 dz.addEventListener('dragover',e=>e.preventDefault());
 dz.addEventListener('drop',e=>{e.preventDefault();addMediaFiles(Array.from(e.dataTransfer.files));});
 function addMediaFiles(files){
-  const VIDEO_MAX = 35 * 1024 * 1024;
+  const VIDEO_MAX = 50 * 1024 * 1024;
+  const TOTAL_MAX = 75 * 1024 * 1024;
   const tooBig = files.filter(f=>{
     const ext=f.name.split('.').pop().toLowerCase();
     return ['mp4','mov','avi','webm','mpeg'].includes(ext) && f.size > VIDEO_MAX;
   });
   if(tooBig.length){
     const names = tooBig.map(f=>`${f.name} (${(f.size/1024/1024).toFixed(1)} MB)`).join(', ');
-    alert(`⚠️ วิดีโอขนาดเกิน 35MB ส่งไม่ได้:\n${names}\n\nกรุณาบีบอัดไฟล์ให้เล็กลงก่อน หรือใช้ความละเอียดต่ำกว่านี้`);
+    alert(`⚠️ วิดีโอขนาดเกิน 50MB ส่งไม่ได้:\n${names}\n\nกรุณาบีบอัดไฟล์ก่อน`);
   }
   const ok = files.filter(f=>!tooBig.includes(f));
+  const newTotal = [...mediaFiles,...ok].reduce((s,f)=>s+f.size,0);
+  if(newTotal > TOTAL_MAX){
+    alert(`⚠️ ไฟล์รวมทั้งหมดเกิน 75MB (${(newTotal/1024/1024).toFixed(1)} MB)\nGemini รับได้สูงสุด 75MB รวมทุกไฟล์\nกรุณาลดจำนวนหรือขนาดไฟล์`);
+    return;
+  }
   mediaFiles=[...mediaFiles,...ok]; renderFileList(); updateReadiness();
 }
 function removeFile(i){ mediaFiles.splice(i,1); renderFileList(); updateReadiness(); }
@@ -1166,15 +1236,19 @@ function renderFileList(){
     const info=getFileInfo(f);
     const isVideo=info?.kind==='video';
     const isAudio=info?.kind==='audio';
+    const sizeMB=(f.size/1024/1024).toFixed(1);
     const thumb=isImgExt(f)
       ?`<img src="${URL.createObjectURL(f)}" class="file-thumb" alt="">`
       :`<div class="file-icon">${getFileIcon(ext)}</div>`;
-    const badge=isVideo?`<span style="font-size:10px;padding:1px 6px;background:#ddd6fe;color:#4c1d95;border-radius:8px;margin-left:4px;">AI ดูไม่ได้ — บันทึกชื่อไว้</span>`
-      :isAudio?`<span style="font-size:10px;padding:1px 6px;background:#0891b2;color:#fff;border-radius:8px;margin-left:4px;">AI ฟังไม่ได้ — บันทึกชื่อไว้</span>`:'';
+    const badge=isVideo
+      ?`<span style="font-size:10px;padding:1px 6px;background:#d8ead8;color:#14532d;border-radius:8px;margin-left:4px;">🎬 AI วิเคราะห์ได้</span>`
+      :isAudio
+      ?`<span style="font-size:10px;padding:1px 6px;background:#dbeafe;color:#1d4ed8;border-radius:8px;margin-left:4px;">🔊 AI ฟังได้</span>`
+      :'';
     return `<div class="file-item">${thumb}
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(f.name)}${badge}</div>
-        <div style="font-size:11px;color:#94a3b8;">${extUp} · ${(f.size/1024).toFixed(0)} KB</div>
+        <div style="font-size:11px;color:#94a3b8;">${extUp} · ${sizeMB} MB</div>
       </div>
       <button class="file-rm" onclick="removeFile(${i})">✕</button></div>`;
   }).join('');
@@ -1268,7 +1342,7 @@ async function doCall(){
   const otherFiles  = mediaFiles.filter(f=>getFileInfo(f)?.kind==='other');
 
   // Video size check — Gemini base64 limit ~35MB original file
-  const VIDEO_MAX_BYTES = 35 * 1024 * 1024;
+  const VIDEO_MAX_BYTES = 50 * 1024 * 1024;
   const videoOk    = videoFiles.filter(f=>f.size <= VIDEO_MAX_BYTES);
   const videoToBig = videoFiles.filter(f=>f.size >  VIDEO_MAX_BYTES);
 
@@ -1553,6 +1627,10 @@ function togglePreview(){
   const isOpen=panel.classList.contains('open');
   if(!isOpen) renderFilePreview();
   panel.classList.toggle('open');
+  document.body.classList.toggle('preview-open', !isOpen);
+  // Update button text
+  const btns=document.querySelectorAll('[onclick="togglePreview()"]');
+  btns.forEach(b=>b.textContent=!isOpen?`📎 ซ่อนไฟล์`:`📎 ดูไฟล์สื่อ (${mediaFiles.length})`);
 }
 function renderFilePreview(){
   const body=document.getElementById('preview-body');
@@ -1563,14 +1641,16 @@ function renderFilePreview(){
     const url=URL.createObjectURL(f);
     const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);
     const isPdf=ext==='pdf';
+    const isVid=['mp4','mov','avi','webm'].includes(ext);
     const icon=getFileIcon?.(ext)||'📎';
     return `<div class="preview-file-item">
-      ${isImg?`<img src="${url}" class="preview-file-img" alt="${escHtml(f.name)}">`:
+      ${isImg?`<img src="${url}" class="preview-file-img" alt="${escHtml(f.name)}" style="cursor:zoom-in;" onclick="this.style.maxHeight=this.style.maxHeight?'':'none';">`:
         isPdf?`<iframe src="${url}" class="preview-file-pdf" title="${escHtml(f.name)}"></iframe>`:
+        isVid?`<video controls style="width:100%;max-height:320px;background:#000;display:block;" preload="metadata"><source src="${url}" type="video/${ext==='mov'?'quicktime':ext}">ไม่รองรับการเล่นวิดีโอในเบราว์เซอร์นี้</video>`:
         `<div style="padding:24px;text-align:center;font-size:32px;">${icon}</div>`}
-      <div class="preview-file-info">
-        <strong>${escHtml(f.name)}</strong><br>
-        ${ext.toUpperCase()} · ${(f.size/1024).toFixed(0)} KB
+      <div class="preview-file-info" style="display:flex;justify-content:space-between;align-items:center;">
+        <span><strong>${escHtml(f.name)}</strong> · ${ext.toUpperCase()} · ${(f.size/1024/1024).toFixed(1)} MB</span>
+        ${isVid?`<span style="font-size:11px;padding:2px 8px;background:#d8ead8;color:#14532d;border-radius:8px;">🎬 เล่นได้</span>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1672,6 +1752,16 @@ function renderReportTab(result){
               <td style="padding:8px 10px;white-space:nowrap;"><span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};">${row.result==='PASS'?'✓ PASS':row.result==='FAIL'?'✕ FAIL':'N/A'}</span></td>
               <td style="padding:8px 10px;font-size:12px;color:#374151;line-height:1.6;max-width:280px;">${row.finding?`<div>${escHtml(row.finding)}</div>`:''}${row.missing?`<div style="color:#dc2626;">⛔ ${escHtml(row.missing)}</div>`:''}${row.recommendation?`<div style="color:#2563eb;">💡 ${escHtml(row.recommendation)}</div>`:''}${row.penalty&&row.result==='FAIL'?`<div style="color:#7c3aed;">⚖️ ${escHtml(row.penalty)}</div>`:''}</td>
             </tr>`;}).join('')}</tbody></table></div>`:''}
+        ${(()=>{
+          const fw=r.forbidden_words_found||[];
+          const failItems=(r.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical');
+          if(!fw.length&&!failItems.length) return '';
+          return `<div style="margin-bottom:24px;padding:14px 18px;background:#f0d9d9;border-left:4px solid #dc2626;border-radius:8px;">
+            <div style="font-weight:700;color:#7f1d1d;font-size:14px;margin-bottom:10px;">🚩 Key Flags — ประเด็นสำคัญที่ต้องแก้ไขก่อน</div>
+            ${failItems.slice(0,5).map(x=>`<div style="display:flex;gap:8px;margin-bottom:6px;font-size:13px;"><span style="color:#dc2626;flex-shrink:0;">⛔</span><div><strong>${escHtml(x.topic)}</strong>${x.recommendation?` — ${escHtml(x.recommendation)}`:''}</div></div>`).join('')}
+            ${fw.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid #d4a8a8;font-size:12px;color:#7f1d1d;"><strong>ข้อควรระวัง:</strong> ${fw.map(w=>escHtml(w.word)).join(' · ')}</div>`:''}
+          </div>`;
+        })()}
         <div style="border-top:2px solid #e2e8f0;padding-top:20px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;">
           <div style="font-size:11px;color:#94a3b8;line-height:1.8;">
             <div>Ad Compliance Checker v2.0 — Powered by AI</div>
@@ -1840,14 +1930,29 @@ function exportDashboardExcel(){
 // ══════════════════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════════════════
+let dashFilter = 'all'; // 'all','day','month','year'
+let dashYear = new Date().getFullYear();
+
 function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');
-  const total=caseHistory.length;
-  const pass=caseHistory.filter(c=>c.overall_result==='PASS').length;
-  const cond=caseHistory.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
-  const fail=caseHistory.filter(c=>c.overall_result==='FAIL').length;
+
+  // Apply date filter
+  const now=new Date();
+  const filtered = caseHistory.filter(c=>{
+    const d=new Date(c.date);
+    if(dashFilter==='day')   return d.toDateString()===now.toDateString();
+    if(dashFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    if(dashFilter==='year')  return d.getFullYear()===dashYear;
+    return true;
+  });
+
+  const total=filtered.length;
+  const pass=filtered.filter(c=>c.overall_result==='PASS').length;
+  const cond=filtered.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
+  const fail=filtered.filter(c=>c.overall_result==='FAIL').length;
   const passRate=total?Math.round(pass/total*100):0;
-  if(!total){
+
+  if(!caseHistory.length){
     panel.innerHTML=`<div style="text-align:center;padding:60px 20px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;">
       <div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div>
       <div style="font-size:13px;color:#94a3b8;margin-top:4px;">เริ่มตรวจสื่อโฆษณาแล้วผลจะแสดงที่นี่</div>
@@ -1855,29 +1960,49 @@ function renderDashboard(){
     </div>`; return;
   }
   const bar=(v,max,col)=>`<div style="flex:1;height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:${max?v/max*100:0}%;height:100%;background:${col};border-radius:4px;"></div></div>`;
-  const byCompany=['Ananda Development','The Works','Anvinest'].map(co=>({name:co.replace('Ananda Development','Ananda'),total:caseHistory.filter(c=>c.company===co).length,pass:caseHistory.filter(c=>c.company===co&&c.overall_result==='PASS').length,fail:caseHistory.filter(c=>c.company===co&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
-  const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:{TYPE1:'Social/ดิจิทัล',TYPE2:'Billboard',TYPE3:'วิทยุ',TYPE4:'โทรทัศน์'}[m]||m,total:caseHistory.filter(c=>c.mediaType===m).length,fail:caseHistory.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+  const byCompany=['Ananda Development','The Works','Anvinest'].map(co=>({name:co.replace('Ananda Development','Ananda'),total:filtered.filter(c=>c.company===co).length,pass:filtered.filter(c=>c.company===co&&c.overall_result==='PASS').length,fail:filtered.filter(c=>c.company===co&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
+  const byMedia=['TYPE1','TYPE2','TYPE3','TYPE4'].map(m=>({name:{TYPE1:'Social/ดิจิทัล',TYPE2:'Billboard',TYPE3:'วิทยุ',TYPE4:'โทรทัศน์'}[m]||m,total:filtered.filter(c=>c.mediaType===m).length,fail:filtered.filter(c=>c.mediaType===m&&c.overall_result==='FAIL').length})).filter(c=>c.total>0);
 
-  // Top violations from checklist_results stored in history
+  // Top violations
   const violationMap={};
-  caseHistory.forEach(c=>{(c.violations||[]).forEach(v=>{violationMap[v]=(violationMap[v]||0)+1;});});
+  filtered.forEach(c=>{(c.violations||[]).forEach(v=>{violationMap[v]=(violationMap[v]||0)+1;});});
   const topViolations=Object.entries(violationMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxViol=topViolations[0]?.[1]||1;
 
-  // SLA tracking
+  // Monthly trend for bar chart (year-on-year)
+  const years=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>b-a).slice(0,3);
+  const months=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const yearColors=['#1A3A6B','#7c3aed','#16a34a'];
+  const monthlyData=years.map((yr,yi)=>({
+    year:yr, color:yearColors[yi]||'#64748b',
+    data:months.map((_,mi)=>caseHistory.filter(c=>{ const d=new Date(c.date); return d.getFullYear()===yr&&d.getMonth()===mi; }).length)
+  }));
+  const maxMonth=Math.max(1,...monthlyData.flatMap(y=>y.data));
+
+  // SLA
   const slaMap={'1 วันทำการ':1,'2 วันทำการ':2,'3 วันทำการ':3,'5 วันทำการ':5,'7 วันทำการ':7};
-  const now=new Date();
-  const slaOverdue=caseHistory.filter(c=>{
+  const nowTs=new Date();
+  const slaOverdue=filtered.filter(c=>{
     if(c.reviewStatus==='approved') return false;
     const days=slaMap[c.sla]||3;
-    const elapsed=(now-new Date(c.date))/(1000*60*60*24);
+    const elapsed=(nowTs-new Date(c.date))/(1000*60*60*24);
     return elapsed>days;
   });
 
+  const filterBtns=['all','day','month','year'].map(f=>{
+    const labels={all:'ทั้งหมด',day:'วันนี้',month:'เดือนนี้',year:'รายปี'};
+    return `<button onclick="dashFilter='${f}';${f==='year'?`dashYear=${new Date().getFullYear()};`:''}renderDashboard()" style="padding:5px 14px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:${dashFilter===f?NAVY:'#f5f2ee'};color:${dashFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
+  }).join('');
+  const yearBtns=dashFilter==='year'?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${years.map(yr=>`<button onclick="dashYear=${yr};renderDashboard()" style="padding:3px 12px;border-radius:12px;border:none;cursor:pointer;font-size:12px;background:${dashYear===yr?'#7c3aed':'#f5f2ee'};color:${dashYear===yr?'#fff':'#475569'};">${yr}</button>`).join('')}</div>`:'';
+
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
-      <div style="font-size:13px;color:#64748b;margin-top:2px;">ข้อมูลสะสม · บันทึกอัตโนมัติ</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+      <div>
+        <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
+        <div style="font-size:13px;color:#64748b;margin-top:2px;">${total} เคส${dashFilter!=='all'?` (กรองแล้ว จากทั้งหมด ${caseHistory.length})`:''}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
+        ${yearBtns}
+      </div>
       <div style="display:flex;gap:8px;">
         <button onclick="window.print()" class="btn-ghost">🖨️ Export PDF</button>
         <button onclick="clearHistory()" style="padding:7px 16px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;">🗑️ ล้างประวัติ</button>
@@ -1904,6 +2029,29 @@ function renderDashboard(){
       ${topViolations.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;">
         <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🚨 ข้อที่ผิดบ่อยที่สุด</div>
         ${topViolations.map(([topic,count])=>`<div class="vbar-row"><span class="vbar-label">${escHtml(topic)}</span><div class="vbar-track"><div class="vbar-fill" style="width:${count/maxViol*100}%"></div></div><span class="vbar-num">${count}</span></div>`).join('')}
+    </div>
+    </div>
+    <!-- Monthly trend bar chart (Year-on-Year) -->
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;margin-bottom:22px;">
+      <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:6px;">📊 งานเข้ารายเดือน (Year-on-Year)</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">
+        ${yearColors.slice(0,years.length).map((c,i)=>`<div style="display:flex;align-items:center;gap:5px;font-size:12px;"><div style="width:12px;height:12px;border-radius:2px;background:${c};"></div>${years[i]}</div>`).join('')}
+      </div>
+      <div style="overflow-x:auto;">
+        <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;min-width:600px;">
+          ${months.map((m,mi)=>`
+            <div style="text-align:center;">
+              <div style="display:flex;flex-direction:column-reverse;gap:2px;height:80px;justify-content:flex-start;align-items:center;">
+                ${monthlyData.map(yd=>{
+                  const h=yd.data[mi]?Math.max(4,Math.round(yd.data[mi]/maxMonth*72)):0;
+                  return yd.data[mi]>0?`<div title="${yd.year}: ${yd.data[mi]} เคส" style="width:14px;height:${h}px;background:${yd.color};border-radius:2px 2px 0 0;cursor:default;"></div>`:'';
+                }).join('')}
+              </div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:3px;">${m}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>
         <div style="font-size:11px;color:#94a3b8;margin-top:8px;">* บันทึกจากผลการตรวจสะสม</div>
       </div>`:
       `<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;">
@@ -1957,9 +2105,21 @@ function clearHistory(){ if(!confirm('ลบประวัติทั้งห
 // ══════════════════════════════════════════════════════════
 // HISTORY TAB
 // ══════════════════════════════════════════════════════════
+let histFilter='all'; let histYear=new Date().getFullYear();
+
 function renderHistory(){
   const panel=document.getElementById('panel-history');
   if(!panel) return;
+
+  const now=new Date();
+  const filtered=caseHistory.filter(c=>{
+    const d=new Date(c.date);
+    if(histFilter==='day')   return d.toDateString()===now.toDateString();
+    if(histFilter==='month') return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    if(histFilter==='year')  return d.getFullYear()===histYear;
+    return true;
+  });
+
   if(!caseHistory.length){
     panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="margin-top:12px;color:#64748b;">ยังไม่มีประวัติการตรวจ</div></div>`; return;
   }
@@ -1970,10 +2130,22 @@ function renderHistory(){
     rejected:`<span style="padding:2px 10px;border-radius:12px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;">❌ ไม่อนุมัติ</span>`,
   })[s||'pending']||'';
 
+  const years=[...new Set(caseHistory.map(c=>new Date(c.date).getFullYear()))].sort((a,b)=>b-a);
+  const filterBtns=['all','day','month','year'].map(f=>{
+    const labels={all:'ทั้งหมด',day:'วันนี้',month:'เดือนนี้',year:'รายปี'};
+    return `<button onclick="histFilter='${f}';renderHistory()" style="padding:4px 12px;border-radius:16px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${histFilter===f?NAVY:'#f5f2ee'};color:${histFilter===f?'#fff':'#475569'};">${labels[f]}</button>`;
+  }).join('');
+  const yearBtns=histFilter==='year'?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">${years.map(yr=>`<button onclick="histYear=${yr};renderHistory()" style="padding:2px 10px;border-radius:10px;border:none;cursor:pointer;font-size:11px;background:${histYear===yr?'#7c3aed':'#f5f2ee'};color:${histYear===yr?'#fff':'#475569'};">${yr}</button>`).join('')}</div>`:'';
+
   panel.innerHTML=`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-    <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
-    <div style="font-size:13px;color:#64748b;margin-top:2px;">ประวัติการตรวจทั้งหมด ${caseHistory.length} เคส</div></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+    <div>
+      <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">📋 History</h2>
+      <div style="font-size:13px;color:#64748b;margin-top:2px;">${filtered.length} เคส${histFilter!=='all'?` (กรองแล้ว จากทั้งหมด ${caseHistory.length})`:''}
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${filterBtns}</div>
+      ${yearBtns}
+    </div>
   </div>
   <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
     <div style="overflow-x:auto;">
@@ -1983,7 +2155,8 @@ function renderHistory(){
           .map(h=>`<th style="border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap;">${h}</th>`).join('')}
       </tr></thead>
       <tbody>
-        ${caseHistory.map((c,i)=>`
+        ${filtered.length===0?`<tr><td colspan="11" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
+        ${filtered.map((c,i)=>`
         <tr style="background:${i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;">
           <td style="color:#94a3b8;font-size:11px;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}<br><span style="font-size:10px;">${new Date(c.date).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})}</span></td>
           <td style="font-weight:700;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(c.jobName||'')}</td>
