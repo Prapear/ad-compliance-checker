@@ -781,7 +781,13 @@ let currentRole = null;
 let currentAccount = null;
 let lastReviewStatus = null;
 let lastReviewComment = '';
-try{ caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]'); }catch(e){}
+try{
+  caseHistory = JSON.parse(localStorage.getItem('case_history')||'[]');
+  // Migrate old entries — ensure every entry has an id
+  let migrated=false;
+  caseHistory.forEach((c,i)=>{ if(!c.id){ c.id='case_'+i+'_'+(new Date(c.date).getTime()||i); migrated=true; } });
+  if(migrated) try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
+}catch(e){ caseHistory=[]; }
 
 // ══════════════════════════════════════════════════════════
 // LOGIN / LOGOUT
@@ -2288,22 +2294,24 @@ function renderHistory(){
       <tbody>
         ${pageData.length===0?`<tr><td colspan="11" style="text-align:center;padding:24px;color:#94a3b8;">ไม่มีข้อมูลในช่วงเวลาที่เลือก</td></tr>`:''}
         ${pageData.map((c,i)=>{
+          const realIdx=caseHistory.findIndex(x=>x.id===c.id);
           const fw=c.forbidden_words||[];
           const flagCell=fw.length?`<span style="padding:2px 10px;border-radius:8px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;">🚩 ${fw.length}</span>`:'<span style="color:#94a3b8;">—</span>';
-          const statusCell=({
+          const statusMap={
             pending:`<span style="padding:3px 10px;border-radius:10px;background:#f0ecd4;color:#78350f;font-size:12px;font-weight:700;white-space:nowrap;">⏳ รอ Review</span>`,
             approved:`<span style="padding:3px 10px;border-radius:10px;background:#d8ead8;color:#14532d;font-size:12px;font-weight:700;white-space:nowrap;">✅ Approved</span>`,
             changes:`<span style="padding:3px 10px;border-radius:10px;background:#f0e4d4;color:#7c2d12;font-size:12px;font-weight:700;white-space:nowrap;">🔄 ขอแก้ไข</span>`,
             rejected:`<span style="padding:3px 10px;border-radius:10px;background:#f0d9d9;color:#7f1d1d;font-size:12px;font-weight:700;white-space:nowrap;">❌ ไม่อนุมัติ</span>`,
-          })[c.reviewStatus||'pending']||'';
+          };
+          const statusCell=statusMap[c.reviewStatus||'pending']||'';
           const isPending=!c.reviewStatus||c.reviewStatus==='pending';
-          const approveCell=isPending?`
-            <div style="min-width:220px;">
-              <input id="qa-comment-${realIdx}" type="text" placeholder="หมายเหตุ (optional)" style="width:100%;padding:4px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-size:11px;margin-bottom:5px;"/>
+          const approveCell=isPending&&realIdx>=0?`
+            <div style="min-width:200px;">
+              <input id="qa-comment-${realIdx}" type="text" placeholder="หมายเหตุ (optional)" style="width:100%;padding:4px 8px;border:0.5px solid #e2e8f0;border-radius:6px;font-size:11px;margin-bottom:5px;font-family:inherit;"/>
               <div style="display:flex;gap:4px;flex-wrap:wrap;">
-                <button onclick="quickApprove(${realIdx},'approved')" style="padding:4px 10px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">✅ Approve</button>
-                <button onclick="quickApprove(${realIdx},'changes')" style="padding:4px 10px;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">🔄 ขอแก้</button>
-                <button onclick="quickApprove(${realIdx},'rejected')" style="padding:4px 10px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">❌ ปฏิเสธ</button>
+                <button onclick="quickApprove(${realIdx},'approved')" style="padding:5px 12px;background:#16a34a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;">✅ Approve</button>
+                <button onclick="quickApprove(${realIdx},'changes')" style="padding:5px 12px;background:#f59e0b;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;">🔄 ขอแก้</button>
+                <button onclick="quickApprove(${realIdx},'rejected')" style="padding:5px 12px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;">❌ ปฏิเสธ</button>
               </div>
             </div>`:statusCell;
           return`<tr style="background:${isPending?'#fffbeb':i%2?'#faf9f7':'#fff'};border-bottom:1px solid #ede9e3;${isPending?'border-left:3px solid #f59e0b;':''}" ${isPending?'data-pending="1"':''}>
@@ -2317,8 +2325,8 @@ function renderHistory(){
             <td style="text-align:center;font-weight:700;color:${(c.fail_count||0)>0?'#dc2626':'#64748b'};padding:10px 12px;">${c.fail_count||0}${(c.critical_count||0)>0?`<span style="font-size:10px;color:#7f1d1d;">(${c.critical_count}C)</span>`:''}</td>
             <td style="padding:10px 12px;">${flagCell}</td>
             <td style="padding:10px 12px;">${approveCell}</td>
-            <td style="padding:10px 12px;"><button onclick="showHistoryDetail(${realIdx})" style="padding:5px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">ดูรายละเอียด</button></td>
-          </tr>`;}).join('')}
+            <td style="padding:10px 12px;"><button onclick="showHistoryDetail(${realIdx>=0?realIdx:0})" style="padding:5px 12px;background:#1A3A6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;white-space:nowrap;">ดูรายละเอียด</button></td>
+          </tr>`;}).join('')}}).join('')}
       </tbody>
     </table>
     </div>
@@ -2337,21 +2345,23 @@ function scrollToFirstPending(){
 }
 
 function quickApprove(caseIdx, status){
-  const c=caseHistory[caseIdx]; if(!c) return;
+  // Ensure old entries have id
+  caseHistory.forEach((c,i)=>{ if(!c.id) c.id='case_'+i+'_'+new Date(c.date).getTime(); });
+  const c=caseHistory[caseIdx];
+  if(!c){ console.warn('Case not found at index',caseIdx); return; }
   const comment=document.getElementById('qa-comment-'+caseIdx)?.value||'';
   c.reviewStatus=status;
   c.reviewComment=comment;
-  c.reviewedBy=currentAccount?.displayName||currentRole;
+  c.reviewedBy=currentAccount?.displayName||currentRole||'Legal';
   c.reviewedAt=new Date().toISOString();
   try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
   updateNotifications();
   renderHistory();
   const labels={approved:'✅ Approved',changes:'🔄 ส่งคืนให้แก้ไข',rejected:'❌ ไม่อนุมัติ'};
   const colors={approved:'#d8ead8',changes:'#f0e4d4',rejected:'#f0d9d9'};
-  const tcolors={approved:'#14532d',changes:'#7c2d12',rejected:'#7f1d1d'};
   const flash=document.createElement('div');
-  flash.style.cssText=`position:fixed;top:80px;right:20px;padding:12px 20px;border-radius:10px;background:${colors[status]};color:${tcolors[status]};font-weight:700;font-size:14px;z-index:999;border:1px solid currentColor;`;
-  flash.textContent=labels[status]+' — '+escHtml(c.jobName||'');
+  flash.style.cssText=`position:fixed;top:80px;right:20px;padding:12px 22px;border-radius:10px;background:${colors[status]};font-weight:700;font-size:14px;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,.15);`;
+  flash.textContent=`${labels[status]} — ${c.jobName||''}`;
   document.body.appendChild(flash); setTimeout(()=>flash.remove(),3000);
 }
   const c=caseHistory[idx]; if(!c) return;
