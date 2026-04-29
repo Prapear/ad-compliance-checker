@@ -216,6 +216,7 @@ body.preview-open #panel-results .res-main{margin-right:0;transition:all .25s;}
       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span><code style="color:#fff;">reviewer</code> / <code style="color:#fbbf24;">legal2025</code><br>
       <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#16a34a;margin-right:5px;vertical-align:middle;"></span><code style="color:#fff;">user</code> / <code style="color:#fbbf24;">check2025</code>
     </div>
+    <button onclick="resetAccounts()" style="margin-top:10px;width:100%;padding:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;">🔄 Reset ระบบ Login (ถ้า login ไม่ได้)</button>
   </div>
 </div>
 
@@ -737,25 +738,25 @@ const DEFAULT_PWDS_MAP = { admin:'ananda2025', reviewer:'legal2025', user:'check
 
 function hashPwd(s){ let h=0; for(const c of s) h=(Math.imul(31,h)+c.charCodeAt(0))|0; return h.toString(36); }
 
-const ACCOUNT_SCHEMA_VERSION = '2';
+const ACCOUNT_SCHEMA_VERSION = '3';
 
 function loadAccounts(){
   try{
-    // Check schema version — reset if old
     const ver = localStorage.getItem('user_accounts_ver');
     if(ver === ACCOUNT_SCHEMA_VERSION){
       const a=JSON.parse(localStorage.getItem('user_accounts')||'null');
-      if(a&&a.length) return a;
+      // Validate structure
+      if(a&&a.length&&a[0].pwdHash) return a;
     }
   }catch(e){}
-  // Clear old keys from previous versions
+  // Reset — clear all old keys
   try{
-    ['pwd_admin','pwd_reviewer','pwd_user'].forEach(k=>localStorage.removeItem(k));
-    localStorage.removeItem('user_accounts');
+    ['pwd_admin','pwd_reviewer','pwd_user','user_accounts','user_accounts_ver'].forEach(k=>localStorage.removeItem(k));
   }catch(e){}
-  // Init fresh defaults
+  // Init fresh defaults with hashed passwords
   const defaults = DEFAULT_ACCOUNTS.map(a=>({...a, pwdHash: hashPwd(DEFAULT_PWDS_MAP[a.role]||'check2025')}));
-  saveAccounts(defaults); return defaults;
+  saveAccounts(defaults);
+  return defaults;
 }
 function saveAccounts(accounts){
   try{
@@ -798,6 +799,22 @@ function toggleLoginPwd(){
   i.type=i.type==='password'?'text':'password';
   b.textContent=i.type==='password'?'👁️':'🙈';
 }
+function resetAccounts(){
+  try{
+    ['pwd_admin','pwd_reviewer','pwd_user','user_accounts','user_accounts_ver'].forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+  // Force reload fresh defaults
+  const defaults = DEFAULT_ACCOUNTS.map(a=>({...a, pwdHash: hashPwd(DEFAULT_PWDS_MAP[a.role]||'check2025')}));
+  saveAccounts(defaults);
+  document.getElementById('login-username').value='';
+  document.getElementById('login-pwd').value='';
+  const err=document.getElementById('login-err');
+  err.style.display='';
+  err.style.color='#86efac';
+  err.textContent='✅ Reset สำเร็จ — ลอง login ด้วย admin / ananda2025';
+  setTimeout(()=>{ err.style.display='none'; err.style.color=''; err.textContent='❌ Username หรือ Password ไม่ถูกต้อง'; },4000);
+}
+
 function doLogin(){
   const username = (document.getElementById('login-username')?.value||'').trim();
   const pwd      = document.getElementById('login-pwd').value;
