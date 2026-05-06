@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Ad Compliance Checker v3.6</title>
+<title>Ad Compliance Checker v3.7</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -264,7 +264,7 @@ textarea.inp{resize:vertical;}
 <!-- HEADER -->
 <header id="main-header" style="display:none;">
   <div class="hdr-row1">
-    <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">⚖️</span><span class="hdr-title">Ad Compliance Checker</span><span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:500;">v3.6</span></div>
+    <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">⚖️</span><span class="hdr-title">Ad Compliance Checker</span><span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:500;">v3.7</span></div>
     <div style="display:flex;align-items:center;gap:8px;">
       <span id="hdr-badge" class="role-badge role-reviewer">Reviewer</span>
       <button onclick="doLogout()" style="padding:6px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Sign Out</button>
@@ -930,9 +930,9 @@ function sendForLegalReview(entryId){
   const ci=caseHistory.findIndex(c=>String(c.id)===String(entryId));if(ci>=0)caseHistory[ci].status='Sent to Legal';
   saveState();
   emailStub('sentToLegal', {acaNumber:entry.acaNumber, jobName:entry.jobName, senderEmail:entry.email, submitterRole:currentRole});
-  // Notify all reviewer/admin accounts
-  getAccounts().filter(a=>a.active&&(getRoleDef(a.role).canInbox||getRoleDef(a.role).canAdmin)).forEach(a=>{
-    if(a.username!==currentAcc?.username)pushNotif(a.role,`📤 งานใหม่รอตรวจ: "${entry.jobName}" (${entry.acaNumber})`,entry.acaNumber);
+  // Notify all reviewer/admin accounts (excluding sender)
+  getAccounts().filter(a=>a.active&&(getRoleDef(a.role).canInbox||getRoleDef(a.role).canAdmin)&&a.username!==currentAcc?.username).forEach(a=>{
+    pushNotif(a.role,`📤 งานใหม่รอตรวจ: "${entry.jobName}" (${entry.acaNumber})`,entry.acaNumber);
   });
   flash('📤 ส่ง Legal Review สำเร็จ! ACA: '+entry.acaNumber,'#dbeafe','#0032c7');
   updateNotifBadges();
@@ -1001,16 +1001,12 @@ function getFilteredInboxQueue(){
   return q;
 }
 function renderInboxFilterBar(allQueue){
-  const companies=[...new Set(allQueue.map(q=>q.company).filter(Boolean))];
-  const mediaTypes=[...new Set(allQueue.map(q=>q.mediaLabel||q.mediaType).filter(Boolean))];
   return`<div class="filter-bar">
-    <div><label>บริษัท</label><select class="filter-select" onchange="_inboxFilter.company=this.value;renderInbox()"><option value="">ทั้งหมด</option>${companies.map(c=>`<option value="${esc(c)}" ${_inboxFilter.company===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
-    <div><label>ประเภทสื่อ</label><select class="filter-select" onchange="_inboxFilter.mediaType=this.value;renderInbox()"><option value="">ทั้งหมด</option>${mediaTypes.map(m=>`<option value="${esc(m)}" ${_inboxFilter.mediaType===m?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
     <div><label>Status</label><select class="filter-select" onchange="_inboxFilter.status=this.value;renderInbox()"><option value="">ทั้งหมด</option><option value="Sent to Legal" ${_inboxFilter.status==='Sent to Legal'?'selected':''}>📤 Sent to Legal</option><option value="Under Review" ${_inboxFilter.status==='Under Review'?'selected':''}>🔍 Under Review</option><option value="Re-submitted" ${_inboxFilter.status==='Re-submitted'?'selected':''}>🔁 Re-submitted</option></select></div>
     <div><label>จาก</label><input type="date" class="filter-date" value="${_inboxFilter.dateFrom}" onchange="_inboxFilter.dateFrom=this.value;renderInbox()"/></div>
     <div><label>ถึง</label><input type="date" class="filter-date" value="${_inboxFilter.dateTo}" onchange="_inboxFilter.dateTo=this.value;renderInbox()"/></div>
     <div><label>เรียงตาม</label><select class="filter-select" onchange="_inboxFilter.sort=this.value;renderInbox()"><option value="sla" ${_inboxFilter.sort==='sla'?'selected':''}>SLA เหลือน้อยสุด</option><option value="date" ${_inboxFilter.sort==='date'?'selected':''}>วันที่ส่งล่าสุด</option><option value="revision" ${_inboxFilter.sort==='revision'?'selected':''}>Revision มากสุด</option></select></div>
-    <div style="align-self:flex-end;"><button class="btn-sm" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;" onclick="_inboxFilter={company:'',mediaType:'',status:'',dateFrom:'',dateTo:'',sort:'sla'};renderInbox()">🔄 ล้างตัวกรอง</button></div>
+    <div style="align-self:flex-end;"><button class="btn-sm" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;" onclick="_inboxFilter={company:'',mediaType:'',status:'',dateFrom:'',dateTo:'',sort:'sla'};renderInbox()">🔄 ล้าง</button></div>
   </div>`;
 }
 function renderInbox(){
@@ -1061,13 +1057,36 @@ function openReviewTicket(acaNumber){
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;">${[['ผู้ส่ง',q.submitterName||q.sender],['บริษัท',q.company],['วันที่ส่ง',new Date(q.sentAt||'').toLocaleString('th-TH')],['อีเมล',q.email]].map(([l,v])=>`<div><span style="color:#94a3b8;">${l}:</span> <strong style="color:#1e293b;">${esc(v||'—')}</strong></div>`).join('')}</div>
         </div>
         <div class="rt-section"><div class="rt-section-title">📋 รายละเอียดงาน</div>
-          <div style="font-size:13px;line-height:1.8;color:#374151;">${q.details?`<div style="margin-bottom:8px;"><span style="color:#94a3b8;">Objective:</span> ${esc(q.details)}</div>`:''}${[['ประเภทโครงการ',q.projectType],['สถานะ',q.projectStatus],['ประเภทสื่อ',q.mediaLabel||q.mediaType],['ข้อเสนอพิเศษ',q.offer]].map(([l,v])=>`<div><span style="color:#94a3b8;">${l}:</span> <strong>${esc(v||'—')}</strong></div>`).join('')}</div>
+          ${q.details?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:10px 14px;margin-bottom:10px;">
+            <div style="font-size:11px;font-weight:700;color:#0891b2;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">📝 Objective / ขอให้ตรวจพิเศษ</div>
+            <div style="font-size:13px;color:#1e293b;line-height:1.7;">${esc(q.details)}</div>
+          </div>`:''}
+          <div style="font-size:13px;line-height:1.8;color:#374151;">${[['ประเภทโครงการ',q.projectType],['สถานะ',q.projectStatus],['ประเภทสื่อ',q.mediaLabel||q.mediaType],['ข้อเสนอพิเศษ',q.offer]].map(([l,v])=>`<div><span style="color:#94a3b8;">${l}:</span> <strong>${esc(v||'—')}</strong></div>`).join('')}</div>
         </div>
         ${(q.attachedFiles||[]).length?`<div class="rt-section"><div class="rt-section-title">📎 ไฟล์แนบ</div><div style="display:flex;flex-wrap:wrap;gap:8px;">${q.attachedFiles.map(f=>`<div style="padding:6px 12px;background:#fff;border-radius:8px;border:1px solid #e2e8f0;font-size:12px;">${f.localURL&&isImgFile(f.name)?`<img src="${f.localURL}" style="width:60px;height:60px;object-fit:cover;border-radius:6px;display:block;margin-bottom:4px;">`:''}<strong>${esc(f.name)}</strong><div style="color:#94a3b8;">${(f.size/1024/1024).toFixed(1)} MB</div>${!f.gDriveLink?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:2px 6px;font-size:10px;color:#92400e;margin-top:3px;">⚠️ session เท่านั้น</div>`:''}</div>`).join('')}</div></div>`:``}
         <div class="rt-section"><div class="rt-section-title">📊 ผล AI Analysis <span style="font-size:12px;color:#64748b;font-weight:400;">(${q.overall_result})</span></div>
-          <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">${['PASS','FAIL','N/A'].map(r=>`<span style="padding:2px 10px;border-radius:12px;background:${rbg(r)};color:${rcol(r)};font-weight:700;font-size:12px;">${r}: ${cnt(r)}</span>`).join('')}</div>
-          <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>Rule ID</th><th>หัวข้อ</th><th>กฎหมาย</th><th>Severity</th><th>ผล</th><th>สิ่งที่พบ</th></tr></thead>
-          <tbody>${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};return`<tr style="background:${i%2?'#f8faff':'#fff'};border-bottom:1px solid #e8effe;"><td style="font-family:monospace;font-size:11px;color:#475569;">${row.rule_id||''}</td><td style="font-weight:600;color:#1e293b;">${esc(row.topic||'')}</td><td style="color:#64748b;font-size:12px;">${esc(row.law||'')}</td><td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td><td><span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};">${row.result==='PASS'?'✓ PASS':row.result==='FAIL'?'✕ FAIL':'N/A'}</span></td><td style="line-height:1.6;font-size:12px;max-width:180px;">${row.finding?`<div>${esc(row.finding)}</div>`:''}${row.missing?`<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>`:''}${row.recommendation?`<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>`:''}</td></tr>`;}).join('')}</tbody></table></div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">${['PASS','FAIL','N/A'].map(r=>`<span style="padding:2px 10px;border-radius:12px;background:${rbg(r)};color:${rcol(r)};font-weight:700;font-size:12px;">${r}: ${cnt(r)}</span>`).join('')}</div>
+          ${cl.map((row,i)=>{const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};return`<div style="background:${i%2?'#f8faff':'#fff'};border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;margin-bottom:8px;">
+            <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+              <span style="font-family:monospace;font-size:10px;color:#94a3b8;flex-shrink:0;padding-top:2px;">${row.rule_id||''}</span>
+              <span style="font-weight:700;font-size:13px;color:#1e293b;flex:1;">${esc(row.topic||'')}</span>
+              <span class="sev" style="background:${cfg.bg};color:${cfg.color};flex-shrink:0;">${cfg.label}</span>
+              <span class="rbadge" style="background:${rbg(row.result)};color:${rcol(row.result)};flex-shrink:0;">${row.result==='PASS'?'✓ PASS':row.result==='FAIL'?'✕ FAIL':'N/A'}</span>
+            </div>
+            ${row.law?`<div style="font-size:11px;color:#64748b;margin-bottom:4px;">📖 ${esc(row.law)}</div>`:''}
+            ${row.finding?`<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:3px;">${esc(row.finding)}</div>`:''}
+            ${row.missing?`<div style="font-size:12px;color:#dc2626;margin-bottom:3px;">⛔ ขาด: ${esc(row.missing)}</div>`:''}
+            ${row.recommendation?`<div style="font-size:12px;color:#0032c7;margin-bottom:3px;">💡 ${esc(row.recommendation)}</div>`:''}
+            ${row.penalty&&row.result==='FAIL'?`<div style="font-size:12px;color:#7c3aed;">⚖️ โทษ: ${esc(row.penalty)}</div>`:''}
+          </div>`;}).join('')}
+          ${(q.forbidden_words||[]).length?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;margin-top:4px;">
+            <div style="font-size:13px;font-weight:700;color:#92400e;margin-bottom:8px;">⚠️ ข้อควรระวัง (${(q.forbidden_words||[]).length} รายการ)</div>
+            ${(q.forbidden_words||[]).map(w=>`<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #fde68a;font-size:12px;align-items:flex-start;">
+              <span style="font-weight:700;color:#dc2626;min-width:80px;">${esc(w.word||'')}</span>
+              <span style="color:#64748b;flex:1;">${esc(w.location||'')}</span>
+              <span style="font-size:10px;font-family:monospace;color:#94a3b8;">${w.rule_id||''}</span>
+            </div>`).join('')}
+          </div>`:''}
         </div>
         <div class="rt-section"><div class="rt-section-title">🕐 Timeline</div>${(q.timeline||[]).map(t=>`<div class="revision-item"><div class="revision-dot">${{Approved:'✅','Request Edit':'🔄',Rejected:'❌','Sent to Legal':'📤','Re-submitted':'🔁','Under Review':'🔍','Quick Check (AI)':'🤖','สร้าง ticket (Direct Send)':'📝'}[t.action]||'📋'}</div><div><div style="font-size:13px;font-weight:600;color:#1e293b;">${esc(t.action)}</div><div style="font-size:11px;color:#94a3b8;">${new Date(t.ts).toLocaleString('th-TH')} · ${esc(t.user||'')}</div>${t.comment?`<div style="font-size:12px;color:#64748b;font-style:italic;">"${esc(t.comment)}"</div>`:''}</div></div>`).join('')}</div>
       </div>
@@ -1294,8 +1313,10 @@ function renderHistory(){
     return{page,total,totalPages,pager};
   }
   if(isUserRole){
-    const myQCAll=caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
-    const myLegalAll=legalQueue.filter(q=>q.submittedBy===currentAcc?.username);
+    // User sees own submissions only; admin sees all
+    const isAdminRole=getRoleDef(currentRole).canAdmin;
+    const myQCAll=isAdminRole?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
+    const myLegalAll=isAdminRole?legalQueue:legalQueue.filter(q=>q.submittedBy===currentAcc?.username);
     const myQC=applyHistFilter(myQCAll);
     const myLegal=applyHistFilter(myLegalAll);
     const ast=_histSubTab.user||'qc';
@@ -1315,20 +1336,45 @@ function renderHistory(){
       if(!myQC.length){el.innerHTML=`<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;return;}
       const {page,pager}=paginate(myQC);
       el.innerHTML=`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-      ${page.map(c=>`<div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
+      ${page.map(c=>{
+        const cl=c.checklist_results||[];
+        const fails=cl.filter(r=>r.result==='FAIL');
+        const flags=c.forbidden_words?.length||0;
+        const files=c.attachedFiles||[];
+        return`<div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${c.acaNumber?`<span class="aca-badge" style="font-size:11px;">${c.acaNumber}</span>`:''}<span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${c.overall_result}</span></div>
           <div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
         </div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:#1e293b;">${esc(c.jobName||'')}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(c.company||'')} · ${esc(c.mediaLabel||c.mediaType||'')} · ${esc(c.projectType||'')}</div>
-        ${c.overall_summary?`<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:8px;">${esc(c.overall_summary.slice(0,150))}${c.overall_summary.length>150?'...':''}</div>`:''}
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px;color:#1e293b;">${esc(c.jobName||'')}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(c.submitterName||c.sender||'')} · ${esc(c.company||'')} · ${esc(c.mediaLabel||c.mediaType||'')} · ${esc(c.projectType||'')}</div>
+        ${c.details?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 10px;font-size:12px;color:#0c4a6e;margin-bottom:6px;">📋 <strong>Objective:</strong> ${esc(c.details)}</div>`:''}
+        ${c.overall_summary?`<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px;">${esc(c.overall_summary)}</div>`:''}
+        <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-size:12px;color:#64748b;">ตรวจ <strong>${cl.length}</strong> จุด</span>
+          <span style="font-size:12px;color:#16a34a;font-weight:700;">✓ ${cl.filter(r=>r.result==='PASS').length} Pass</span>
+          <span style="font-size:12px;color:#dc2626;font-weight:700;">✕ ${fails.length} Fail</span>
+          ${flags?`<span style="font-size:12px;color:#f59e0b;font-weight:700;">⚠️ ${flags} Flag</span>`:''}
+        </div>
+        ${fails.length?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:#dc2626;margin-bottom:6px;">✕ สิ่งที่พบ (Fail ${fails.length} จุด)</div>
+          ${fails.slice(0,5).map(r=>`<div style="display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #fee2e2;font-size:12px;">
+            <span style="min-width:80px;font-family:monospace;font-size:10px;color:#94a3b8;flex-shrink:0;">${r.rule_id||''}</span>
+            <span style="flex:1;min-width:0;"><strong style="color:#1e293b;">${esc(r.topic||'')}</strong>${r.finding?`<div style="color:#374151;">${esc(r.finding)}</div>`:''}${r.missing?`<div style="color:#dc2626;">⛔ ${esc(r.missing)}</div>`:''}${r.recommendation?`<div style="color:#0032c7;">💡 ${esc(r.recommendation)}</div>`:''}</span>
+          </div>`).join('')}
+          ${fails.length>5?`<div style="font-size:11px;color:#94a3b8;margin-top:4px;">...และอีก ${fails.length-5} จุด</div>`:''}
+        </div>`:''}
+        ${(c.forbidden_words||[]).length?`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 12px;margin-bottom:8px;">
+          <div style="font-size:12px;font-weight:700;color:#92400e;margin-bottom:4px;">⚠️ ข้อควรระวัง</div>
+          ${(c.forbidden_words||[]).map(w=>`<span style="display:inline-block;margin:2px;padding:2px 8px;background:#fef9c3;border:1px solid #fde047;border-radius:4px;font-size:11px;color:#713f12;">${esc(w.word||'')}</span>`).join('')}
+        </div>`:''}
+        ${files.length?`<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;">📎 ไฟล์แนบ (${files.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${files.map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);const isPdf=ext==='pdf';const isVid=['mp4','mov','avi','webm'].includes(ext);return`<div style="padding:4px 10px;background:#f8faff;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:5px;">${isImg&&f.localURL?`<img src="${f.localURL}" style="width:24px;height:24px;object-fit:cover;border-radius:3px;">`:isVid?'🎬':isPdf?'📕':'📎'}<span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name)}</span>${f.localURL&&isVid?`<button onclick="window.open('${f.localURL}')" class="btn-sm" style="padding:1px 5px;font-size:10px;background:#e8effe;color:#0032c7;border:none;">▶</button>`:''}</div>`;}).join('')}</div></div>`:''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">${c.status!=='Sent to Legal'?`<button onclick="sendForLegalReviewFromHistory('${c.id}')" class="btn-blue btn-sm">📤 Send to Legal</button>`:`${statusBadge('Sent to Legal')}`}
           <button onclick="downloadHistoryExcel('qc_result','${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
           <button onclick="exportCSV('qc_result','${c.id}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
           <button onclick="savePDF('result','${c.id}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
         </div>
-      </div>`).join('')}
+      </div>`;}).join('')}
       ${pager}</div>`;
     } else {
       if(!myLegalAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีประวัติ Legal Review</div>`;return;}
@@ -1372,7 +1418,9 @@ function renderHistory(){
         </div>
         <div style="font-size:15px;font-weight:700;margin-bottom:2px;color:#1e293b;">${esc(q.jobName)}</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(q.submitterName||'')} · ${esc(q.company||'')} · แก้ ${q.revisionCount||0} รอบ</div>
-        ${q.legalComment?`<div style="font-size:13px;color:#374151;margin-bottom:6px;">ความเห็น: "${esc(q.legalComment)}"</div>`:''}
+        ${q.details?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 10px;font-size:12px;color:#0c4a6e;margin-bottom:6px;">📝 Objective: ${esc(q.details)}</div>`:''}
+        ${q.legalComment?`<div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:13px;color:#7c2d12;margin-bottom:6px;"><strong>💬 Legal:</strong> ${esc(q.legalComment)}</div>`:''}
+        ${(q.attachedFiles||[]).length?`<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:5px;">${(q.attachedFiles||[]).map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);const isVid=['mp4','mov','avi','webm'].includes(ext);return`<span style="padding:3px 8px;background:#f8faff;border:1px solid #e2e8f0;border-radius:5px;font-size:11px;display:flex;align-items:center;gap:4px;">${isImg&&f.localURL?`<img src="${f.localURL}" style="width:18px;height:18px;object-fit:cover;border-radius:2px;">`:isVid?'🎬':f.name.endsWith('.pdf')?'📕':'📎'}${esc(f.name)}</span>`;}).join('')}</div>`:''}
         <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Reviewed by ${esc(q.reviewedBy||'')} · ${q.reviewedAt?new Date(q.reviewedAt).toLocaleString('th-TH'):''}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button onclick="openReviewTicket('${q.acaNumber}')" class="btn-navy btn-sm">🔍 ดูรายละเอียด</button>
@@ -1486,56 +1534,133 @@ function renderReport(){
 }
 
 // ── DASHBOARD with filter + Turnaround KPI ──
-let _dashFilter={company:'',period:'3m'};
+// ── DASHBOARD filter helpers (align with History) ──
+let _dashFilter={period:'all'};
+let _dashMonthSel=new Date().getMonth();
+let _dashYearSel=new Date().getFullYear();
+let _dashRangeFrom='';let _dashRangeTo='';
+
+function applyDashFilter(items, dateField='date'){
+  const now=new Date();
+  return items.filter(c=>{
+    const d=new Date(c[dateField]||c.date||c.sentAt||0);
+    if(_dashFilter.period==='today')return d.toDateString()===now.toDateString();
+    if(_dashFilter.period==='month')return d.getMonth()===_dashMonthSel&&d.getFullYear()===_dashYearSel;
+    if(_dashFilter.period==='year')return d.getFullYear()===_dashYearSel;
+    if(_dashFilter.period==='range'&&_dashRangeFrom&&_dashRangeTo){
+      const from=new Date(_dashRangeFrom);from.setHours(0,0,0,0);
+      const to=new Date(_dashRangeTo);to.setHours(23,59,59,999);
+      return d>=from&&d<=to;
+    }
+    return true;// all
+  });
+}
+
+function dashFilterBtns(){
+  const now=new Date();const yr=now.getFullYear();
+  const MONTHS=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const years=[yr-1,yr,yr+1];
+  const btns=['all','today','month','year','range'].map(f=>{
+    const labels={all:'ทั้งหมด',today:'วันนี้',month:'เดือน',year:'ปี',range:'📅 ช่วงวันที่'};
+    return`<button onclick="_dashFilter.period='${f}';renderDashboard()" style="padding:4px 12px;border-radius:16px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:${_dashFilter.period===f?NAVY:'#f1f5f9'};color:${_dashFilter.period===f?'#fff':'#475569'};">${labels[f]}</button>`;
+  }).join('');
+  const monthPick=_dashFilter.period==='month'?`<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:#64748b;">เดือน:</span>
+    <select onchange="_dashMonthSel=parseInt(this.value);renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;">
+      ${MONTHS.map((m,i)=>`<option value="${i}" ${_dashMonthSel===i?'selected':''}>${m}</option>`).join('')}
+    </select>
+    <span style="font-size:12px;color:#64748b;">ปี:</span>
+    <select onchange="_dashYearSel=parseInt(this.value);renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;">
+      ${years.map(y=>`<option value="${y}" ${_dashYearSel===y?'selected':''}>${y+543}</option>`).join('')}
+    </select></div>`:'';
+  const yearPick=_dashFilter.period==='year'?`<div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+    <span style="font-size:12px;color:#64748b;">ปี:</span>
+    <select onchange="_dashYearSel=parseInt(this.value);renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;">
+      ${years.map(y=>`<option value="${y}" ${_dashYearSel===y?'selected':''}>${y+543}</option>`).join('')}
+    </select></div>`:'';
+  const rangePick=_dashFilter.period==='range'?`<div style="display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap;">
+    <label style="font-size:12px;color:#64748b;">จาก</label>
+    <input type="date" value="${_dashRangeFrom}" onchange="_dashRangeFrom=this.value;renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+    <label style="font-size:12px;color:#64748b;">ถึง</label>
+    <input type="date" value="${_dashRangeTo}" onchange="_dashRangeTo=this.value;renderDashboard()" style="padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;font-family:inherit;"/>
+    </div>`:'';
+  return`<div style="display:flex;gap:6px;flex-wrap:wrap;">${btns}</div>${monthPick}${yearPick}${rangePick}`;
+}
+
 function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');if(!panel)return;
-  const companies=[...new Set(caseHistory.map(c=>c.company).filter(Boolean))];
-  // Apply filters
-  const now=new Date();
-  const periodMap={'1m':1,'3m':3,'6m':6,'1y':12,'all':999};
-  const periodMonths=periodMap[_dashFilter.period]||3;
-  const cutoff=periodMonths<999?new Date(now.getFullYear(),now.getMonth()-periodMonths+1,1):new Date(0);
-  let hist=caseHistory.filter(c=>new Date(c.date)>=cutoff);
-  let lq=legalQueue.filter(q=>new Date(q.sentAt||q.date||0)>=cutoff);
-  if(_dashFilter.company){hist=hist.filter(c=>c.company===_dashFilter.company);lq=lq.filter(q=>q.company===_dashFilter.company);}
+  const isAdmin=getRoleDef(currentRole).canAdmin;
+  const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
+  // Team scoping: user sees own team, legal sees all legal, admin sees all
+  let hist=isAdmin?caseHistory:isLegal?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
+  let lqAll=isAdmin?legalQueue:legalQueue.filter(q=>isLegal?true:q.submittedBy===currentAcc?.username);
+  // Apply date filter
+  hist=applyDashFilter(hist,'date');
+  const lq=applyDashFilter(lqAll,'sentAt');
   const total=hist.length,pass=hist.filter(c=>c.overall_result==='PASS').length,fail=hist.filter(c=>c.overall_result==='FAIL').length;
-  const lqTotal=legalQueue.length,lqPending=legalQueue.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
+  const lqTotal=lqAll.length,lqPending=lqAll.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
   const complianceRate=total?Math.round(pass/total*100):0;
   const avgTa=calcAvgTurnaround(lq);
-  // Monthly trend
-  const months=[];
-  for(let i=Math.min(periodMonths,6)-1;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push({label:(d.getMonth()+1)+'/'+d.getFullYear().toString().slice(2),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0)});}
-  const monthStats=months.map(m=>{const mi=hist.filter(c=>{const d=new Date(c.date);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length,pass:mi.filter(c=>c.overall_result==='PASS').length};});
+  // Trend: up to 6 data points based on period
+  const now=new Date();
+  let trendItems=[];
+  if(_dashFilter.period==='all'||_dashFilter.period==='year'){
+    for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);trendItems.push({label:(d.getMonth()+1)+'/'+(d.getFullYear()+'').slice(2),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0)});}
+  } else if(_dashFilter.period==='month'){
+    for(let i=6;i>=0;i--){const d=new Date(_dashYearSel,_dashMonthSel-i,1);trendItems.push({label:(d.getMonth()+1)+'/'+(d.getFullYear()+'').slice(2),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0)});}
+  }
+  const monthStats=trendItems.map(m=>{const mi=hist.filter(c=>{const d=new Date(c.date);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length,pass:mi.filter(c=>c.overall_result==='PASS').length};});
   const vm={};hist.forEach(c=>(c.checklist_results||[]).filter(r=>r.result==='FAIL').forEach(r=>{vm[r.topic||'']=(vm[r.topic||'']||0)+1;}));
   const topV=Object.entries(vm).sort((a,b)=>b[1]-a[1]).slice(0,5);const maxV=topV[0]?.[1]||1;
   if(!caseHistory.length&&!legalQueue.length){panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div><button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 เริ่มใช้งาน</button></div>`;return;}
   panel.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
-      <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard</h2>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select class="filter-select" onchange="_dashFilter.company=this.value;renderDashboard()">
-          <option value="">ทุกบริษัท</option>${companies.map(c=>`<option value="${esc(c)}" ${_dashFilter.company===c?'selected':''}>${esc(c)}</option>`).join('')}
-        </select>
-        <div style="display:flex;gap:4px;">
-          ${[['1m','1 เดือน'],['3m','3 เดือน'],['6m','6 เดือน'],['1y','1 ปี'],['all','ทั้งหมด']].map(([v,l])=>`<button onclick="_dashFilter.period='${v}';renderDashboard()" style="padding:5px 10px;border-radius:6px;border:1.5px solid ${_dashFilter.period===v?NAVY:'#e2e8f0'};background:${_dashFilter.period===v?NAVY:'#fff'};color:${_dashFilter.period===v?'#fff':'#475569'};cursor:pointer;font-size:12px;font-weight:600;">${l}</button>`).join('')}
-        </div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🏠 Dashboard${!isAdmin?` — ${esc(currentAcc?.displayName||'')}`:''}</h2>
+        <div style="margin-top:8px;">${dashFilterBtns()}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;">
         <button onclick="exportDashboardExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
+        <button onclick="savePDF('report','')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
         <button onclick="clearHistory()" style="padding:5px 12px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;">🗑️ ล้างประวัติ</button>
       </div>
     </div>
     <div class="g4" style="margin-bottom:20px;">
-      ${[['🔍','Quick Check',total,'เคส','#f0f4ff',NAVY],['✅','Compliance Rate',complianceRate+'%',pass+' PASS / '+total+' เคส','#d8ead8','#14532d'],['❌','FAIL',fail,total?Math.round(fail/total*100)+'%':'0%','#f0d9d9','#7f1d1d'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fffbeb','#92400e'],['📤','Legal Queue',lqTotal,`${lqPending} pending`,'#dbeafe',NAVY]].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,50,199,.06);"><div style="font-size:28px;">${ic}</div><div><div style="font-size:24px;font-weight:800;color:${co};line-height:1;">${va}</div><div style="font-size:12px;font-weight:600;color:#475569;">${lb}</div><div style="font-size:11px;color:#94a3b8;">${su}</div></div></div>`).join('')}
+      ${[['🔍','Quick Check',total,'เคส','#f0f4ff',NAVY],['✅','Compliance Rate',complianceRate+'%',pass+' PASS / '+total,'#d8ead8','#14532d'],['❌','FAIL',fail,total?Math.round(fail/total*100)+'%':'0%','#f0d9d9','#7f1d1d'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fffbeb','#92400e'],['📤','Legal Queue',lqTotal,`${lqPending} pending`,'#dbeafe',NAVY]].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,50,199,.06);"><div style="font-size:28px;">${ic}</div><div><div style="font-size:24px;font-weight:800;color:${co};line-height:1;">${va}</div><div style="font-size:12px;font-weight:600;color:#475569;">${lb}</div><div style="font-size:11px;color:#94a3b8;">${su}</div></div></div>`).join('')}
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📈 Compliance Rate (${months.length} เดือน)</div>
+      ${monthStats.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📈 Compliance Rate (${monthStats.length} เดือน)</div>
         ${monthStats.map(m=>{const rate=m.total?Math.round(m.pass/m.total*100):null;const color=rate===null?'#94a3b8':rate>=70?'#16a34a':rate>=50?'#f59e0b':'#dc2626';return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="min-width:44px;font-size:12px;color:#64748b;">${m.label}</span><div style="flex:1;height:10px;background:#e8effe;border-radius:5px;overflow:hidden;"><div style="width:${rate||0}%;height:100%;background:${color};border-radius:5px;"></div></div><span style="min-width:44px;text-align:right;font-weight:700;color:${color};font-size:12px;">${rate===null?'—':rate+'%'}</span><span style="min-width:32px;text-align:right;font-size:11px;color:#94a3b8;">${m.total}</span></div>`;}).join('')}
-      </div>
-      ${topV.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">🚨 ข้อที่ผิดบ่อย</div>${topV.map(([t,n])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:130px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t)}</span><div style="flex:1;height:10px;background:#e8effe;border-radius:5px;overflow:hidden;"><div style="width:${n/maxV*100}%;height:100%;background:#dc2626;border-radius:5px;"></div></div><span style="min-width:24px;text-align:right;font-weight:700;color:#dc2626;font-size:12px;">${n}</span></div>`).join('')}</div>`:''}
+      </div>`:''}
+      ${topV.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">🚨 ข้อที่พบบ่อย</div>${topV.map(([t,n])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:130px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t)}</span><div style="flex:1;height:10px;background:#e8effe;border-radius:5px;overflow:hidden;"><div style="width:${n/maxV*100}%;height:100%;background:#dc2626;border-radius:5px;"></div></div><span style="min-width:24px;text-align:right;font-weight:700;color:#dc2626;font-size:12px;">${n}</span></div>`).join('')}</div>`:''}
     </div>
-    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-      <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">🕐 Recent Activity</div>
-      ${hist.slice(0,10).map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8effe;gap:8px;flex-wrap:wrap;"><div style="min-width:0;">${c.acaNumber?`<div style="font-family:monospace;font-size:10px;color:#94a3b8;">${c.acaNumber}</div>`:''}<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#1e293b;">${esc(c.jobName||'')}</div><div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH')}</div></div><span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};white-space:nowrap;">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></div>`).join('')}
+    <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+      <div style="padding:14px 18px;border-bottom:1px solid #e8effe;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;">🕐 Recent Activity</div>
+        <div style="font-size:12px;color:#94a3b8;">${hist.length} เคส ในช่วงที่เลือก</div>
+      </div>
+      ${!hist.length?`<div style="padding:24px;text-align:center;color:#94a3b8;">ไม่มีข้อมูลในช่วงที่เลือก</div>`:`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
+        <thead><tr><th>ACA</th><th>ชื่องาน</th><th>ผู้ส่ง</th><th>วันที่</th><th>ผล</th><th>ตรวจ</th><th>Pass</th><th>Fail</th><th>Flag ⚠️</th><th>Action</th></tr></thead>
+        <tbody>${hist.slice(0,20).map((c,i)=>{
+          const cl=c.checklist_results||[];
+          const flags=c.forbidden_words?.length||0;
+          return`<tr style="background:${i%2?'#f8faff':'#fff'};border-bottom:1px solid #e8effe;">
+            <td style="font-family:monospace;font-size:10px;color:#94a3b8;">${c.acaNumber||'—'}</td>
+            <td style="font-weight:600;color:#1e293b;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.jobName||'')}</td>
+            <td style="color:#475569;font-size:11px;">${esc(c.submitterName||c.sender||'')}</td>
+            <td style="color:#94a3b8;white-space:nowrap;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</td>
+            <td><span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${{PASS:'✓ PASS',FAIL:'✕ FAIL','PASS WITH CONDITIONS':'⚠ COND'}[c.overall_result]||c.overall_result}</span></td>
+            <td style="text-align:center;color:#475569;">${cl.length}</td>
+            <td style="text-align:center;color:#16a34a;font-weight:700;">${cl.filter(r=>r.result==='PASS').length}</td>
+            <td style="text-align:center;color:#dc2626;font-weight:700;">${cl.filter(r=>r.result==='FAIL').length}</td>
+            <td style="text-align:center;color:#f59e0b;font-weight:700;">${flags}</td>
+            <td style="display:flex;gap:4px;">
+              <button onclick="savePDF('result','${c.id}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:3px 7px;font-size:10px;">PDF</button>
+              <button onclick="downloadHistoryExcel('qc_result','${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;padding:3px 7px;font-size:10px;">Excel</button>
+            </td>
+          </tr>`;}).join('')}</tbody>
+      </table></div>`}
     </div>`;
 }
 
@@ -1771,14 +1896,14 @@ function toggleShowPasswords(){
     logActivity('ดู Password','Admin viewed passwords');
     const accs=getAccounts();
     panel.innerHTML=`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-      ${accs.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;">
+      ${accs.map(a=>{const plain=sessionStorage.getItem('_pwdPlain_'+a.id)||'';return`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid #f1f5f9;font-size:12px;">
         <span style="min-width:120px;font-weight:600;color:#1e293b;">${esc(a.displayName)}</span>
-        <span style="color:#64748b;min-width:80px;">${esc(a.username)}</span>
-        <span style="font-family:monospace;background:#f0f4ff;padding:2px 8px;border-radius:4px;color:#0032c7;font-size:11px;">hash: ${esc((a.pwdHash||'').slice(0,12))}…</span>
-        <button onclick="promptResetPwd('${a.id}')" class="btn-sm" style="background:#faf5ff;border:1px solid #c4b5fd;color:#7c3aed;padding:2px 8px;">🔄 Reset</button>
-      </div>`).join('')}
+        <span style="color:#64748b;min-width:80px;font-family:monospace;">${esc(a.username)}</span>
+        <span style="flex:1;font-family:monospace;background:${plain?'#fef9c3':'#f1f5f9'};padding:3px 10px;border-radius:4px;color:${plain?'#713f12':'#94a3b8'};font-size:12px;border:1px solid ${plain?'#fde047':'#e2e8f0'};">${plain?esc(plain):'ตั้ง Reset เพื่อดู password'}</span>
+        <button onclick="promptResetPwd('${a.id}')" class="btn-sm" style="background:#faf5ff;border:1px solid #c4b5fd;color:#7c3aed;padding:3px 9px;">🔄 Reset</button>
+      </div>`;}).join('')}
     </div>
-    <div style="font-size:11px;color:#94a3b8;margin-top:5px;">* Password เก็บเป็น hash ไม่สามารถ decrypt ได้ · ใช้ปุ่ม Reset เพื่อตั้งใหม่</div>`;
+    <div style="font-size:11px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 10px;margin-top:6px;">⚠️ Password จะแสดงหลัง Reset เท่านั้น · Password เดิมไม่สามารถดูได้ (เก็บเป็น hash) · หากลืม — กด Reset ตั้งใหม่ได้เลย</div>`;
     panel.style.display='';
     btn.textContent='🙈 ซ่อน';
   } else {
@@ -1791,6 +1916,7 @@ function promptResetPwd(userId){
   if(!newPwd||newPwd.length<6){flash('Password ต้องอย่างน้อย 6 ตัว','#fef2f2','#dc2626');return;}
   const accs=getAccounts();const a=accs.find(x=>x.id===userId);if(!a)return;
   a.pwdHash=hashPwd(newPwd);saveAccounts(accs);
+  sessionStorage.setItem('_pwdPlain_'+userId, newPwd);
   logActivity('Reset Password',a.username);
   flash(`✅ Reset password ของ ${a.displayName} แล้ว`,'#d8ead8','#14532d');
   toggleShowPasswords();setTimeout(toggleShowPasswords,100);
@@ -2009,9 +2135,22 @@ async function savePDF(source, id){
     const {jsPDF}=window.jspdf;
     let el=null,filename='ACA_Report';
     if(source==='result'){
-      el=document.getElementById('results-main');
+      // Render into a temp div to ensure content is visible
       const entry=caseHistory.find(c=>String(c.id)===String(id));
       if(entry)filename=`${entry.acaNumber}_QuickCheck`;
+      // Use results-main if on results tab, else create temp container
+      const existingMain=document.getElementById('results-main');
+      if(existingMain&&existingMain.innerHTML.trim().length>100){
+        el=existingMain;
+      } else {
+        // Render to temp div
+        const tmp=document.createElement('div');
+        tmp.style.cssText='position:fixed;left:-9999px;top:0;width:900px;background:#fff;padding:20px;z-index:-1;';
+        document.body.appendChild(tmp);
+        if(entry){renderResults(null,null,entry);await new Promise(r=>setTimeout(r,200));}
+        el=document.getElementById('results-main')||tmp;
+        el._tmpDiv=tmp;
+      }
     } else if(source==='ticket'){
       el=document.getElementById('review-modal-content');
       filename=`${id}_ReviewTicket`;
@@ -2037,6 +2176,7 @@ async function savePDF(source, id){
       yPos+=pageH;page++;
     }
     pdf.save(`${filename}_${new Date().toLocaleDateString('th-TH').replace(/\//g,'')}.pdf`);
+    if(el?._tmpDiv)document.body.removeChild(el._tmpDiv);
     flash('💾 บันทึก PDF สำเร็จ','#d8ead8','#14532d');
   }catch(e){flash('❌ PDF export ล้มเหลว: '+e.message,'#fef2f2','#dc2626');console.error(e);}
 }
