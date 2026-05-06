@@ -765,11 +765,23 @@ window.addEventListener('resize',fixTabBar);
 function newJob(){mediaFiles=[];document.getElementById('file-list').innerHTML='';lastResult=null;document.getElementById('tab-res-btn')?.classList.add('disabled');document.getElementById('btn-new-job').style.display='none';switchTab('input');updateReadiness();}
 
 // ── PROVIDER + LIVE MODEL FETCH ──
+// ── PERSISTENT API KEY STORAGE ──
+function saveApiKey(provider,key){if(!provider||!key)return;try{const cfg=JSON.parse(localStorage.getItem('api_keys')||'{}');cfg[provider]=key;localStorage.setItem('api_keys',JSON.stringify(cfg));}catch(e){}}
+function loadApiKey(provider){try{const cfg=JSON.parse(localStorage.getItem('api_keys')||'{}');return cfg[provider]||'';}catch(e){return '';}}
+function loadSavedProvider(){try{return localStorage.getItem('api_saved_provider')||'gemini';}catch(e){return 'gemini';}}
+function saveSelectedProvider(p){try{localStorage.setItem('api_saved_provider',p);}catch(e){}}
+
 function initProvider(){
   const sel=document.getElementById('sel-provider'),msel=document.getElementById('sel-model');if(!sel||!msel)return;
   const p=PROVIDERS[sel.value]||PROVIDERS.gemini;
   const lbl=document.getElementById('lbl-key');if(lbl)lbl.textContent=p.label+' Key';
-  const inp=document.getElementById('inp-key');if(inp)inp.placeholder=p.ph;
+  const inp=document.getElementById('inp-key');
+  if(inp){
+    inp.placeholder=p.ph;
+    // Load saved key for this provider
+    const saved=loadApiKey(sel.value);
+    if(saved&&!inp.value){inp.value=saved;inp.classList.toggle('active',!!saved);}
+  }
   msel.innerHTML=p.models.map(m=>`<option value="${m}">${m}</option>`).join('');
   updateReadiness();
   const key=gv('inp-key');
@@ -822,7 +834,11 @@ function fetchGeminiModels(apiKey){return fetchModelsForProvider('gemini',apiKey
 document.getElementById('inp-key')?.addEventListener('input',function(){
   this.classList.toggle('active',!!this.value);updateReadiness();
   clearTimeout(this._fetchTimer);
-  if(this.value){this._fetchTimer=setTimeout(()=>fetchModelsForProvider(gv('sel-provider')||'gemini',this.value,false),1200);}
+  const provider=gv('sel-provider')||'gemini';
+  if(this.value){
+    saveApiKey(provider,this.value);
+    this._fetchTimer=setTimeout(()=>fetchModelsForProvider(provider,this.value,false),1200);
+  }
 });
 
 // ── FORM ──
@@ -1046,7 +1062,7 @@ function openReviewTicket(acaNumber){
   document.getElementById('review-modal-content').innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
       <div><h2 style="margin:0;color:${NAVY};font-size:18px;font-weight:800;">🔍 Review Ticket</h2></div>
-      <button onclick="document.getElementById('review-modal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;">✕</button>
+      <button onclick="closeReviewModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;">✕</button>
     </div>
     <div class="review-ticket-layout">
       <div>
@@ -1154,6 +1170,8 @@ function openReviewTicket(acaNumber){
   // Start SLA live countdown
   const slaDays=SLA_DAYS[q.sla]||3;
   setTimeout(()=>startSLACountdown(q.acaNumber, q.slaStartTime||q.sentAt||q.date, slaDays),100);
+  // Store which ACA is open so we can clear on close
+  document.getElementById('review-modal')._openAca=q.acaNumber;
 }
 
 // ── B2: INTERNAL NOTE ──
@@ -1168,28 +1186,45 @@ function saveInternalNote(acaNumber){
 function insertTemplate(text,taId){if(!text)return;const ta=document.getElementById(taId);if(!ta)return;ta.value=ta.value?(ta.value+'\n'+text):text;ta.focus();}
 // ── SLA LIVE COUNTDOWN ──
 let _slaTimers={};
+function clearAllSLATimers(){Object.keys(_slaTimers).forEach(k=>{clearInterval(_slaTimers[k]);delete _slaTimers[k];});}
+function closeReviewModal(){clearAllSLATimers();document.getElementById('review-modal').style.display='none';}
 function startSLACountdown(acaNumber, sentAt, slaDays){
   if(_slaTimers[acaNumber])clearInterval(_slaTimers[acaNumber]);
   const el=document.getElementById('sla-countdown-'+acaNumber);
   if(!el)return;
-  const deadline=new Date(sentAt);
-  // Add business days
+  // Fix: compute deadline correctly from the start-of-day of sentAt date
+  const base=new Date(sentAt);
+  const deadline=new Date(base);
+  // Count forward exactly slaDays business days (do NOT pre-increment the first day)
   let daysAdded=0;
-  while(daysAdded<slaDays){deadline.setDate(deadline.getDate()+1);const dw=deadline.getDay();if(dw>0&&dw<6)daysAdded++;}
+  let cur=new Date(base);
+  cur.setHours(0,0,0,0);
+  while(daysAdded<slaDays){
+    cur.setDate(cur.getDate()+1);
+    const dw=cur.getDay();
+    if(dw>0&&dw<6)daysAdded++;
+  }
+  deadline.setFullYear(cur.getFullYear(),cur.getMonth(),cur.getDate());
   deadline.setHours(18,0,0,0);// end of business day
   function tick(){
     const now=new Date();const diff=deadline-now;
     if(!document.getElementById('sla-countdown-'+acaNumber)){clearInterval(_slaTimers[acaNumber]);return;}
-    if(diff<=0){el.textContent='🔴 เกิน Deadline แล้ว '+Math.abs(Math.floor(diff/3600000))+' ชม.';el.style.color='#dc2626';return;}
+    if(diff<=0){
+      const overHrs=Math.abs(Math.floor(diff/3600000));
+      const overMins=Math.abs(Math.floor((diff%3600000)/60000));
+      const overSecs=Math.abs(Math.floor((diff%60000)/1000));
+      el.textContent=`🔴 เกิน Deadline ${overHrs>0?overHrs+'ชม. ':''}${overMins}น. ${overSecs}วิ.`;
+      el.style.color='#dc2626';return;
+    }
     const days=Math.floor(diff/86400000);
     const hrs=Math.floor((diff%86400000)/3600000);
     const mins=Math.floor((diff%3600000)/60000);
     const secs=Math.floor((diff%60000)/1000);
     const color=diff<3600000?'#dc2626':diff<86400000?'#f59e0b':'#16a34a';
     el.style.color=color;
-    if(days>0)el.textContent=`⏱ เหลือ ${days}ว. ${hrs}ชม. ${mins}น.`;
-    else if(hrs>0)el.textContent=`⏱ เหลือ ${hrs}ชม. ${mins}น. ${secs}วิ`;
-    else el.textContent=`⚠️ เหลือ ${mins}น. ${secs}วิ!`;
+    if(days>0)el.textContent=`⏱ เหลือ ${days}ว. ${hrs}ชม. ${mins}น. ${secs}วิ.`;
+    else if(hrs>0)el.textContent=`⏱ เหลือ ${hrs}ชม. ${mins}น. ${secs}วิ.`;
+    else el.textContent=`⚠️ เหลือ ${mins}น. ${secs}วิ.!`;
   }
   tick();
   _slaTimers[acaNumber]=setInterval(tick,1000);
@@ -1215,6 +1250,7 @@ function doLegalAction(acaNumber,action){
   pushNotif(q.submitterRole||'user',{Approved:`✅ ${q.acaNumber} — "${q.jobName}" ได้รับการ Approve`,'Request Edit':`🔄 ${q.acaNumber} — "${q.jobName}" ขอให้แก้ไข${comment?': '+comment:''}`,'Rejected':`❌ ${q.acaNumber} — "${q.jobName}" ไม่ได้รับการอนุมัติ`}[action]||action,q.acaNumber);
   emailStub(action==='Approved'?'approved':action==='Request Edit'?'requestEdit':'rejected',{acaNumber:q.acaNumber,jobName:q.jobName,comment,submitterRole:q.submitterRole||'user'});
   document.getElementById('review-modal').style.display='none';
+  clearAllSLATimers();
   flash(actionLabels[action]||action,'#d8ead8','#14532d');renderInbox();updateNotifBadges();
 }
 
@@ -1418,6 +1454,7 @@ function renderHistory(){
         </div>`:''}
         ${files.length?`<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;">📎 ไฟล์แนบ (${files.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${files.map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);const isPdf=ext==='pdf';const isVid=['mp4','mov','avi','webm'].includes(ext);return`<div style="padding:4px 10px;background:#f8faff;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:5px;">${isImg&&f.localURL?`<img src="${f.localURL}" style="width:24px;height:24px;object-fit:cover;border-radius:3px;">`:isVid?'🎬':isPdf?'📕':'📎'}<span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name)}</span>${f.localURL&&isVid?`<button onclick="window.open('${f.localURL}')" class="btn-sm" style="padding:1px 5px;font-size:10px;background:#e8effe;color:#0032c7;border:none;">▶</button>`:''}</div>`;}).join('')}</div></div>`:''}
         <div style="display:flex;gap:8px;flex-wrap:wrap;">${c.status!=='Sent to Legal'?`<button onclick="sendForLegalReviewFromHistory('${c.id}')" class="btn-blue btn-sm">📤 Send to Legal</button>`:`${statusBadge('Sent to Legal')}`}
+          <button onclick="copyQCDetail('${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📋 Copy Detail</button>
           <button onclick="downloadHistoryExcel('qc_result','${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
           <button onclick="exportCSV('qc_result','${c.id}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
           <button onclick="savePDF('result','${c.id}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
@@ -1474,6 +1511,7 @@ function renderHistory(){
         <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Reviewed by ${esc(q.reviewedBy||'')} · ${q.reviewedAt?new Date(q.reviewedAt).toLocaleString('th-TH'):''}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button onclick="openReviewTicket('${q.acaNumber}')" class="btn-navy btn-sm">🔍 ดูรายละเอียด</button>
+          <button onclick="copyLegalDetail('${q.acaNumber}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📋 Copy Detail</button>
           <button onclick="downloadHistoryExcel('legal_user','${q.acaNumber}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
           <button onclick="exportCSV('legal_user','${q.acaNumber}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
           <button onclick="showJsonModal('ticket','${q.acaNumber}')" class="btn-sm" style="background:#f8faff;color:#475569;border:1px solid #e2e8f0;">🔍 JSON</button>
@@ -1494,6 +1532,7 @@ function renderHistory(){
         <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(c.company||'')} · ✓${c.pass_count||0} ✕${c.fail_count||0}</div>
         <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Quick Check เมื่อ ${new Date(c.date).toLocaleString('th-TH')}</div>
         <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="copyQCDetail('${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📋 Copy Detail</button>
           <button onclick="downloadHistoryExcel('qc_legal','${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel (Full)</button>
           <button onclick="exportCSV('qc_result','${c.id}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
           <button onclick="savePDF('result','${c.id}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
@@ -1650,10 +1689,32 @@ function renderDashboard(){
   hist=applyDashFilter(hist,'date');
   const lq=applyDashFilter(lqAll,'sentAt');
   const total=hist.length,pass=hist.filter(c=>c.overall_result==='PASS').length,fail=hist.filter(c=>c.overall_result==='FAIL').length;
-  const lqTotal=lqAll.length,lqPending=lqAll.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
+  const condPass=hist.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
+  const qcTotal=hist.length;
+  const lqTotal=lqAll.length;
+  const overallCases=qcTotal+lqTotal;
+  const lqPending=lqAll.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
+  const lqPass=lqAll.filter(q=>q.status==='Approved').length;
+  const lqFail=lqAll.filter(q=>q.status==='Rejected').length;
   const complianceRate=total?Math.round(pass/total*100):0;
   const avgTa=calcAvgTurnaround(lq);
-  // Trend: up to 6 data points based on period
+
+  // SLA stats
+  const slaItems=lqAll.filter(q=>q.sentAt&&q.reviewedAt);
+  const avgActualDays=slaItems.length?slaItems.reduce((s,q)=>{const ms=new Date(q.reviewedAt)-new Date(q.sentAt);return s+ms/86400000;},0)/slaItems.length:0;
+  const fasterThanSLA=slaItems.filter(q=>{const ta=calcTurnaround(q);return ta.days>=0&&ta.days<=(SLA_DAYS[q.sla]||3);}).length;
+  const pctFaster=slaItems.length?Math.round(fasterThanSLA/slaItems.length*100):0;
+  const avgSLADays=slaItems.length?slaItems.reduce((s,q)=>s+(SLA_DAYS[q.sla]||3),0)/slaItems.length:3;
+  const timeSavedHrs=slaItems.length?(slaItems.reduce((s,q)=>{const slaDays=SLA_DAYS[q.sla]||3;const actual=(new Date(q.reviewedAt)-new Date(q.sentAt))/86400000;return s+Math.max(0,slaDays-actual)*8;},0)):0;
+
+  // Charts data
+  const projTypeMap={};[...hist,...lqAll].forEach(c=>{const pt=c.projectType||'ไม่ระบุ';projTypeMap[pt]=(projTypeMap[pt]||0)+1;});
+  const userUsage={};[...hist,...lqAll].forEach(c=>{const u=c.submitterName||c.sender||'—';userUsage[u]=(userUsage[u]||0)+1;});
+  const topUsers=Object.entries(userUsage).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const mediaTypeMap={};[...hist,...lqAll].forEach(c=>{const mt=c.mediaLabel||c.mediaType||'ไม่ระบุ';mediaTypeMap[mt]=(mediaTypeMap[mt]||0)+1;});
+  const mediaTotal=Object.values(mediaTypeMap).reduce((s,v)=>s+v,0)||1;
+
+  // Monthly usage trend (frequency)
   const now=new Date();
   let trendItems=[];
   if(_dashFilter.period==='all'||_dashFilter.period==='year'){
@@ -1661,9 +1722,17 @@ function renderDashboard(){
   } else if(_dashFilter.period==='month'){
     for(let i=6;i>=0;i--){const d=new Date(_dashYearSel,_dashMonthSel-i,1);trendItems.push({label:(d.getMonth()+1)+'/'+(d.getFullYear()+'').slice(2),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0)});}
   }
-  const monthStats=trendItems.map(m=>{const mi=hist.filter(c=>{const d=new Date(c.date);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length,pass:mi.filter(c=>c.overall_result==='PASS').length};});
+  const monthStats=trendItems.map(m=>{const mi=[...hist,...lqAll].filter(c=>{const d=new Date(c.date||c.sentAt||0);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length};});
+  const maxMonthTotal=Math.max(...monthStats.map(m=>m.total),1);
+
+  // Fail topics
   const vm={};hist.forEach(c=>(c.checklist_results||[]).filter(r=>r.result==='FAIL').forEach(r=>{vm[r.topic||'']=(vm[r.topic||'']||0)+1;}));
   const topV=Object.entries(vm).sort((a,b)=>b[1]-a[1]).slice(0,5);const maxV=topV[0]?.[1]||1;
+
+  // Forbidden words / wrong keywords
+  const wm={};hist.forEach(c=>(c.forbidden_words||[]).forEach(w=>{const word=w.word||'';if(word)wm[word]=(wm[word]||0)+1;}));
+  const topW=Object.entries(wm).sort((a,b)=>b[1]-a[1]).slice(0,5);const maxW=topW[0]?.[1]||1;
+
   if(!caseHistory.length&&!legalQueue.length){panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div><button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 เริ่มใช้งาน</button></div>`;return;}
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
@@ -1677,16 +1746,127 @@ function renderDashboard(){
         <button onclick="clearHistory()" style="padding:5px 12px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;">🗑️ ล้างประวัติ</button>
       </div>
     </div>
-    <div class="g4" style="margin-bottom:20px;">
-      ${[['🔍','Quick Check',total,total+' Cases','#f0f4ff',NAVY],['📤','Send to Legal',lqTotal,lqPending+' pending','#dbeafe',NAVY],['✅','Compliance Rate',complianceRate+'%',pass+' PASS / '+total,'#d8ead8','#14532d'],['❌','FAIL',fail,total?Math.round(fail/total*100)+'%':'0%','#f0d9d9','#7f1d1d'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fffbeb','#92400e']].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}33;border-radius:14px;padding:16px 18px;box-shadow:0 4px 16px ${co}18;position:relative;overflow:hidden;"><div style="position:absolute;right:-8px;top:-8px;font-size:48px;opacity:.12;">${ic}</div><div style="font-size:28px;font-weight:800;color:${co};line-height:1;margin-bottom:4px;">${va}</div><div style="font-size:13px;font-weight:700;color:#1e293b;">${lb}</div><div style="font-size:11px;color:#64748b;margin-top:2px;">${su}</div></div>`).join('')}
+
+    <!-- Row 1: Overall + Quick Check + Send to Legal (big) -->
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div style="background:#0032c7;border-radius:14px;padding:20px 24px;box-shadow:0 4px 16px rgba(0,50,199,.2);position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-10px;top:-10px;font-size:64px;opacity:.1;">📋</div>
+        <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Overall Cases</div>
+        <div style="font-size:40px;font-weight:800;color:#fff;line-height:1;">${overallCases}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">รวมทั้ง Quick Check + Send to Legal</div>
+      </div>
+      <div style="background:#f0f4ff;border:1px solid #bfdbfe;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,50,199,.08);position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-8px;top:-8px;font-size:48px;opacity:.1;">🔍</div>
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Quick Check</div>
+        <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${qcTotal}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:3px;">cases</div>
+      </div>
+      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,50,199,.08);position:relative;overflow:hidden;">
+        <div style="position:absolute;right:-8px;top:-8px;font-size:48px;opacity:.1;">📤</div>
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Send to Legal</div>
+        <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${lqTotal}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${lqPending} pending</div>
+      </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-      ${monthStats.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📈 Compliance Rate (${monthStats.length} เดือน)</div>
-        ${monthStats.map(m=>{const rate=m.total?Math.round(m.pass/m.total*100):null;const color=rate===null?'#94a3b8':rate>=70?'#16a34a':rate>=50?'#f59e0b':'#dc2626';return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="min-width:44px;font-size:12px;color:#64748b;">${m.label}</span><div style="flex:1;height:12px;background:#e8effe;border-radius:6px;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.06);"><div style="width:${rate||0}%;height:100%;background:linear-gradient(90deg,${color},${color}dd);border-radius:6px;transition:width .5s ease;"></div></div><span style="min-width:44px;text-align:right;font-weight:700;color:${color};font-size:12px;">${rate===null?'—':rate+'%'}</span><span style="min-width:32px;text-align:right;font-size:11px;color:#94a3b8;">${m.total}</span></div>`;}).join('')}
-      </div>`:''}
-      ${topV.length?`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);"><div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">🚨 ข้อที่พบบ่อย</div>${topV.map(([t,n])=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:130px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t)}</span><div style="flex:1;height:10px;background:#fee2e2;border-radius:5px;overflow:hidden;"><div style="width:${n/maxV*100}%;height:100%;background:linear-gradient(90deg,#dc2626,#ef4444);border-radius:5px;"></div></div><span style="min-width:24px;text-align:right;font-weight:700;color:#dc2626;font-size:12px;">${n}</span></div>`).join('')}</div>`:''}
+
+    <!-- Row 2: Pass / Fail / Condition / Avg Turnaround -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+      ${[['✅','Pass',lqPass,'เคส (Approved)','#dcfce7','#15803d'],['❌','Fail',lqFail,'เคส (Rejected)','#fee2e2','#dc2626'],['⚠️','Condition',condPass,'เคส (PASS+COND)','#fffbeb','#92400e'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fff','#475569']].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05);position:relative;overflow:hidden;"><div style="position:absolute;right:-6px;top:-6px;font-size:36px;opacity:.1;">${ic}</div><div style="font-size:22px;font-weight:800;color:${co};line-height:1;margin-bottom:3px;">${va}</div><div style="font-size:12px;font-weight:700;color:#1e293b;">${lb}</div><div style="font-size:11px;color:#64748b;margin-top:1px;">${su}</div></div>`).join('')}
     </div>
+
+    <!-- Charts Row 1: Business type + Team usage -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <!-- Business type bar chart -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🏗️ ประเภทธุรกิจที่ส่งตรวจ</div>
+        ${Object.keys(projTypeMap).length?Object.entries(projTypeMap).sort((a,b)=>b[1]-a[1]).map(([t,n])=>{const max=Math.max(...Object.values(projTypeMap));const pct=Math.round(n/max*100);const col=t.includes('คอนโด')&&t.includes('บ้าน')?'#7c3aed':t.includes('คอนโด')?'#0891b2':'#0032c7';return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="min-width:110px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t)}</span><div style="flex:1;height:14px;background:#e8effe;border-radius:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${col},${col}cc);border-radius:7px;transition:width .5s;"></div></div><span style="min-width:30px;text-align:right;font-weight:700;color:${col};font-size:12px;">${n}</span></div>`;}).join(''):`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
+      </div>
+      <!-- Team account usage bar chart -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">👤 Team ที่ใช้งานมากที่สุด</div>
+        ${topUsers.length?topUsers.map(([u,n],i)=>{const cols=['#0032c7','#0891b2','#16a34a','#f59e0b','#dc2626','#7c3aed'];const col=cols[i%cols.length];const pct=Math.round(n/topUsers[0][1]*100);return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:100px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(u)}</span><div style="flex:1;height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${col},${col}cc);border-radius:6px;"></div></div><span style="min-width:24px;text-align:right;font-weight:700;color:${col};font-size:12px;">${n}</span></div>`;}).join(''):`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
+      </div>
+    </div>
+
+    <!-- Charts Row 2: Media type donut + Monthly frequency -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <!-- Media type donut chart (SVG) -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📺 ประเภทสื่อที่ส่งตรวจ</div>
+        ${(()=>{
+          const entries=Object.entries(mediaTypeMap).sort((a,b)=>b[1]-a[1]);
+          if(!entries.length)return`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`;
+          const donutColors=['#0032c7','#0891b2','#16a34a','#f59e0b','#dc2626','#7c3aed','#ec4899'];
+          const cx=80,cy=80,r=60,inner=35;
+          let cum=0;
+          const slices=entries.map(([label,val],i)=>{const pct=val/mediaTotal;const start=cum;cum+=pct;const a1=start*Math.PI*2-Math.PI/2,a2=cum*Math.PI*2-Math.PI/2;const x1=cx+r*Math.cos(a1),y1=cy+r*Math.sin(a1),x2=cx+r*Math.cos(a2),y2=cy+r*Math.sin(a2);const ix1=cx+inner*Math.cos(a1),iy1=cy+inner*Math.sin(a1),ix2=cx+inner*Math.cos(a2),iy2=cy+inner*Math.sin(a2);const large=pct>0.5?1:0;return`<path d="M${ix1},${iy1} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${ix2},${iy2} A${inner},${inner} 0 ${large},0 ${ix1},${iy1}" fill="${donutColors[i%donutColors.length]}" opacity=".9"/>`;});
+          const legend=entries.map(([label,val],i)=>`<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#475569;margin-bottom:4px;"><span style="width:10px;height:10px;border-radius:2px;background:${donutColors[i%donutColors.length]};flex-shrink:0;display:inline-block;"></span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(label)}</span><span style="font-weight:700;color:#1e293b;">${Math.round(val/mediaTotal*100)}%</span></div>`).join('');
+          return`<div style="display:flex;align-items:center;gap:16px;"><svg width="160" height="160" viewBox="0 0 160 160">${slices.join('')}<text x="${cx}" y="${cy+4}" text-anchor="middle" style="font-size:11px;fill:#475569;font-weight:700;">${entries.length} ประเภท</text></svg><div style="flex:1;min-width:0;">${legend}</div></div>`;
+        })()}
+      </div>
+      <!-- Monthly usage frequency -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">📅 ความถี่การใช้งานรายเดือน</div>
+        ${monthStats.length?`<div style="display:flex;align-items:flex-end;gap:8px;height:100px;margin-bottom:8px;">${monthStats.map(m=>{const h=maxMonthTotal?Math.max(12,Math.round(m.total/maxMonthTotal*90)):12;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;"><div style="width:100%;background:linear-gradient(180deg,${NAVY},#3d5fff);border-radius:4px 4px 0 0;height:${h}px;min-height:4px;transition:height .4s;"></div><span style="font-size:10px;color:#64748b;white-space:nowrap;">${m.label}</span></div>`;}).join('')}</div><div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:8px;"><span style="font-size:12px;color:#94a3b8;">รวม ${monthStats.reduce((s,m)=>s+m.total,0)} cases</span><span style="font-size:12px;font-weight:700;color:${NAVY};">สูงสุด ${maxMonthTotal} cases/เดือน</span></div>`:`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
+      </div>
+    </div>
+
+    <!-- SLA Section -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
+      <!-- Total time saved -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">⏳ Total Time Saved</div>
+        <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${timeSavedHrs>=1?Math.round(timeSavedHrs)+' hrs':Math.round(timeSavedHrs*60)+' min'}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">เมื่อเทียบกับ SLA target · ${slaItems.length} เคส</div>
+        ${monthStats.length>1?`<div style="display:flex;align-items:flex-end;gap:2px;height:28px;margin-top:8px;">${monthStats.map(m=>{const mh=Math.max(4,Math.round(m.total/maxMonthTotal*26));return`<div style="flex:1;background:linear-gradient(180deg,#4ade80,#16a34a);border-radius:2px 2px 0 0;height:${mh}px;opacity:.7;"></div>`;}).join('')}</div>`:''}
+      </div>
+      <!-- % Faster than SLA donut -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🎯 % Faster than SLA</div>
+        ${(()=>{
+          if(!slaItems.length)return`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`;
+          const p=pctFaster,cx=60,cy=60,r=50,inner=35;
+          const a=p/100*Math.PI*2-Math.PI/2;
+          const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+          const ix=cx+inner*Math.cos(a),iy=cy+inner*Math.sin(a);
+          const ax0=cx,ay0=cy-r,aix0=cx,aiy0=cy-inner;
+          const large=p>50?1:0;
+          const greenPath=p>=100?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#16a34a" opacity=".85"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/>`:
+            p<=0?'':`<path d="M${aix0},${aiy0} L${ax0},${ay0} A${r},${r} 0 ${large},1 ${x},${y} L${ix},${iy} A${inner},${inner} 0 ${large},0 ${aix0},${aiy0}" fill="#16a34a" opacity=".85"/>`;
+          return`<div style="display:flex;align-items:center;gap:12px;"><svg width="120" height="120" viewBox="0 0 120 120"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#e2e8f0"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/>${greenPath}<text x="${cx}" y="${cy+5}" text-anchor="middle" style="font-size:16px;fill:${NAVY};font-weight:800;">${p}%</text></svg><div><div style="font-size:13px;font-weight:700;color:#16a34a;">🟢 Faster: ${fasterThanSLA}</div><div style="font-size:13px;font-weight:700;color:#94a3b8;margin-top:4px;">⬜ Not: ${slaItems.length-fasterThanSLA}</div></div></div>`;
+        })()}
+      </div>
+      <!-- Avg time vs SLA bullet -->
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📊 Avg Time vs SLA</div>
+        ${slaItems.length?`<div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:4px;"><span>0 วัน</span><span>SLA ${avgSLADays.toFixed(1)} วัน</span></div>
+          <div style="position:relative;height:20px;background:#e8effe;border-radius:6px;overflow:visible;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,avgActualDays/Math.max(avgSLADays*1.5,avgActualDays+1)*100)}%;background:${avgActualDays<=avgSLADays?'#16a34a':'#dc2626'};border-radius:6px;transition:width .5s;"></div>
+            <div style="position:absolute;left:${avgSLADays/Math.max(avgSLADays*1.5,avgActualDays+1)*100}%;top:-4px;bottom:-4px;width:2px;background:#f59e0b;border-radius:1px;" title="SLA Target"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;">
+            <span style="font-size:12px;color:${avgActualDays<=avgSLADays?'#16a34a':'#dc2626'};font-weight:700;">Actual: ${avgActualDays.toFixed(1)} วัน</span>
+            <span style="font-size:12px;color:#f59e0b;font-weight:700;">SLA: ${avgSLADays.toFixed(1)} วัน</span>
+          </div>
+        </div>`:`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
+      </div>
+    </div>
+
+    <!-- Fail topics + Wrong keywords -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">🚨 Fail Topic ที่เจอบ่อย (Top 5)</div>
+        ${topV.length?topV.map(([t,n],i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:18px;font-size:11px;font-weight:700;color:#94a3b8;">${i+1}</span><span style="min-width:120px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;">${esc(t)}</span><div style="width:80px;height:10px;background:#fee2e2;border-radius:5px;overflow:hidden;"><div style="width:${n/maxV*100}%;height:100%;background:linear-gradient(90deg,#dc2626,#ef4444);border-radius:5px;"></div></div><span style="min-width:28px;text-align:right;font-weight:700;color:#dc2626;font-size:12px;">${n}</span></div>`).join(''):`<div style="color:#94a3b8;font-size:13px;">ไม่มีข้อมูล Fail</div>`}
+      </div>
+      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
+        <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:12px;">⚠️ Wrong Word / Keyword ที่เจอบ่อย (Top 5)</div>
+        ${topW.length?topW.map(([w,n],i)=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:18px;font-size:11px;font-weight:700;color:#94a3b8;">${i+1}</span><span style="padding:2px 8px;background:#fffbeb;border:1px solid #fde047;border-radius:4px;font-size:12px;color:#713f12;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(w)}</span><div style="width:80px;height:10px;background:#fef9c3;border-radius:5px;overflow:hidden;"><div style="width:${n/maxW*100}%;height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:5px;"></div></div><span style="min-width:28px;text-align:right;font-weight:700;color:#f59e0b;font-size:12px;">${n}</span></div>`).join(''):`<div style="color:#94a3b8;font-size:13px;">ไม่มีข้อมูล Keyword</div>`}
+      </div>
+    </div>
+
+    <!-- Recent history (unchanged) -->
+    <!-- Recent history (unchanged) -->
     <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 2px 8px rgba(0,50,199,.06);">
       <div style="padding:14px 18px;border-bottom:1px solid #e8effe;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div style="font-weight:700;color:${NAVY};font-size:14px;">🕐 Recent Activity</div>
@@ -1780,6 +1960,23 @@ function renderAdmin(){
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       <div>
+        <!-- AI PROVIDER & PERMANENT API KEY -->
+        <div class="card"><div class="admin-section-title">🤖 AI Provider &amp; API Key</div>
+          <div style="background:#e8effe;border:1px solid #bfdbfe;border-radius:7px;padding:7px 10px;font-size:12px;color:#0032c7;margin-bottom:10px;">🔑 ตั้ง API Key ถาวรที่นี่ — ระบบจะโหลด Key ให้อัตโนมัติเมื่อ login ทุกครั้ง</div>
+          ${Object.entries(PROVIDERS).map(([pid,prov])=>`
+            <div style="margin-bottom:10px;padding:10px 14px;background:#f8faff;border-radius:8px;border:1px solid #e2e8f0;">
+              <div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:6px;">${prov.label}</div>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input type="password" id="admin-key-${pid}" placeholder="${prov.ph}" value="" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:monospace;outline:none;"/>
+                <button type="button" onclick="(()=>{const i=document.getElementById('admin-key-${pid}');i.type=i.type==='password'?'text':'password';})()" style="padding:6px 8px;background:#f0f4ff;border:1px solid #bfdbfe;border-radius:6px;cursor:pointer;font-size:13px;">👁️</button>
+                <button onclick="adminSaveApiKey('${pid}')" class="btn-navy btn-sm">💾</button>
+                <button onclick="adminClearApiKey('${pid}')" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">✕</button>
+              </div>
+              <div id="admin-key-status-${pid}" style="font-size:11px;margin-top:4px;color:#94a3b8;"></div>
+            </div>`).join('')}
+          <button onclick="adminLoadAllKeys()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;margin-top:4px;">🔄 โหลด Key ที่บันทึกไว้</button>
+        </div>
+
         <!-- A6: SHEETS CONNECTION -->
         <div class="card"><div class="admin-section-title">🔗 Google Sheets Connection (A1)</div>
           <div style="margin-bottom:10px;background:${DB.USE_SHEETS?'#d8ead8':'#fef9c3'};border:1px solid ${DB.USE_SHEETS?'#a3c4a3':'#fde047'};border-radius:8px;padding:8px 12px;font-size:13px;color:${DB.USE_SHEETS?'#14532d':'#713f12'};">${DB.USE_SHEETS?'🟢 เชื่อมต่อ Google Sheets แล้ว':'🟡 Local Mode — ข้อมูลอยู่ในเครื่องนี้เท่านั้น'}</div>
@@ -1874,6 +2071,8 @@ function renderAdmin(){
   // Activity log panel
   const alPanel=document.getElementById('activity-log-panel');
   if(alPanel)renderActivityLog();
+  // Load saved API keys into admin panel
+  setTimeout(adminLoadAllKeys,50);
 }
 
 // ── ADMIN HELPERS ──
@@ -1923,6 +2122,36 @@ function adminSaveAll(){
   if(b){b.style.display='';setTimeout(()=>b.style.display='none',3500);}
 }
 function setACAManual(){const v=parseInt(document.getElementById('aca-sv')?.value);if(!v||v<1){flash('กรุณาใส่ตัวเลขที่ถูกต้อง','#fef2f2','#dc2626');return;}localStorage.setItem('acaCounter',String(v-1));localStorage.setItem('acaYear',String(new Date().getFullYear()));renderAdmin();flash('✅ ตั้ง ACA เป็น '+v);}
+
+// ── ADMIN API KEY MANAGEMENT ──
+function adminSaveApiKey(provider){
+  const inp=document.getElementById('admin-key-'+provider);if(!inp)return;
+  const key=inp.value.trim();
+  if(!key){flash('กรุณาใส่ API Key','#fffbeb','#92400e');return;}
+  saveApiKey(provider,key);
+  // Also update the header input if this provider is currently selected
+  const sel=document.getElementById('sel-provider');
+  if(sel&&sel.value===provider){const hi=document.getElementById('inp-key');if(hi){hi.value=key;hi.classList.add('active');updateReadiness();}}
+  const st=document.getElementById('admin-key-status-'+provider);
+  if(st){st.textContent='✅ บันทึกแล้ว · '+new Date().toLocaleTimeString('th-TH');st.style.color='#16a34a';}
+  flash(`✅ บันทึก ${PROVIDERS[provider]?.label||provider} API Key แล้ว`,'#d8ead8','#14532d');
+}
+function adminClearApiKey(provider){
+  if(!confirm(`ลบ API Key ของ ${PROVIDERS[provider]?.label||provider}?`))return;
+  try{const cfg=JSON.parse(localStorage.getItem('api_keys')||'{}');delete cfg[provider];localStorage.setItem('api_keys',JSON.stringify(cfg));}catch(e){}
+  const inp=document.getElementById('admin-key-'+provider);if(inp)inp.value='';
+  const st=document.getElementById('admin-key-status-'+provider);if(st){st.textContent='ลบแล้ว';st.style.color='#dc2626';}
+  flash(`🗑️ ลบ API Key สำเร็จ`,'#f1f5f9','#64748b');
+}
+function adminLoadAllKeys(){
+  Object.keys(PROVIDERS).forEach(pid=>{
+    const saved=loadApiKey(pid);
+    const inp=document.getElementById('admin-key-'+pid);
+    if(inp)inp.value=saved||'';
+    const st=document.getElementById('admin-key-status-'+pid);
+    if(st){st.textContent=saved?'✅ มี Key บันทึกไว้ ('+saved.slice(0,8)+'***)':'— ยังไม่มี Key';st.style.color=saved?'#16a34a':'#94a3b8';}
+  });
+}
 
 // ════════════════════════════════════════════
 // ▶ B4: USER MANAGEMENT — full CRUD + role edit
@@ -2397,6 +2626,79 @@ function clearHistory(){
   try{localStorage.removeItem('case_history');}catch(e){}
   saveState();renderDashboard();
   flash('🗑️ ล้างประวัติแล้ว','#f1f5f9','#64748b');
+}
+function copyQCDetail(entryId){
+  const c=caseHistory.find(x=>String(x.id)===String(entryId));
+  if(!c){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
+  const cl=c.checklist_results||[];
+  const fw=c.forbidden_words||[];
+  const lines=[];
+  lines.push('════════════════════════════════');
+  lines.push(`📋 ACA: ${c.acaNumber||'—'}`);
+  lines.push(`ชื่องาน: ${c.jobName||'—'}`);
+  lines.push(`บริษัท: ${c.company||'—'}`);
+  lines.push(`ผู้ส่ง: ${c.submitterName||c.sender||'—'}`);
+  lines.push(`วันที่: ${new Date(c.date).toLocaleString('th-TH')}`);
+  lines.push(`ประเภทโครงการ: ${c.projectType||'—'} | สถานะ: ${c.projectStatus||'—'}`);
+  lines.push(`ประเภทสื่อ: ${c.mediaLabel||c.mediaType||'—'}`);
+  lines.push(`ข้อเสนอพิเศษ: ${c.offer||'—'}`);
+  lines.push('');
+  lines.push(`🏆 ผลรวม: ${c.overall_result||'—'}`);
+  lines.push(`PASS: ${cl.filter(r=>r.result==='PASS').length}  FAIL: ${cl.filter(r=>r.result==='FAIL').length}  N/A: ${cl.filter(r=>r.result==='N/A').length}`);
+  if(c.overall_summary)lines.push(`สรุป: ${c.overall_summary}`);
+  lines.push('');
+  lines.push('─── ผลตรวจ Checklist ───');
+  cl.forEach((r,i)=>{
+    lines.push(`${i+1}. [${r.result}] ${r.rule_id||''} ${r.topic||''}`);
+    if(r.law)lines.push(`   📖 ${r.law}`);
+    if(r.finding)lines.push(`   พบ: ${r.finding}`);
+    if(r.missing)lines.push(`   ⛔ ขาด: ${r.missing}`);
+    if(r.recommendation)lines.push(`   💡 ${r.recommendation}`);
+  });
+  if(fw.length){
+    lines.push('');
+    lines.push('─── ข้อควรระวัง / Keyword ───');
+    fw.forEach(w=>lines.push(`⚠️ "${w.word||''}" — ${w.location||''} [${w.rule_id||''}]`));
+  }
+  lines.push('════════════════════════════════');
+  lines.push('⚠️ ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น');
+  copyToClipboard(lines.join('\n'));
+}
+function copyLegalDetail(acaNumber){
+  const q=legalQueue.find(x=>x.acaNumber===acaNumber);
+  if(!q){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
+  const cl=q.checklist_results||[];
+  const fw=q.forbidden_words||[];
+  const lines=[];
+  lines.push('════════════════════════════════');
+  lines.push(`⚖️ ACA: ${q.acaNumber||'—'} [Legal Review]`);
+  lines.push(`ชื่องาน: ${q.jobName||'—'}`);
+  lines.push(`บริษัท: ${q.company||'—'}`);
+  lines.push(`ผู้ส่ง: ${q.submitterName||q.sender||'—'}`);
+  lines.push(`วันที่ส่ง: ${q.sentAt?new Date(q.sentAt).toLocaleString('th-TH'):'—'}`);
+  lines.push(`Status: ${q.status||'—'}`);
+  lines.push(`Reviewed by: ${q.reviewedBy||'—'}`);
+  if(q.reviewedAt)lines.push(`วันที่ตรวจ: ${new Date(q.reviewedAt).toLocaleString('th-TH')}`);
+  lines.push('');
+  lines.push(`🏆 ผล AI: ${q.overall_result||'—'}`);
+  lines.push(`PASS: ${cl.filter(r=>r.result==='PASS').length}  FAIL: ${cl.filter(r=>r.result==='FAIL').length}  N/A: ${cl.filter(r=>r.result==='N/A').length}`);
+  if(q.legalComment)lines.push(`\n💬 Legal Comment: ${q.legalComment}`);
+  lines.push('');
+  lines.push('─── ผลตรวจ Checklist ───');
+  cl.forEach((r,i)=>{
+    lines.push(`${i+1}. [${r.result}] ${r.rule_id||''} ${r.topic||''}`);
+    if(r.law)lines.push(`   📖 ${r.law}`);
+    if(r.finding)lines.push(`   พบ: ${r.finding}`);
+    if(r.missing)lines.push(`   ⛔ ขาด: ${r.missing}`);
+    if(r.recommendation)lines.push(`   💡 ${r.recommendation}`);
+  });
+  if(fw.length){
+    lines.push('');
+    lines.push('─── ข้อควรระวัง / Keyword ───');
+    fw.forEach(w=>lines.push(`⚠️ "${w.word||''}" — ${w.location||''} [${w.rule_id||''}]`));
+  }
+  lines.push('════════════════════════════════');
+  copyToClipboard(lines.join('\n'));
 }
 function copyFallback(text){
   const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px;top:-9999px;';document.body.appendChild(ta);ta.select();
