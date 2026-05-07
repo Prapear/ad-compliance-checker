@@ -394,7 +394,7 @@ textarea.inp{resize:vertical;}
 <div id="panel-results" class="tab-panel" style="display:none;"><div class="res-layout"><div class="res-main" id="results-main"></div><div class="res-side" id="results-side"></div></div></div>
 <div id="panel-report" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-inbox" class="tab-panel" style="display:none;padding:24px 32px;max-width:1400px;margin:0 auto;font-size:15px;"></div>
-<div id="panel-history" class="tab-panel" style="display:none;padding:24px 40px;max-width:1600px;margin:0 auto;font-size:15px;"></div>
+<div id="panel-history" class="tab-panel" style="display:none;padding:24px 20px;max-width:100%;margin:0 auto;font-size:15px;"></div>
 <div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
 <div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-accounts" class="tab-panel" style="display:none;padding:22px 28px;max-width:900px;margin:0 auto;"></div>
@@ -561,7 +561,7 @@ function getACAInfo(){const yr=new Date().getFullYear();const sy=parseInt(localS
 // ── SLA ──
 function bizDays(from,to=new Date()){let n=0,d=new Date(from);d.setHours(0,0,0,0);const end=new Date(to);end.setHours(0,0,0,0);while(d<end){const dw=d.getDay();if(dw>0&&dw<6)n++;d.setDate(d.getDate()+1);}return n;}
 function getSLAStatus(t){const days=SLA_DAYS[t.sla]||3;let elapsed=t.status==='Request Edit'&&t.slaPausedAt?bizDays(t.slaStartTime||t.date,t.slaPausedAt):bizDays(t.slaStartTime||t.date);const rem=days-elapsed;return{days,elapsed,rem,breached:rem<0,urgent:rem>=0&&rem<=1};}
-function slaLabel(t){const s=getSLAStatus(t);if(s.breached)return{text:`เกินกำหนด ${Math.abs(s.rem)} วัน`,bg:'#fee2e2',color:'#dc2626',border:'#fecaca'};if(s.urgent)return{text:`เหลือ ${s.rem} วันทำการ`,bg:'#ffedd5',color:'#c2410c',border:'#fed7aa'};return{text:`เหลือ ${s.rem} วันทำการ`,bg:'#dcfce7',color:'#15803d',border:'#bbf7d0'};}
+function slaLabel(t){const s=getSLAStatus(t);if(s.breached)return{text:`เกินกำหนด ${Math.abs(s.rem)} วัน`,bg:'#fee2e2',color:'#dc2626',border:'#fecaca'};if(s.urgent)return{text:`เหลือ ${s.rem} วัน`,bg:'#ffedd5',color:'#c2410c',border:'#fed7aa'};return{text:`เหลือ ${s.rem} วัน`,bg:'#dcfce7',color:'#15803d',border:'#bbf7d0'};}
 
 // ── ACCOUNTS ──
 function hashPwd(s){let h=0;for(const c of s)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return h.toString(36);}
@@ -1030,7 +1030,7 @@ function renderInbox(){
         <div style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:2px;">${esc(q.jobName)}</div>
         <div style="font-size:13px;color:#475569;">${esc(q.submitterName||q.sender||'')} · ${esc(q.company||'')} · ${esc(q.mediaLabel||q.mediaType||'')}</div>
       </div>
-      <div style="text-align:right;flex-shrink:0;"><div style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;display:inline-block;background:${sl.bg};color:${sl.color};border:1px solid ${sl.border};">${sl.text}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px;">SLA: ${q.sla||'3 วัน'}</div></div>
+      <div style="text-align:right;flex-shrink:0;"><div style="padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;display:inline-block;background:${sl.bg};color:${sl.color};border:1px solid ${sl.border};">${sl.text}</div><div style="font-size:11px;color:#94a3b8;margin-top:4px;">SLA: ${(q.sla||'3').replace(' วันทำการ','')} วัน</div></div>
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
       <div style="font-size:12px;color:#94a3b8;">ส่งเมื่อ: ${new Date(q.sentAt||q.date||'').toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}${q.resubmittedAt?` · Re-submit: ${new Date(q.resubmittedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}`:''}</div>
@@ -1115,7 +1115,7 @@ function openReviewTicket(acaNumber){
         <div class="rt-section"><div class="rt-section-title">⏱️ SLA</div>
           <div style="text-align:center;padding:12px;background:${sl.bg};border:1px solid ${sl.border};border-radius:8px;margin-bottom:8px;">
             <div style="font-size:22px;font-weight:800;color:${sl.color};">${sl.text}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:3px;">SLA: ${q.sla||'3 วัน'}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px;">SLA: ${(q.sla||'3').replace(' วันทำการ','')} วัน</div>
             <div id="sla-countdown-${q.acaNumber}" style="font-size:13px;font-weight:700;color:${sl.color};margin-top:6px;">⏳ กำลังคำนวณ...</div>
           </div>
           ${q.slaLog?.length?`<div style="font-size:11px;color:#94a3b8;margin-top:5px;">ปรับล่าสุด: ${q.slaLog[q.slaLog.length-1]?.by||''} · ${q.slaLog[q.slaLog.length-1]?.from||''} → ${q.slaLog[q.slaLog.length-1]?.to||''}</div>`:''}
@@ -1195,17 +1195,18 @@ function startSLACountdown(acaNumber, sentAt, slaDays){
     const total=deadline-base;
     const elapsed=now-base;
     const pct=Math.min(100,Math.max(0,Math.round(elapsed/total*100)));
-    const elapsedD=Math.floor(elapsed/86400000);
-    const elapsedH=Math.floor((elapsed%86400000)/3600000);
+    const elapsedH=Math.floor(elapsed/3600000);
     const remD=Math.max(0,Math.floor(diff/86400000));
     const remH=Math.max(0,Math.floor((diff%86400000)/3600000));
-    const color=diff<=0?'#dc2626':diff<86400000?'#f59e0b':'#16a34a';
-    const barColor=diff<=0?'#dc2626':diff<86400000?'#f59e0b':'#16a34a';
+    const isOver=diff<=0;
+    const color=isOver?'#dc2626':diff<86400000?'#f59e0b':'#16a34a';
     const filledBlocks=Math.round(pct/10);
     const bar='█'.repeat(filledBlocks)+'░'.repeat(10-filledBlocks);
-    const elapsedTxt=elapsedD>0?`${elapsedD}d ${elapsedH}h elapsed`:`${elapsedH}h elapsed`;
-    const remTxt=diff<=0?`เกิน deadline ${Math.abs(remD)>0?Math.abs(remD)+'d ':''} ${Math.abs(remH)}h`:remD>0?`${remD}d ${remH}h remaining`:`${remH}h remaining`;
-    el.innerHTML=`<div style="font-family:monospace;font-size:13px;font-weight:700;color:${barColor};letter-spacing:1px;">${bar} ${pct}%</div><div style="font-size:11px;color:#94a3b8;margin-top:3px;">${elapsedTxt}</div><div style="font-size:11px;color:${color};font-weight:700;">${remTxt}</div>`;
+    const elapsedTxt=`เวลาผ่านไป ${elapsedH}ชม.`;
+    const remTxt=isOver
+      ?`เกิน deadline ${Math.abs(Math.floor(diff/3600000))}ชม.`
+      :remD>0?`เวลาคงเหลือ ${remD}วัน ${remH}ชม.`:`เวลาคงเหลือ ${remH}ชม.`;
+    el.innerHTML=`<div style="font-family:monospace;font-size:13px;font-weight:700;color:${color};letter-spacing:1px;">${bar} ${pct}%</div><div style="font-size:11px;color:#94a3b8;margin-top:3px;">${elapsedTxt}</div><div style="font-size:11px;color:${color};font-weight:700;">${remTxt}</div>`;
   }
   tick();
   _slaTimers[acaNumber]=setInterval(tick,60000);
@@ -2004,7 +2005,7 @@ function renderAdmin(){
     <div id="admin-banner" style="display:none;padding:10px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:14px;font-size:14px;color:#15803d;font-weight:600;">✅ บันทึกสำเร็จ</div>
 
     ${breached.length?`<div class="sla-alert-box sla-alert-red"><div style="font-weight:700;color:#dc2626;font-size:14px;margin-bottom:8px;">🚨 SLA เกินกำหนดแล้ว (${breached.length} งาน)</div>${breached.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #fecaca;font-size:13px;"><div><span style="font-family:monospace;color:#94a3b8;margin-right:8px;">${q.acaNumber}</span>${esc(q.jobName)}</div><span style="color:#dc2626;font-weight:700;">เกิน ${Math.abs(getSLAStatus(q).rem)} วัน</span></div>`).join('')}</div>`:``}
-    ${urgent.length?`<div class="sla-alert-box sla-alert-orange"><div style="font-weight:700;color:#c2410c;font-size:14px;margin-bottom:8px;">⚠️ SLA เหลือ 1 วันทำการ (${urgent.length} งาน)</div>${urgent.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #fed7aa;font-size:13px;"><div><span style="font-family:monospace;color:#94a3b8;margin-right:8px;">${q.acaNumber}</span>${esc(q.jobName)}</div><span style="color:#c2410c;font-weight:700;">เหลือ ${getSLAStatus(q).rem} วัน</span></div>`).join('')}</div>`:``}
+    ${urgent.length?`<div class="sla-alert-box sla-alert-orange"><div style="font-weight:700;color:#c2410c;font-size:14px;margin-bottom:8px;">⚠️ SLA เหลือ 1 วัน (${urgent.length} งาน)</div>${urgent.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #fed7aa;font-size:13px;"><div><span style="font-family:monospace;color:#94a3b8;margin-right:8px;">${q.acaNumber}</span>${esc(q.jobName)}</div><span style="color:#c2410c;font-weight:700;">เหลือ ${getSLAStatus(q).rem} วัน</span></div>`).join('')}</div>`:``}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       <div>
