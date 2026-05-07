@@ -377,6 +377,10 @@ textarea.inp{resize:vertical;}
       <div class="card" id="sheets-card" style="display:none;"><h3 class="card-title">📊 Sheets ที่ตรวจ</h3><div id="sheets-list" style="display:flex;flex-wrap:wrap;gap:7px;"></div></div>
       <div class="card"><h3 class="card-title">✅ ความพร้อม</h3><div id="readiness-list"></div></div>
       <div class="disclaimer-gray" style="margin-bottom:8px;">⚠️ Quick Check ตรวจเบื้องต้นโดย AI เท่านั้น ไม่ถือเป็นการรับรองทางกฎหมาย</div>
+      <label style="display:flex;align-items:flex-start;gap:8px;margin-bottom:10px;cursor:pointer;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;">
+        <input type="checkbox" id="chk-ai-ack" onchange="updateReadiness()" style="margin-top:2px;width:15px;height:15px;accent-color:#0032c7;flex-shrink:0;cursor:pointer;"/>
+        <span style="font-size:13px;color:#713f12;line-height:1.6;">ฉันรับทราบว่าผลนี้เป็นการตรวจเบื้องต้นโดย AI เท่านั้น ยังไม่ถือเป็นความเห็นหรือการรับรองทางกฎหมาย</span>
+      </label>
       <button id="btn-submit" class="submit-btn" style="background:#94a3b8;cursor:not-allowed;" disabled onclick="handleSubmit()">🔍 Quick Check</button>
       <div id="direct-send-wrap" style="margin-top:10px;display:none;">
         <button id="btn-direct-legal" class="btn-send-legal" style="background:#94a3b8;cursor:not-allowed;" disabled onclick="handleDirectSendLegal()">📤 Send to Legal Review</button>
@@ -632,10 +636,7 @@ function renderClockList(){
     const sl=slaLabel(q);
     const legalBtns=isLegalRole(currentRole)?`
       <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap;">
-        <button onclick="quickActionFromClock('${q.acaNumber}','Approved')" style="padding:3px 8px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">✅ Approve</button>
-        <button onclick="quickActionFromClock('${q.acaNumber}','Request Edit')" style="padding:3px 8px;background:#f59e0b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">🔄 ขอแก้</button>
-        <button onclick="quickActionFromClock('${q.acaNumber}','Rejected')" style="padding:3px 8px;background:#dc2626;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">❌ ปฏิเสธ</button>
-        <button onclick="openReviewTicket('${q.acaNumber}');document.getElementById('clock-dd').style.display='none';" style="padding:3px 8px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;font-size:11px;">🔍 ดูรายละเอียด</button>
+        <button onclick="openReviewTicket('${q.acaNumber}');document.getElementById('clock-dd').style.display='none';" style="padding:3px 8px;background:${NAVY};color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">🔍 เปิดตรวจ</button>
       </div>`:`<button onclick="switchTab('history');document.getElementById('clock-dd').style.display='none';" style="padding:4px 10px;background:#f59e0b;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;margin-top:4px;">✏️ แก้ไข</button>`;
     return`<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
       <div style="font-size:11px;font-family:monospace;color:#94a3b8;">${q.acaNumber}</div>
@@ -644,21 +645,6 @@ function renderClockList(){
       ${legalBtns}
     </div>`;
   }).join('');
-}
-function quickActionFromClock(aca,action){
-  document.getElementById('clock-dd').style.display='none';
-  if(action==='Request Edit'){openReviewTicket(aca);flash('เปิด ticket — กรุณาใส่ comment ก่อน Request Edit','#fffbeb','#92400e');return;}
-  const confirmMsg=action==='Approved'?`ยืนยัน Approve งาน ${aca}?`:`ยืนยัน Reject งาน ${aca}?\n\nการ Reject ไม่สามารถย้อนกลับได้`;
-  if(!confirm(confirmMsg))return;
-  const q=legalQueue.find(x=>x.acaNumber===aca);if(!q)return;
-  const now=new Date();const actionLabels={Approved:'✅ Approved',Rejected:'❌ Rejected'};
-  q.status=action;q.legalComment='';q.reviewedBy=currentAcc?.displayName||currentRole;q.reviewedAt=now.toISOString();
-  if(!q.timeline)q.timeline=[];q.timeline.push({ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:actionLabels[action]||action,comment:'(Quick action from Clock)'});
-  saveState();
-  logActivity(actionLabels[action]||action, q.acaNumber+' '+q.jobName);
-  pushNotif(q.submitterRole||'user',{Approved:`✅ ${q.acaNumber} — "${q.jobName}" ได้รับการ Approve`,Rejected:`❌ ${q.acaNumber} — "${q.jobName}" ไม่ได้รับการอนุมัติ`}[action]||action,q.acaNumber);
-  emailStub(action==='Approved'?'approved':'rejected',{acaNumber:q.acaNumber,jobName:q.jobName,comment:'',submitterRole:q.submitterRole||'user'});
-  flash(actionLabels[action],'#d8ead8','#14532d');renderInbox();updateNotifBadges();
 }
 function toggleNotif(id){const dd=document.getElementById(id);if(!dd)return;['bell-dd','clock-dd'].forEach(x=>{const el=document.getElementById(x);if(el&&x!==id)el.style.display='none';});const open=dd.style.display==='block';dd.style.display=open?'none':'block';if(!open){if(id==='bell-dd')renderBellList();else renderClockList();}}
 document.addEventListener('click',e=>{if(!e.target.closest('#notif-row')){['bell-dd','clock-dd'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}});
@@ -844,10 +830,10 @@ document.getElementById('inp-key')?.addEventListener('input',function(){
 // ── FORM ──
 function onProjTypeChange(){const pt=gv('f-projtype');const wrap=document.getElementById('f-status-wrap');const sel=document.getElementById('f-projstatus');if(!pt){wrap.style.display='none';sel.value='';}else{sel.innerHTML='<option value="">— เลือกสถานะ —</option>'+({'บ้าน':['ขออนุญาตจัดสรรที่ดินแล้ว','ยังไม่ขออนุญาตจัดสรรที่ดิน'],'คอนโด':['จดทะเบียนอาคารชุดแล้ว','ยังไม่จดทะเบียนอาคารชุด'],'บ้านและคอนโด':['Both (ทุกสถานะ)']}[pt]||[]).map(o=>`<option>${o}</option>`).join('');wrap.style.display='';}updateClassify();}
 function updateClassify(){const s=getSheets();const card=document.getElementById('sheets-card');if(s.length){document.getElementById('sheets-list').innerHTML=s.map(x=>`<span class="stag${x==='Common_Rules'?' pri':''}">${x}</span>`).join('');card.style.display='';}else card.style.display='none';updateReadiness();}
-function isValid(){return !!(gv('inp-key')&&gv('f-jobname')&&gv('f-sender')&&gv('f-company')&&gv('f-email')&&gv('f-phone')&&gv('f-sla')&&gv('f-projtype')&&gv('f-media'));}
+function isValid(){return !!(gv('inp-key')&&gv('f-jobname')&&gv('f-sender')&&gv('f-company')&&gv('f-email')&&gv('f-phone')&&gv('f-sla')&&gv('f-projtype')&&gv('f-media')&&document.getElementById('chk-ai-ack')?.checked);}
 function isValidNoKey(){return !!(gv('f-jobname')&&gv('f-sender')&&gv('f-company')&&gv('f-email')&&gv('f-phone')&&gv('f-sla')&&gv('f-projtype')&&gv('f-media'));}
 function updateReadiness(){
-  const checks=[{l:'API Key (Quick Check)',ok:!!gv('inp-key')},{l:'ชื่องาน',ok:!!gv('f-jobname')},{l:'ผู้ส่ง',ok:!!gv('f-sender')},{l:'บริษัท',ok:!!gv('f-company')},{l:'อีเมล',ok:!!gv('f-email')},{l:'เบอร์โทร',ok:!!gv('f-phone')},{l:'SLA',ok:!!gv('f-sla')},{l:'ประเภทโครงการ',ok:!!gv('f-projtype')},{l:'ประเภทสื่อ',ok:!!gv('f-media')},{l:'ไฟล์สื่อ (แนะนำ)',ok:mediaFiles.length>0,opt:true}];
+  const checks=[{l:'API Key (Quick Check)',ok:!!gv('inp-key')},{l:'ชื่องาน',ok:!!gv('f-jobname')},{l:'ผู้ส่ง',ok:!!gv('f-sender')},{l:'บริษัท',ok:!!gv('f-company')},{l:'อีเมล',ok:!!gv('f-email')},{l:'เบอร์โทร',ok:!!gv('f-phone')},{l:'SLA',ok:!!gv('f-sla')},{l:'ประเภทโครงการ',ok:!!gv('f-projtype')},{l:'ประเภทสื่อ',ok:!!gv('f-media')},{l:'ยืนยัน Disclaimer',ok:!!document.getElementById('chk-ai-ack')?.checked},{l:'ไฟล์สื่อ (แนะนำ)',ok:mediaFiles.length>0,opt:true}];
   document.getElementById('readiness-list').innerHTML=checks.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;"><span>${c.ok?'✅':c.opt?'⬜':'❌'}</span><span style="color:${c.ok?'#16a34a':c.opt?'#94a3b8':'#ef4444'};">${c.l}</span></div>`).join('');
   const v=isValid();const btn=document.getElementById('btn-submit');
   if(btn){btn.disabled=!v;btn.style.background=v?NAVY:'#94a3b8';btn.style.cursor=v?'pointer':'not-allowed';btn.style.boxShadow=v?'0 4px 14px rgba(0,50,199,.35)':'none';}
@@ -1055,7 +1041,67 @@ function renderInbox(){
 function openReviewTicket(acaNumber){
   const q=legalQueue.find(x=>x.acaNumber===acaNumber);if(!q){flash('ไม่พบงาน','#fef2f2','#dc2626');return;}
   if(q.status==='Sent to Legal'){q.status='Under Review';q.timeline=(q.timeline||[]).concat([{ts:new Date().toISOString(),role:currentRole,user:currentAcc?.displayName,action:'เปิดตรวจ (Under Review)',comment:''}]);saveState();updateNotifBadges();renderInbox();}
-  const cl=q.checklist_results||[];const cnt=v=>cl.filter(r=>r.result===v).length;const sl=slaLabel(q);
+  // Auto-run AI check if ticket was sent directly (no QC results yet)
+  if((!q.checklist_results||q.checklist_results.length===0)&&isLegalRole(currentRole)){
+    autoRunAICheckForTicket(q);return;
+  }
+  _renderReviewTicketModal(acaNumber);
+}
+
+async function autoRunAICheckForTicket(q){
+  const apiKey=gv('inp-key');
+  if(!apiKey){flash('กรุณาใส่ API Key ก่อนเปิดตรวจ','#fffbeb','#92400e');_renderReviewTicketModal(q.acaNumber);return;}
+  flash('🤖 กำลัง run AI check อัตโนมัติ...','#e8effe','#0032c7');
+  showLoading(false);
+  try{
+    const provider=gv('sel-provider')||'gemini',model=gv('sel-model');
+    const cl1d=getMd('cl1'),cl2d=getMd('cl2'),skd=getMd('skill');
+    const checklist=cl1d?.text||DEMO_CL,checklist2=cl2d?.text||'';
+    const skillPrompt=skd?.text||'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยใน finding, missing, recommendation, penalty, overall_summary';
+    const pt=q.projectType||'',ps=q.projectStatus||'',mt=q.mediaType||'',offer=q.offer||'ไม่มี';
+    const sheets=['Common_Rules'];
+    if(pt==='บ้าน'){sheets.push(ps.includes('ขออนุญาต')?'H_Allocation':'H_Unallocation');}
+    else if(pt==='คอนโด'){sheets.push(ps.includes('จดทะเบียน')?'Condo_Regis':'Condo_Unregis');}
+    else if(pt==='บ้านและคอนโด'){sheets.push('H_Allocation','Condo_Regis');}
+    if(mt)sheets.push(mt);
+    if(offer&&offer!=='ไม่มี'){sheets.push('promotion');if(offer==='ชิงโชค')sheets.push('Lucky_draw');}
+    const prompt=`Ticket:\n- ชื่องาน: ${q.jobName||''}\n- ผู้ส่ง: ${q.submitterName||q.sender||''}\n- บริษัท: ${q.company||''}\n- SLA: ${q.sla||''}\n- รายละเอียด: ${q.details||'-'}\nClassification: ${pt} / ${ps} / ${mt} / ${offer}\nSheets: ${sheets.join(', ')}\n\n=== PRIMARY ===\n${checklist}\n${checklist2?`\n=== SECONDARY ===\n${checklist2}`:''}\n\nตอบ JSON:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+    let result=null;
+    if(provider==='gemini'){
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const body={systemInstruction:{parts:[{text:skillPrompt}]},contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:8192,responseMimeType:'application/json'}};
+      const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const data=await res.json();
+      const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'';
+      result=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    } else {
+      const hdrs={'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`};
+      if(provider==='openrouter'){hdrs['HTTP-Referer']=location.href;hdrs['X-Title']='Ad Compliance';}
+      const endpoint=provider==='groq'?'https://api.groq.com/openai/v1/chat/completions':'https://openrouter.ai/api/v1/chat/completions';
+      const body={model,messages:[{role:'system',content:skillPrompt},{role:'user',content:prompt}],temperature:0.1,max_tokens:8192};
+      const res=await fetch(endpoint,{method:'POST',headers:hdrs,body:JSON.stringify(body)});
+      if(!res.ok)throw new Error(`HTTP ${res.status}`);
+      const data=await res.json();
+      const raw=data.choices?.[0]?.message?.content||'';
+      result=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    }
+    if(!result)throw new Error('ไม่ได้รับผลจาก AI');
+    q.checklist_results=result.checklist_results||[];
+    q.forbidden_words=result.forbidden_words_found||[];
+    q.overall_result=result.overall_result||'N/A';
+    q.overall_summary=result.overall_summary||'';
+    q.timeline=(q.timeline||[]).concat([{ts:new Date().toISOString(),role:currentRole,user:currentAcc?.displayName,action:'AI ตรวจอัตโนมัติ (Auto AI Check)',comment:`ผล: ${q.overall_result}`}]);
+    saveState();hideLoading();
+    flash(`✅ AI ตรวจเสร็จแล้ว — ${q.overall_result}`,'#d8ead8','#14532d');
+    _renderReviewTicketModal(q.acaNumber);
+  }catch(e){
+    hideLoading();
+    flash('❌ Auto AI Check ล้มเหลว: '+e.message,'#fef2f2','#dc2626');
+    _renderReviewTicketModal(q.acaNumber);
+  }
+}
+function _renderReviewTicketModal(acaNumber){const cnt=v=>cl.filter(r=>r.result===v).length;const sl=slaLabel(q);
   const templates=DEFAULT_TEMPLATES;const tmplGroups=[...new Set(templates.map(t=>t.group))];
   const canEditNote=isLegalRole(currentRole);
 
@@ -1192,12 +1238,11 @@ function startSLACountdown(acaNumber, sentAt, slaDays){
   if(_slaTimers[acaNumber])clearInterval(_slaTimers[acaNumber]);
   const el=document.getElementById('sla-countdown-'+acaNumber);
   if(!el)return;
-  // SLA deadline = submitted_at + sla_days calendar days (end of that day 18:00)
-  // e.g. submitted 2026-05-07 10:00 + 5 days = deadline 2026-05-12 18:00
+  // SLA deadline = submitted_at + sla_days calendar days (same time as submission)
+  // e.g. submitted 2026-05-07 10:00 + 5 days = deadline 2026-05-12 10:00
   const base=new Date(sentAt);
   const deadline=new Date(base);
   deadline.setDate(deadline.getDate()+slaDays);
-  deadline.setHours(18,0,0,0);// end of business day
   function tick(){
     const now=new Date();const diff=deadline-now;
     if(!document.getElementById('sla-countdown-'+acaNumber)){clearInterval(_slaTimers[acaNumber]);return;}
