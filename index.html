@@ -407,7 +407,7 @@ function getRoleDef(roleId){return getRoleTemplates().find(r=>r.id===roleId)||RO
 // ▶ DB LAYER (A1: Apps Script integration ready)
 // ════════════════════════════════════════════
 const DB = {
-  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw_9LPQ9xBD9qa-GwulMyvJ9e8t5yzH71IZMFNAJkgwXPOnvh00OoXBuxoxDZ_NKTg/exec',
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzNP0C5BezcEtk5IPqovbWeveY-sdFAbXp4Mq_A2R3u8aAtTfv94MTB5GJQxndJ3oI/exec',
   USE_SHEETS: true,
   async save(action, data) {
     if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheetsPost(action, data);
