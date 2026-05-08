@@ -271,10 +271,11 @@ textarea.inp{resize:vertical;}
     </div>
   </div>
   <div class="hdr-row2">
-    <div class="key-grp">
+    <div class="key-grp" id="key-input-row">
       <span class="key-lbl" id="lbl-key">🔑 Gemini API Key</span>
       <div class="key-wrap"><input id="inp-key" type="password" placeholder="AIza..." class="key-inp" autocomplete="off"/><button type="button" class="key-eye" onclick="togglePwd('inp-key',this)">👁️</button></div>
     </div>
+    <div id="central-key-badge" style="display:none;align-items:center;gap:6px;padding:4px 12px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:12px;color:#fff;font-weight:600;">🔑 API Key พร้อมใช้งาน</div>
     <!-- hidden inputs for backward-compat with doCall() -->
     <input id="sel-provider" type="hidden" value="gemini"/>
     <input id="sel-model" type="hidden" value="gemini-2.5-flash-lite"/>
@@ -729,6 +730,18 @@ function loadApiKey(provider){try{const cfg=JSON.parse(localStorage.getItem('api
 function loadSavedProvider(){try{return localStorage.getItem('api_saved_provider')||'gemini';}catch(e){return 'gemini';}}
 function saveSelectedProvider(p){try{localStorage.setItem('api_saved_provider',p);}catch(e){}}
 
+async function fetchCentralApiKey(){
+  // ลอง fetch key จาก Apps Script (central key ที่ admin ตั้งไว้)
+  // ถ้าไม่ได้หรือยังไม่ได้ตั้ง ก็ fallback ใช้ key ของ user เองแบบเดิม
+  try{
+    if(!DB.APPS_SCRIPT_URL)return null;
+    const res=await fetch(DB.APPS_SCRIPT_URL+'?action=getApiKey');
+    const data=await res.json();
+    if(data&&data.key&&data.key.length>10)return data.key;
+  }catch(e){}
+  return null;
+}
+
 function initProvider(){
   const sel=document.getElementById('sel-provider'),msel=document.getElementById('sel-model');if(!sel||!msel)return;
   const p=PROVIDERS[sel.value]||PROVIDERS.gemini;
@@ -736,14 +749,29 @@ function initProvider(){
   const inp=document.getElementById('inp-key');
   if(inp){
     inp.placeholder=p.ph;
-    // Load saved key for this provider
     const saved=loadApiKey(sel.value);
     if(saved&&!inp.value){inp.value=saved;inp.classList.toggle('active',!!saved);}
   }
   msel.innerHTML=p.models.map(m=>`<option value="${m}">${m}</option>`).join('');
   updateReadiness();
-  const key=gv('inp-key');
-  if(key)setTimeout(()=>fetchModelsForProvider(sel.value,key,false),800);
+  // ลอง load central key จาก Apps Script ก่อน ถ้าได้ใช้เลยโดยไม่แสดงให้ user เห็น
+  fetchCentralApiKey().then(centralKey=>{
+    if(centralKey){
+      // มี central key — ซ่อน key input field ไม่ให้ user เห็น/แก้ไข
+      const inp=document.getElementById('inp-key');
+      if(inp){inp.value=centralKey;inp.classList.add('active');}
+      const keyRow=document.getElementById('key-input-row');
+      if(keyRow)keyRow.style.display='none';
+      const badge=document.getElementById('central-key-badge');
+      if(badge){badge.style.display='flex';}
+      updateReadiness();
+      setTimeout(()=>fetchModelsForProvider(sel.value,centralKey,false),400);
+    } else {
+      // ไม่มี central key — ใช้ key ของ user เองแบบเดิม
+      const key=gv('inp-key');
+      if(key)setTimeout(()=>fetchModelsForProvider(sel.value,key,false),800);
+    }
+  });
 }
 async function fetchModelsForProvider(provider,apiKey,showError){
   const msel=document.getElementById('sel-model');if(!msel||!apiKey)return 0;
