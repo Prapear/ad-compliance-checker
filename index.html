@@ -358,8 +358,8 @@ textarea.inp{resize:vertical;}
 <div id="panel-results" class="tab-panel" style="display:none;"><div class="res-layout"><div class="res-main" id="results-main"></div><div class="res-side" id="results-side"></div></div></div>
 <div id="panel-report" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-inbox" class="tab-panel" style="display:none;padding:24px 32px;max-width:1400px;margin:0 auto;font-size:15px;"></div>
-<div id="panel-history" class="tab-panel" style="display:none;padding:24px 20px;max-width:100%;margin:0 auto;font-size:15px;"></div>
-<div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1200px;margin:0 auto;"></div>
+<div id="panel-history" class="tab-panel" style="display:none;padding:24px 28px;max-width:1380px;margin:0 auto;font-size:15px;"></div>
+<div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1380px;margin:0 auto;"></div>
 <div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-accounts" class="tab-panel" style="display:none;padding:22px 28px;max-width:900px;margin:0 auto;"></div>
 
@@ -1505,13 +1505,9 @@ function calcTurnaround(item){
   return{label:days<1?Math.round(ms/3600000)+'ชม.':days+'วัน',color,days};
 }
 function calcAvgTurnaround(items){
-  const done=items.filter(x=>x.reviewedAt&&x.sentAt);
-  if(!done.length)return{label:'—',sub:'No data yet'};
-  const avg=done.reduce((s,x)=>s+(new Date(x.reviewedAt)-new Date(x.sentAt)),0)/done.length;
-  const hrs=Math.round(avg/3600000);
-  const days=Math.round(avg/86400000*10)/10;
-  const val=days<1?hrs+' hrs':days+' days';
-  return{label:val,sub:`from ${done.length} case${done.length!==1?'s':''}`};
+  if(!items.length)return{label:'—',sub:'No data yet'};
+  // For QC-only mode: show avg time between checks (not meaningful) so just show count
+  return{label:items.length+' cases','sub':'Quick Check total'};
 }
 
 
@@ -1639,25 +1635,25 @@ function renderDashboard(){
   let lqAll=isAdmin?legalQueue:legalQueue.filter(q=>isLegal?true:q.submittedBy===currentAcc?.username);
   // Apply date filter
   hist=applyDashFilter(hist,'date');
-  const lq=applyDashFilter(lqAll,'sentAt');
+  const lq=hist;
   const total=hist.length,pass=hist.filter(c=>c.overall_result==='PASS').length,fail=hist.filter(c=>c.overall_result==='FAIL').length;
   const condPass=hist.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
   const qcTotal=hist.length;
   const lqTotal=lqAll.length;
   const overallCases=qcTotal;
-  const lqPending=lqAll.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
-  const lqPass=lqAll.filter(q=>q.status==='Approved').length;
-  const lqFail=lqAll.filter(q=>q.status==='Rejected').length;
+  const lqPending=0;
+  const lqPass=hist.filter(c=>c.overall_result==='PASS').length;
+  const lqFail=hist.filter(c=>c.overall_result==='FAIL').length;
   const complianceRate=total?Math.round(pass/total*100):0;
   const avgTa=calcAvgTurnaround(lq);
 
   // SLA stats
-  const slaItems=lqAll.filter(q=>q.sentAt&&q.reviewedAt);
-  const avgActualDays=slaItems.length?slaItems.reduce((s,q)=>{const ms=new Date(q.reviewedAt)-new Date(q.sentAt);return s+ms/86400000;},0)/slaItems.length:0;
-  const fasterThanSLA=slaItems.filter(q=>{const ta=calcTurnaround(q);return ta.days>=0&&ta.days<=(SLA_DAYS[q.sla]||3);}).length;
-  const pctFaster=slaItems.length?Math.round(fasterThanSLA/slaItems.length*100):0;
-  const avgSLADays=slaItems.length?slaItems.reduce((s,q)=>s+(SLA_DAYS[q.sla]||3),0)/slaItems.length:3;
-  const timeSavedHrs=slaItems.length?(slaItems.reduce((s,q)=>{const slaDays=SLA_DAYS[q.sla]||3;const actual=(new Date(q.reviewedAt)-new Date(q.sentAt))/86400000;return s+Math.max(0,slaDays-actual)*8;},0)):0;
+  const slaItems=[];
+  const avgActualDays=0;
+  const fasterThanSLA=0;
+  const pctFaster=0;
+  const avgSLADays=3;
+  const timeSavedHrs=0;
 
   // Charts data
   const projTypeMap={};[...hist,...lqAll].forEach(c=>{const pt=c.projectType||'ไม่ระบุ';projTypeMap[pt]=(projTypeMap[pt]||0)+1;});
@@ -2615,10 +2611,16 @@ function copyToClipboard(text){
   else copyFallback(text);
 }
 function clearHistory(){
-  if(!confirm('ลบประวัติ Quick Check ทั้งหมด?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้'))return;
-  caseHistory=[];
-  try{localStorage.removeItem('case_history');}catch(e){}
-  saveState();renderDashboard();
+  if(!confirm('ลบประวัติทั้งหมด?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้'))return;
+  caseHistory=[];legalQueue=[];notifications=[];
+  try{
+    localStorage.removeItem('case_history');
+    localStorage.removeItem('legalQueue');
+    localStorage.removeItem('notifications');
+  }catch(e){}
+  saveState();
+  renderDashboard();
+  renderHistory();
   flash('🗑️ ล้างประวัติแล้ว','#f1f5f9','#64748b');
 }
 function copyQCDetail(entryId){
