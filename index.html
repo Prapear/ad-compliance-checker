@@ -1800,48 +1800,6 @@ function renderDashboard(){
       </div>
     </div>
 
-    <!-- SLA Section -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;">
-      <!-- Total time saved -->
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">⏳ Total Time Saved</div>
-        <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${timeSavedHrs>=1?Math.round(timeSavedHrs)+' hrs':Math.round(timeSavedHrs*60)+' min'}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">vs. SLA target · ${slaItems.length} case${slaItems.length!==1?'s':''}</div>
-        ${monthStats.length>1?`<div style="display:flex;align-items:flex-end;gap:2px;height:28px;margin-top:8px;">${monthStats.map(m=>{const mh=Math.max(4,Math.round(m.total/maxMonthTotal*26));return`<div style="flex:1;background:linear-gradient(180deg,#4ade80,#16a34a);border-radius:2px 2px 0 0;height:${mh}px;opacity:.7;"></div>`;}).join('')}</div>`:''}
-      </div>
-      <!-- % Faster than SLA donut -->
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">🎯 % Faster than SLA</div>
-        ${(()=>{
-          if(!slaItems.length)return`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`;
-          const p=pctFaster,cx=60,cy=60,r=50,inner=35;
-          const a=p/100*Math.PI*2-Math.PI/2;
-          const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
-          const ix=cx+inner*Math.cos(a),iy=cy+inner*Math.sin(a);
-          const ax0=cx,ay0=cy-r,aix0=cx,aiy0=cy-inner;
-          const large=p>50?1:0;
-          const greenPath=p>=100?`<circle cx="${cx}" cy="${cy}" r="${r}" fill="#16a34a" opacity=".85"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/>`:
-            p<=0?'':`<path d="M${aix0},${aiy0} L${ax0},${ay0} A${r},${r} 0 ${large},1 ${x},${y} L${ix},${iy} A${inner},${inner} 0 ${large},0 ${aix0},${aiy0}" fill="#16a34a" opacity=".85"/>`;
-          return`<div style="display:flex;align-items:center;gap:12px;"><svg width="120" height="120" viewBox="0 0 120 120"><circle cx="${cx}" cy="${cy}" r="${r}" fill="#e2e8f0"/><circle cx="${cx}" cy="${cy}" r="${inner}" fill="#fff"/>${greenPath}<text x="${cx}" y="${cy+5}" text-anchor="middle" style="font-size:16px;fill:${NAVY};font-weight:800;">${p}%</text></svg><div><div style="font-size:13px;font-weight:700;color:#16a34a;">🟢 Faster: ${fasterThanSLA}</div><div style="font-size:13px;font-weight:700;color:#94a3b8;margin-top:4px;">⬜ Not: ${slaItems.length-fasterThanSLA}</div></div></div>`;
-        })()}
-      </div>
-      <!-- Avg time vs SLA bullet -->
-      <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📊 Avg Time vs SLA</div>
-        ${slaItems.length?`<div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:4px;"><span>0 วัน</span><span>SLA ${avgSLADays.toFixed(1)} วัน</span></div>
-          <div style="position:relative;height:20px;background:#e8effe;border-radius:6px;overflow:visible;">
-            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(100,avgActualDays/Math.max(avgSLADays*1.5,avgActualDays+1)*100)}%;background:${avgActualDays<=avgSLADays?'#16a34a':'#dc2626'};border-radius:6px;transition:width .5s;"></div>
-            <div style="position:absolute;left:${avgSLADays/Math.max(avgSLADays*1.5,avgActualDays+1)*100}%;top:-4px;bottom:-4px;width:2px;background:#f59e0b;border-radius:1px;" title="SLA Target"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;margin-top:6px;">
-            <span style="font-size:12px;color:${avgActualDays<=avgSLADays?'#16a34a':'#dc2626'};font-weight:700;">Actual: ${avgActualDays.toFixed(1)} วัน</span>
-            <span style="font-size:12px;color:#f59e0b;font-weight:700;">SLA: ${avgSLADays.toFixed(1)} วัน</span>
-          </div>
-        </div>`:`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
-      </div>
-    </div>
-
     <!-- Fail topics + Wrong keywords -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
