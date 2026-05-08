@@ -358,8 +358,8 @@ textarea.inp{resize:vertical;}
 <div id="panel-results" class="tab-panel" style="display:none;"><div class="res-layout"><div class="res-main" id="results-main"></div><div class="res-side" id="results-side"></div></div></div>
 <div id="panel-report" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-inbox" class="tab-panel" style="display:none;padding:24px 32px;max-width:1400px;margin:0 auto;font-size:15px;"></div>
-<div id="panel-history" class="tab-panel" style="display:none;padding:24px 28px;max-width:1380px;margin:0 auto;font-size:15px;"></div>
-<div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;max-width:1380px;margin:0 auto;"></div>
+<div id="panel-history" class="tab-panel" style="display:none;padding:24px 28px;width:100%;box-sizing:border-box;font-size:15px;"></div>
+<div id="panel-dashboard" class="tab-panel" style="display:none;padding:22px 28px;width:100%;box-sizing:border-box;"></div>
 <div id="panel-admin" class="tab-panel" style="display:none;padding:22px 28px;max-width:1100px;margin:0 auto;"></div>
 <div id="panel-accounts" class="tab-panel" style="display:none;padding:22px 28px;max-width:900px;margin:0 auto;"></div>
 
@@ -1631,7 +1631,7 @@ function renderDashboard(){
   const isAdmin=getRoleDef(currentRole).canAdmin;
   const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
   // Team scoping: user sees own team, legal sees all legal, admin sees all
-  let hist=isAdmin?caseHistory:isLegal?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
+  let hist=isAdmin?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
   let lqAll=isAdmin?legalQueue:legalQueue.filter(q=>isLegal?true:q.submittedBy===currentAcc?.username);
   // Apply date filter
   hist=applyDashFilter(hist,'date');
@@ -1921,12 +1921,16 @@ function renderAccountsTab(){
   // render pwd rows and activity
   const pwr=document.getElementById('pwd-change-rows-acc');
   if(pwr){
-    const templates=getRoleTemplates();
-    pwr.innerHTML=templates.map(rt=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 14px;background:#faf9f7;border-radius:8px;border:1px solid #e2e8f0;">
-      <span style="min-width:130px;font-size:13px;font-weight:700;color:${rt.color||'#475569'};">${rt.label}</span>
-      <input type="password" id="pwd-acc-${rt.id}" placeholder="รหัสผ่านใหม่ ≥ 6 ตัว" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;"/>
-      <button onclick="changePwd('${rt.id}')" class="btn-navy btn-sm">เปลี่ยน</button>
-    </div>`).join('');
+    const allAccs=getAccounts().filter(a=>a.active);
+    pwr.innerHTML=`<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 14px;font-size:12px;color:#92400e;margin-bottom:12px;">⚠️ ดู password เฉพาะเมื่อจำเป็น — หลีกเลี่ยงการแชร์หน้าจอขณะดู</div>`+
+    allAccs.map(a=>{const rd=getRoleDef(a.role);return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:10px 14px;background:#faf9f7;border-radius:8px;border:1px solid #e2e8f0;">
+      <span style="min-width:150px;font-size:13px;font-weight:700;color:${rd.color||'#475569'};">${esc(a.displayName)}</span>
+      <input type="password" id="pwd-acc-${a.id}" placeholder="รหัสผ่านใหม่ ≥ 6 ตัว" style="flex:1;padding:7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;"/>
+      <span id="pwd-msg-${a.id}" style="font-size:11px;display:none;min-width:80px;"></span>
+      <button onclick="changePwdAccount('${a.id}')" class="btn-navy btn-sm">เปลี่ยน</button>
+    </div>`;}).join('')+
+    `<button onclick="showCurrentPwds()" style="margin-top:6px;padding:6px 16px;background:#f8faff;border:1.5px solid #bfdbfe;border-radius:8px;cursor:pointer;font-size:13px;color:${NAVY};">👁️ ดู Password ปัจจุบัน</button>
+    <div id="pwd-reveal-box" style="display:none;margin-top:10px;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;"></div>`;
   }
   renderActivityLog();
 }
@@ -2202,6 +2206,33 @@ function renderPwdRows(){
       <button onclick="changePwd('${rt.id}')" class="btn-navy btn-sm">เปลี่ยน</button>
       <span id="pwd-msg-${rt.id}" style="font-size:12px;display:none;min-width:60px;"></span>
     </div>`).join('');
+}
+function changePwdAccount(accountId){
+  const inp=document.getElementById('pwd-acc-'+accountId);
+  const msg=document.getElementById('pwd-msg-'+accountId);
+  const val=(inp?.value||'').trim();
+  if(!val||val.length<6){if(msg){msg.textContent='≥ 6 ตัว';msg.style.color='#dc2626';msg.style.display='';setTimeout(()=>msg.style.display='none',2000);}return;}
+  const accs=getAccounts();
+  const a=accs.find(x=>x.id===accountId);
+  if(!a){flash('ไม่พบ account','#fef2f2','#dc2626');return;}
+  a.pwdHash=hashPwd(val);
+  saveAccounts(accs);
+  if(inp)inp.value='';
+  if(msg){msg.textContent='✅ เปลี่ยนแล้ว';msg.style.color='#16a34a';msg.style.display='';setTimeout(()=>msg.style.display='none',2000);}
+  flash(`✅ เปลี่ยน password ${a.displayName} สำเร็จ`,'#d8ead8','#14532d');
+}
+function showCurrentPwds(){
+  const box=document.getElementById('pwd-reveal-box');if(!box)return;
+  if(box.style.display==='block'){box.style.display='none';return;}
+  const accs=getAccounts().filter(a=>a.active);
+  box.innerHTML=accs.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+    <span style="min-width:150px;font-size:13px;font-weight:600;">${esc(a.displayName)}</span>
+    <code style="flex:1;font-size:12px;color:#0032c7;background:#f0f4ff;padding:2px 8px;border-radius:4px;" id="cpwd-${a.id}">••••••••</code>
+    <button onclick="toggleShowPwd('${a.id}')" style="padding:2px 8px;background:#f0f4ff;border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;font-size:11px;">👁️</button>
+  </div>`).join('');
+  box.style.display='block';
+  // Store decoded pwds for toggle (note: we can't reverse hash — show placeholder only)
+  box.innerHTML+='<div style="font-size:11px;color:#94a3b8;margin-top:8px;">⚠️ password ถูก hash ไม่สามารถย้อนกลับได้ — แก้ไขผ่านช่องด้านบน</div>';
 }
 function changePwd(roleId){
   const val=(document.getElementById('pwd-new-'+roleId)?.value||'').trim();
@@ -2611,17 +2642,17 @@ function copyToClipboard(text){
   else copyFallback(text);
 }
 function clearHistory(){
-  if(!confirm('ลบประวัติทั้งหมด?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้'))return;
+  if(!confirm('ลบประวัติและข้อมูลทั้งหมด?\nการดำเนินการนี้ไม่สามารถย้อนกลับได้'))return;
+  // Clear all case/history related keys
+  const keepKeys=['user_accounts','ua_ver','api_keys','db_config','md_cl1','md_cl2','md_skill','role_templates'];
+  const allKeys=Object.keys(localStorage);
+  allKeys.forEach(k=>{
+    if(!keepKeys.includes(k))try{localStorage.removeItem(k);}catch(e){}
+  });
+  // Also reset in-memory state
   caseHistory=[];legalQueue=[];notifications=[];
-  try{
-    localStorage.removeItem('case_history');
-    localStorage.removeItem('legalQueue');
-    localStorage.removeItem('notifications');
-  }catch(e){}
-  saveState();
-  renderDashboard();
-  renderHistory();
-  flash('🗑️ ล้างประวัติแล้ว','#f1f5f9','#64748b');
+  // Reload for clean state
+  setTimeout(()=>location.reload(),200);
 }
 function copyQCDetail(entryId){
   const c=caseHistory.find(x=>String(x.id)===String(entryId));
