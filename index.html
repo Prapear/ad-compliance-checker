@@ -406,23 +406,32 @@ function getRoleDef(roleId){return getRoleTemplates().find(r=>r.id===roleId)||RO
 // ▶ DB LAYER (A1: Apps Script integration ready)
 // ════════════════════════════════════════════
 const DB = {
-  APPS_SCRIPT_URL: '',
-  USE_SHEETS: false,
+  APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw_9LPQ9xBD9qa-GwulMyvJ9e8t5yzH71IZMFNAJkgwXPOnvh00OoXBuxoxDZ_NKTg/exec',
+  USE_SHEETS: true,
   async save(action, data) {
-    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheets(action, data);
+    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheetsPost(action, data);
     return this._lsave(action, data);
   },
   async get(action, params) {
-    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheets(action, params);
+    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheetsGet(action, params);
     return this._lget(action, params);
   },
-  async _sheets(action, data) {
+  async _sheetsPost(action, data) {
     try {
       const res = await fetch(this.APPS_SCRIPT_URL, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data})});
       const r = await res.json();
-      if (!r.success) throw new Error(r.error);
-      return r.data;
-    } catch(e) { console.error('[DB._sheets]', action, e.message); flash('⚠️ เชื่อมต่อ Sheets ไม่ได้', '#fef2f2', '#dc2626'); return null; }
+      if (r.error) throw new Error(r.error);
+      return r;
+    } catch(e) { console.error('[DB._sheetsPost]', action, e.message); flash('⚠️ เชื่อมต่อ Sheets ไม่ได้', '#fef2f2', '#dc2626'); return null; }
+  },
+  async _sheetsGet(action, params) {
+    try {
+      const url = this.APPS_SCRIPT_URL + '?action=' + action + (params ? '&' + new URLSearchParams(params).toString() : '');
+      const res = await fetch(url);
+      const r = await res.json();
+      if (r && r.error) throw new Error(r.error);
+      return r;
+    } catch(e) { console.error('[DB._sheetsGet]', action, e.message); flash('⚠️ เชื่อมต่อ Sheets ไม่ได้', '#fef2f2', '#dc2626'); return null; }
   },
   _lsave(action, data) {
     try {
@@ -473,10 +482,8 @@ const DB = {
     return {label:'🟢 Google Sheets',cls:'conn-sheets',footer:'ระบบ: Google Sheets'};
   },
   loadConfig() {
-    // A1: Load saved Sheets URL from localStorage
-    const cfg=JSON.parse(localStorage.getItem('db_config')||'{}');
-    if(cfg.url){this.APPS_SCRIPT_URL=cfg.url;}
-    if(cfg.useSheets){this.USE_SHEETS=cfg.useSheets;}
+    // URL และ USE_SHEETS ถูก hardcode ไว้แล้ว — loadConfig ไม่ override
+    // เก็บไว้เพื่อ backward compat กับ Settings UI
   },
   saveConfig(url, useSheets) {
     this.APPS_SCRIPT_URL=url; this.USE_SHEETS=useSheets;
@@ -505,13 +512,20 @@ let caseHistory=[],legalQueue=[],notifications=[];
 let _inboxFilter={company:'',mediaType:'',status:'',dateFrom:'',dateTo:'',sort:'sla'};
 let _draftTimer=null;
 
-function loadState(){
-  try{caseHistory=JSON.parse(localStorage.getItem('case_history')||'[]');}catch(e){caseHistory=[];}
-  try{legalQueue=JSON.parse(localStorage.getItem('legalQueue')||'[]');}catch(e){legalQueue=[];}
-  try{notifications=JSON.parse(localStorage.getItem('notifications')||'[]');}catch(e){notifications=[];}
+async function loadState(){
+  try{
+    const data = await DB.get('getCaseHistory');
+    caseHistory = Array.isArray(data) ? data.filter(r=>r.id||r.acaNumber) : [];
+  }catch(e){caseHistory=[];}
+  // legalQueue และ notifications ตัดออกแล้ว — ใช้ array ว่างไว้รองรับ code เดิม
+  legalQueue=[];notifications=[];
 }
 function saveState(){
-  try{localStorage.setItem('case_history',JSON.stringify(caseHistory));localStorage.setItem('legalQueue',JSON.stringify(legalQueue));localStorage.setItem('notifications',JSON.stringify(notifications));}catch(e){}
+  // case_history บันทึกผ่าน DB.save() โดยตรงตอนสร้าง/อัปเดต entry แล้ว
+  // ฟังก์ชันนี้เก็บไว้เพื่อ backward compat กับ code เดิมที่ยังเรียกอยู่
+  if(!DB.USE_SHEETS){
+    try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
+  }
 }
 loadState();
 
@@ -819,6 +833,7 @@ async function handleSubmit(){
     const aca=genACA();const now=new Date();
     const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:result.overall_result,overall_summary:result.overall_summary,pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,checklist_results:result.checklist_results||[],forbidden_words:result.forbidden_words_found||[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Quick Check (AI)',comment:''}]};
     caseHistory=[entry,...caseHistory].slice(0,200);saveState();
+    DB.save('saveCaseHistory', entry);
     // Clear draft on successful submit
     localStorage.removeItem('draft_input_'+currentAcc?.username);
     document.getElementById('tab-res-btn')?.classList.remove('disabled');
@@ -864,6 +879,7 @@ async function handleDirectSendLegal(){
   const aca=genACA();const now=new Date();
   const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:'N/A',overall_summary:'ส่งโดยตรงให้ Legal ตรวจ (ไม่ผ่าน Quick Check)',checklist_results:[],forbidden_words:[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'สร้าง ticket (Direct Send)',comment:''}]};
   caseHistory=[entry,...caseHistory].slice(0,200);saveState();
+  DB.save('saveCaseHistory', entry);
   localStorage.removeItem('draft_input_'+currentAcc?.username);
   sendForLegalReview(String(entry.id));
 }
@@ -886,7 +902,7 @@ function sendForLegalReview(entryId){
   const now=new Date();
   const ticket={acaNumber:entry.acaNumber,jobName:entry.jobName,sender:entry.sender,company:entry.company,email:entry.email,phone:entry.phone,projectType:entry.projectType,projectStatus:entry.projectStatus,mediaType:entry.mediaType,mediaLabel:entry.mediaLabel,offer:entry.offer,sla:entry.sla,details:entry.details,attachedFiles:entry.attachedFiles||[],checklist_results:entry.checklist_results||[],forbidden_words:entry.forbidden_words||[],overall_result:entry.overall_result,overall_summary:entry.overall_summary,status:'Sent to Legal',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,sentAt:now.toISOString(),slaStartTime:now.toISOString(),revisionCount:0,timeline:[...(entry.timeline||[]),{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Sent to Legal',comment:''}],legalComment:'',internalNote:'',reviewedBy:'',reviewedAt:'',slaLog:[]};
   legalQueue=legalQueue.filter(q=>q.acaNumber!==entry.acaNumber);legalQueue.unshift(ticket);
-  const ci=caseHistory.findIndex(c=>String(c.id)===String(entryId));if(ci>=0)caseHistory[ci].status='Sent to Legal';
+  const ci=caseHistory.findIndex(c=>String(c.id)===String(entryId));if(ci>=0){caseHistory[ci].status='Sent to Legal';DB.save('saveCaseHistory', caseHistory[ci]);}
   saveState();
   emailStub('sentToLegal', {acaNumber:entry.acaNumber, jobName:entry.jobName, senderEmail:entry.email, submitterRole:currentRole});
   // Notify all reviewer/admin accounts (excluding sender)
