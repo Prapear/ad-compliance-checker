@@ -266,7 +266,7 @@ textarea.inp{resize:vertical;}
   <div class="hdr-row1">
     <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">⚖️</span><span class="hdr-title">Ad Compliance Checker</span><span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:500;">v3.8</span></div>
     <div style="display:flex;align-items:center;gap:8px;">
-      <span id="hdr-badge" class="role-badge role-reviewer">Reviewer</span>
+      <span id="hdr-badge" class="role-badge role-admin">Legal Team</span>
       <button onclick="doLogout()" style="padding:6px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Sign Out</button>
     </div>
   </div>
@@ -280,27 +280,13 @@ textarea.inp{resize:vertical;}
     <input id="sel-model" type="hidden" value="gemini-2.5-flash-lite"/>
     <div class="hdr-div"></div>
     <span class="conn-badge conn-local" id="conn-status-badge">🟡 Local Mode</span>
-    <div style="margin-left:auto;display:none;gap:6px;align-items:center;" id="notif-row">
-      <div style="position:relative;">
-        <button onclick="toggleNotif('bell-dd')" style="width:34px;height:34px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">
-          🔔<span id="bell-cnt" style="position:absolute;top:-5px;right:-5px;background:#dc2626;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
-        </button>
-        <div id="bell-dd" class="notif-dd"><div style="padding:10px 16px;background:var(--blue);color:#fff;font-size:13px;font-weight:700;">🔔 การแจ้งเตือน</div><div id="bell-list" style="max-height:260px;overflow-y:auto;"></div></div>
-      </div>
-      <div style="position:relative;">
-        <button onclick="toggleNotif('clock-dd');navigateClockLink();" style="width:34px;height:34px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">
-          ⏰<span id="clock-cnt" style="position:absolute;top:-5px;right:-5px;background:#f59e0b;color:#fff;border-radius:10px;font-size:9px;font-weight:700;padding:1px 5px;min-width:16px;text-align:center;display:none;"></span>
-        </button>
-        <div id="clock-dd" class="notif-dd"><div style="padding:10px 16px;background:#f59e0b;color:#fff;font-size:13px;font-weight:700;">⏰ รอดำเนินการ</div><div id="clock-list" style="max-height:260px;overflow-y:auto;"></div></div>
-      </div>
-    </div>
+
   </div>
 </header>
 
 <!-- TAB BAR -->
 <div id="tab-bar" style="display:none;">
   <div class="tab-left" id="tab-left-inner">
-    <button class="tab-btn tab-inbox" data-tab="inbox" id="tab-inbox-btn" style="display:none;">📥 Inbox</button>
     <button class="tab-btn active" data-tab="input" id="tab-input-btn">📋 Input</button>
     <button class="tab-btn disabled" data-tab="results" id="tab-res-btn">📊 Results</button>
     <button class="tab-btn tab-inbox" data-tab="report" id="tab-report-btn" style="display:none;">📄 Report</button>
@@ -319,26 +305,7 @@ textarea.inp{resize:vertical;}
   </div>
   <div class="g2lg">
     <div>
-      <div class="card">
-        <h3 class="card-title">📌 ข้อมูลสื่อโฆษณา</h3>
-        <div class="field"><label class="field-lbl">ชื่องาน *</label><input id="f-jobname" class="inp" placeholder="เช่น Review_Banner_April2025" oninput="updateReadiness();scheduleDraft()"/></div>
-        <div class="g2">
-          <div class="field"><label class="field-lbl">ชื่อผู้ส่ง *</label><input id="f-sender" class="inp" placeholder="ชื่อ-นามสกุล" oninput="updateReadiness();scheduleDraft()"/></div>
-          <div class="field"><label class="field-lbl">บริษัท *</label><select id="f-company" class="inp" onchange="updateReadiness();scheduleDraft()"><option value="">— เลือกบริษัท —</option><option>Ananda Development</option><option>The Works</option><option>Anvinest</option></select></div>
-        </div>
-        <div class="g2">
-          <div class="field"><label class="field-lbl">อีเมล *</label><input id="f-email" class="inp" type="email" placeholder="name@ananda.co.th" oninput="updateReadiness();scheduleDraft()"/></div>
-          <div class="field"><label class="field-lbl">เบอร์โทร *</label><input id="f-phone" class="inp" placeholder="08x-xxx-xxxx" oninput="updateReadiness();scheduleDraft()"/></div>
-        </div>
-        <div class="field"><label class="field-lbl">SLA *</label>
-          <select id="f-sla" class="inp" onchange="updateReadiness();scheduleDraft()">
-            <option value="">— เลือก SLA —</option><option>1 วันทำการ</option><option>2 วันทำการ</option><option selected>3 วันทำการ</option><option>5 วันทำการ</option><option>7 วันทำการ</option>
-          </select>
 
-        </div>
-        <div class="field"><label class="field-lbl">รายละเอียด / Objective</label><textarea id="f-details" class="inp" rows="3" placeholder="อธิบาย objective และสื่อที่ต้องการตรวจ..." oninput="scheduleDraft()"></textarea></div>
-        <div class="draft-saved-indicator" id="draft-saved-indicator">💾 บันทึก Draft อัตโนมัติ</div>
-      </div>
       <!-- Source of Data: Admin only -->
       <div id="src-card" style="display:none;">
         <div class="card">
@@ -382,10 +349,7 @@ textarea.inp{resize:vertical;}
         <span style="font-size:13px;color:#713f12;line-height:1.6;">ฉันรับทราบว่าผลนี้เป็นการตรวจเบื้องต้นโดย AI เท่านั้น ยังไม่ถือเป็นความเห็นหรือการรับรองทางกฎหมาย</span>
       </label>
       <button id="btn-submit" class="submit-btn" style="background:#94a3b8;cursor:not-allowed;" disabled onclick="handleSubmit()">🔍 Quick Check</button>
-      <div id="direct-send-wrap" style="margin-top:10px;">
-        <button id="btn-direct-legal" class="btn-send-legal" style="background:#94a3b8;cursor:not-allowed;" disabled onclick="handleDirectSendLegal()">📤 Send to Legal Review</button>
-        <div id="direct-send-hint" style="font-size:11px;color:#94a3b8;margin-top:5px;text-align:center;">กรุณากด Quick Check ก่อน จึงจะสามารถส่ง Legal Review ได้</div>
-      </div>
+
     </div>
   </div>
 </div>
@@ -427,8 +391,7 @@ const DEMO_CL=`## Common_Rules\nAA010|ชื่อโครงการ|ต้�
 // Display name, color, label = fully customizable per role definition
 // ════════════════════════════════════════════
 const ROLE_TEMPLATES = [
-  {id:'admin',  label:'Admin',         color:'#7c3aed', bg:'#c4b5fd', textColor:'#3b0764', canInbox:true,  canAdmin:true},
-  {id:'reviewer',label:'Legal Reviewer',color:'#b45309', bg:'#fde68a', textColor:'#78350f', canInbox:true,  canAdmin:false},
+  {id:'admin',  label:'Legal Team',    color:'#0032c7', bg:'#bfdbfe', textColor:'#1e3a8a', canInbox:true,  canAdmin:true},
   {id:'user',   label:'Marketing User',color:'#15803d', bg:'#bbf7d0', textColor:'#14532d', canInbox:false, canAdmin:false},
 ];
 
@@ -466,7 +429,7 @@ const DB = {
       if (action === 'saveCaseHistory')  { localStorage.setItem('case_history',  JSON.stringify(data)); return true; }
       if (action === 'saveLegalQueue')   { localStorage.setItem('legalQueue',     JSON.stringify(data)); return true; }
       if (action === 'saveNotifications'){ localStorage.setItem('notifications',  JSON.stringify(data)); return true; }
-      if (action === 'saveAccounts')     { localStorage.setItem('user_accounts',  JSON.stringify(data)); localStorage.setItem('ua_ver','5'); return true; }
+      if (action === 'saveAccounts')     { localStorage.setItem('user_accounts',  JSON.stringify(data)); localStorage.setItem('ua_ver','6'); return true; }
       if (action === 'saveMd')           { localStorage.setItem('md_'+data.key, JSON.stringify({text:data.text,filename:data.filename,saved:new Date().toISOString()})); return true; }
       if (action === 'clearMd')          { localStorage.removeItem('md_'+data.key); return true; }
       if (action === 'genACA')           { return this._genACALocal(); }
@@ -493,13 +456,11 @@ const DB = {
     return 'ACA'+yr+String(c).padStart(4,'0');
   },
   _rawAccounts() {
-    try{const v=localStorage.getItem('ua_ver'),r=localStorage.getItem('user_accounts');if((v==='4'||v==='5')&&r){const a=JSON.parse(r);if(a&&a.length&&a[0].pwdHash)return a;}}catch(e){}
+    try{const v=localStorage.getItem('ua_ver'),r=localStorage.getItem('user_accounts');if(v==='6'&&r){const a=JSON.parse(r);if(a&&a.length&&a[0].pwdHash)return a;}}catch(e){}
     // Seed default team accounts — Ananda pilot structure
     const defs=[
-      // Admin
-      {id:'admin_1',username:'admin',displayName:'Admin',team:'',role:'admin',email:'',active:true,createdAt:new Date().toISOString(),pwdHash:hashPwd('ananda2025')},
-      // Legal team
-      {id:'reviewer_1',username:'legal',displayName:'ทีม Legal',team:'legal',role:'reviewer',email:'',active:true,createdAt:new Date().toISOString(),pwdHash:hashPwd('legal2025')},
+      // Legal Team (Admin)
+      {id:'legal_1',username:'legal',displayName:'Legal Team',team:'legal',role:'admin',email:'',active:true,createdAt:new Date().toISOString(),pwdHash:hashPwd('legal2025')},
       // Marketing teams
       {id:'user_house',username:'mkt_house',displayName:'ทีม House',team:'house',role:'user',email:'',active:true,createdAt:new Date().toISOString(),pwdHash:hashPwd('house2025')},
       {id:'user_condo',username:'mkt_condo',displayName:'ทีม Condo',team:'condo',role:'user',email:'',active:true,createdAt:new Date().toISOString(),pwdHash:hashPwd('condo2025')},
@@ -566,10 +527,10 @@ function slaLabel(t){const s=getSLAStatus(t);if(s.breached)return{text:`เก�
 // ── ACCOUNTS ──
 function hashPwd(s){let h=0;for(const c of s)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return h.toString(36);}
 function getAccounts(){
-  try{const v=localStorage.getItem('ua_ver'),r=localStorage.getItem('user_accounts');if((v==='4'||v==='5')&&r){const a=JSON.parse(r);if(a&&a.length&&a[0].pwdHash)return a;}}catch(e){}
+  try{const v=localStorage.getItem('ua_ver'),r=localStorage.getItem('user_accounts');if(v==='6'&&r){const a=JSON.parse(r);if(a&&a.length&&a[0].pwdHash)return a;}}catch(e){}
   return DB._rawAccounts();
 }
-function saveAccounts(a){try{localStorage.setItem('user_accounts',JSON.stringify(a));localStorage.setItem('ua_ver','5');}catch(e){}}
+function saveAccounts(a){try{localStorage.setItem('user_accounts',JSON.stringify(a));localStorage.setItem('ua_ver','6');}catch(e){}}
 function findAcc(u){return getAccounts().find(a=>a.username===u&&a.active);}
 function checkLogin(u,p){const a=findAcc(u);if(!a)return null;if(hashPwd(p)===(a.pwdHash||''))return a;return null;}
 
@@ -577,8 +538,8 @@ function checkLogin(u,p){const a=findAcc(u);if(!a)return null;if(hashPwd(p)===(a
 function scheduleDraft(){
   clearTimeout(_draftTimer);
   _draftTimer=setTimeout(()=>{
-    const d={jobName:gv('f-jobname'),sender:gv('f-sender'),company:gv('f-company'),email:gv('f-email'),phone:gv('f-phone'),sla:gv('f-sla'),projtype:gv('f-projtype'),projstatus:gv('f-projstatus'),media:gv('f-media'),details:gv('f-details'),offer:getOffer(),ts:Date.now()};
-    if(d.jobName||d.sender){localStorage.setItem('draft_input_'+currentAcc?.username,JSON.stringify(d));const ind=document.getElementById('draft-saved-indicator');if(ind){ind.style.display='flex';setTimeout(()=>ind.style.display='none',2000);}}
+    const d={projtype:gv('f-projtype'),projstatus:gv('f-projstatus'),media:gv('f-media'),offer:getOffer(),ts:Date.now()};
+    if(d.projtype||d.media){localStorage.setItem('draft_input_'+currentAcc?.username,JSON.stringify(d));const ind=document.getElementById('draft-saved-indicator');if(ind){ind.style.display='flex';setTimeout(()=>ind.style.display='none',2000);}}
   },2000);
 }
 function restoreDraft(){
@@ -587,7 +548,7 @@ function restoreDraft(){
     const d=JSON.parse(raw);
     if(!d.jobName&&!d.sender)return;
     const setV=(id,v)=>{const el=document.getElementById(id);if(el&&v)el.value=v;};
-    setV('f-jobname',d.jobName);setV('f-sender',d.sender);setV('f-company',d.company);setV('f-email',d.email);setV('f-phone',d.phone);setV('f-sla',d.sla);setV('f-projtype',d.projtype);setV('f-details',d.details);
+    setV('f-projtype',d.projtype);
     if(d.projtype)onProjTypeChange();
     setTimeout(()=>{setV('f-projstatus',d.projstatus);setV('f-media',d.media);updateClassify();},100);
     if(d.offer){setTimeout(()=>{document.querySelectorAll('[data-offer]').forEach(b=>{b.classList.toggle('active',b.dataset.offer===d.offer);});},150);}
@@ -602,7 +563,7 @@ function pushNotif(forRole,msg,acaNumber){notifications.unshift({id:Date.now(),f
 function isLegalRole(role){const def=getRoleDef(role);return def.canInbox||def.canAdmin;}
 function updateNotifBadges(){
   if(!currentRole)return;
-  const row=document.getElementById('notif-row');if(!row)return;row.style.display='flex';
+  if(!currentRole)return;
   const mine=notifications.filter(n=>n.forRole===currentRole&&!n.read);
   const bc=document.getElementById('bell-cnt');if(bc){bc.textContent=mine.length;bc.style.display=mine.length?'':'none';}
   let pending=0;
@@ -648,7 +609,7 @@ function renderClockList(){
   }).join('');
 }
 function toggleNotif(id){const dd=document.getElementById(id);if(!dd)return;['bell-dd','clock-dd'].forEach(x=>{const el=document.getElementById(x);if(el&&x!==id)el.style.display='none';});const open=dd.style.display==='block';dd.style.display=open?'none':'block';if(!open){if(id==='bell-dd')renderBellList();else renderClockList();}}
-document.addEventListener('click',e=>{if(!e.target.closest('#notif-row')){['bell-dd','clock-dd'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});}});
+
 
 // ── LOADING ──
 function showLoading(hasLarge=false){_loadingAbort=false;const ov=document.getElementById('loading-overlay');ov.style.display='flex';setLS(1,10);if(hasLarge){const s=document.getElementById('lo-sub');if(s)s.textContent='ไฟล์ขนาดใหญ่อาจใช้เวลา 30-60 วินาที';}}
@@ -707,22 +668,18 @@ function applyRole(role){
   if(badge){badge.textContent=currentAcc?.displayName||rd.label;badge.style.cssText=`background:${rd.bg};color:${rd.textColor};display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;`;}
   const isLegal=rd.canInbox||rd.canAdmin;
   const isAdmin=rd.canAdmin;
-  document.getElementById('tab-inbox-btn').style.display=isLegal?'':'none';
-  document.getElementById('tab-report-btn').style.display=isLegal?'':'none';
   document.getElementById('tab-admin-btn').style.display=isAdmin?'':'none';
   document.getElementById('tab-accounts-btn').style.display=isAdmin?'':'none';
   // Direct send wrap — show for non-admin non-legal roles (user team)
-  const dsw=document.getElementById('direct-send-wrap');if(dsw)dsw.style.display=!isLegal?'':'none';
   // Source card — admin only
   const sc=document.getElementById('src-card');if(sc)sc.style.display=isAdmin?'':'none';
   const container=document.getElementById('tab-left-inner');
-  if(container){const inboxEl=document.getElementById('tab-inbox-btn');const inputEl=document.getElementById('tab-input-btn');if(isLegal&&inboxEl&&inputEl)container.insertBefore(inboxEl,container.firstChild);else if(!isLegal&&inboxEl&&inputEl)container.insertBefore(inputEl,container.firstChild);}
   const fc=document.getElementById('footer-conn');if(fc)fc.textContent=DB.connStatus().footer;
   const csb=document.getElementById('conn-status-badge');if(csb){const s=DB.connStatus();csb.textContent=s.label;csb.className='conn-badge '+s.cls;}
   setTimeout(fixTabBar,50);
   initProvider();loadSrcBadges();updateReadiness();updateNotifBadges();
   setTimeout(()=>{if(!isLegal)restoreDraft();},200);
-  switchTab(isLegal?'inbox':'input');
+  switchTab('input');
 }
 try{const sr=sessionStorage.getItem('cr'),su=sessionStorage.getItem('cu');if(sr){currentRole=sr;currentAcc=findAcc(su)||getAccounts().find(a=>a.username===su);if(currentAcc)applyRole(sr);else{sessionStorage.removeItem('cr');sessionStorage.removeItem('cu');renderLoginHint();}}}catch(e){renderLoginHint();}
 renderLoginHint();
@@ -739,7 +696,7 @@ function switchTab(name){
   });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   const btn=document.querySelector(`.tab-btn[data-tab="${name}"]`);if(btn)btn.classList.add('active');
-  if(name==='inbox')renderInbox();
+  if(name==='inbox'){name='input';}
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
   if(name==='dashboard')renderDashboard();
@@ -831,20 +788,14 @@ document.getElementById('inp-key')?.addEventListener('input',function(){
 // ── FORM ──
 function onProjTypeChange(){const pt=gv('f-projtype');const wrap=document.getElementById('f-status-wrap');const sel=document.getElementById('f-projstatus');if(!pt){wrap.style.display='none';sel.value='';}else{sel.innerHTML='<option value="">— เลือกสถานะ —</option>'+({'บ้าน':['ขออนุญาตจัดสรรที่ดินแล้ว','ยังไม่ขออนุญาตจัดสรรที่ดิน'],'คอนโด':['จดทะเบียนอาคารชุดแล้ว','ยังไม่จดทะเบียนอาคารชุด'],'บ้านและคอนโด':['Both (ทุกสถานะ)']}[pt]||[]).map(o=>`<option>${o}</option>`).join('');wrap.style.display='';}updateClassify();}
 function updateClassify(){const s=getSheets();const card=document.getElementById('sheets-card');if(s.length){document.getElementById('sheets-list').innerHTML=s.map(x=>`<span class="stag${x==='Common_Rules'?' pri':''}">${x}</span>`).join('');card.style.display='';}else card.style.display='none';updateReadiness();}
-function isValid(){return !!(gv('inp-key')&&gv('f-jobname')&&gv('f-sender')&&gv('f-company')&&gv('f-email')&&gv('f-phone')&&gv('f-sla')&&gv('f-projtype')&&gv('f-media')&&document.getElementById('chk-ai-ack')?.checked);}
-function isValidNoKey(){return !!(gv('f-jobname')&&gv('f-sender')&&gv('f-company')&&gv('f-email')&&gv('f-phone')&&gv('f-sla')&&gv('f-projtype')&&gv('f-media'));}
+function isValid(){return !!(gv('inp-key')&&gv('f-projtype')&&gv('f-media')&&document.getElementById('chk-ai-ack')?.checked);}
+function isValidNoKey(){return !!(gv('f-projtype')&&gv('f-media'));}
 function updateReadiness(){
-  const checks=[{l:'API Key (Quick Check)',ok:!!gv('inp-key')},{l:'ชื่องาน',ok:!!gv('f-jobname')},{l:'ผู้ส่ง',ok:!!gv('f-sender')},{l:'บริษัท',ok:!!gv('f-company')},{l:'อีเมล',ok:!!gv('f-email')},{l:'เบอร์โทร',ok:!!gv('f-phone')},{l:'SLA',ok:!!gv('f-sla')},{l:'ประเภทโครงการ',ok:!!gv('f-projtype')},{l:'ประเภทสื่อ',ok:!!gv('f-media')},{l:'ยืนยัน Disclaimer',ok:!!document.getElementById('chk-ai-ack')?.checked},{l:'ไฟล์สื่อ (แนะนำ)',ok:mediaFiles.length>0,opt:true}];
+  const checks=[{l:'API Key (Quick Check)',ok:!!gv('inp-key')},{l:'ประเภทโครงการ',ok:!!gv('f-projtype')},{l:'ประเภทสื่อ',ok:!!gv('f-media')},{l:'ยืนยัน Disclaimer',ok:!!document.getElementById('chk-ai-ack')?.checked},{l:'ไฟล์สื่อ (แนะนำ)',ok:mediaFiles.length>0,opt:true}];
   document.getElementById('readiness-list').innerHTML=checks.map(c=>`<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:14px;"><span>${c.ok?'✅':c.opt?'⬜':'❌'}</span><span style="color:${c.ok?'#16a34a':c.opt?'#94a3b8':'#ef4444'};">${c.l}</span></div>`).join('');
   const v=isValid();const btn=document.getElementById('btn-submit');
   if(btn){btn.disabled=!v;btn.style.background=v?NAVY:'#94a3b8';btn.style.cursor=v?'pointer':'not-allowed';btn.style.boxShadow=v?'0 4px 14px rgba(0,50,199,.35)':'none';}
-  const vk=isValidNoKey();const btn2=document.getElementById('btn-direct-legal');
-  // Send to Legal only available AFTER Quick Check has been run (lastResult exists)
-  const hasQC=!!lastResult;
-  const canSendLegal=vk&&hasQC;
-  if(btn2){btn2.disabled=!canSendLegal;btn2.style.background=canSendLegal?'#0032c7':'#94a3b8';btn2.style.cursor=canSendLegal?'pointer':'not-allowed';btn2.title=hasQC?'':'กรุณากด Quick Check ก่อนส่ง Legal';}
-  const hint=document.getElementById('direct-send-hint');
-  if(hint)hint.style.display=hasQC?'none':'block';
+
 }
 
 // ── FILES ──
@@ -866,7 +817,7 @@ async function handleSubmit(){
     setLS(3,90,'กำลังสรุปผล...');await sleep(200);setLS(3,100);await sleep(300);
     hideLoading();lastResult=result;
     const aca=genACA();const now=new Date();
-    const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:gv('f-jobname'),sender:gv('f-sender'),company:gv('f-company'),email:gv('f-email'),phone:gv('f-phone'),projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:gv('f-sla'),details:gv('f-details'),submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:result.overall_result,overall_summary:result.overall_summary,pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,checklist_results:result.checklist_results||[],forbidden_words:result.forbidden_words_found||[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Quick Check (AI)',comment:''}]};
+    const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:result.overall_result,overall_summary:result.overall_summary,pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,checklist_results:result.checklist_results||[],forbidden_words:result.forbidden_words_found||[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Quick Check (AI)',comment:''}]};
     caseHistory=[entry,...caseHistory].slice(0,200);saveState();
     // Clear draft on successful submit
     localStorage.removeItem('draft_input_'+currentAcc?.username);
@@ -886,7 +837,7 @@ async function doCall(){
   const imgs=mediaFiles.filter(f=>fInfo(f)?.kind==='image'),pdfs=mediaFiles.filter(f=>fInfo(f)?.kind==='pdf'),txts=mediaFiles.filter(f=>fInfo(f)?.kind==='text'),vids=mediaFiles.filter(f=>fInfo(f)?.kind==='video'&&f.size<=50*1024*1024);
   const txContent=await Promise.all(txts.map(f=>new Promise(res=>{const r=new FileReader();r.onload=ev=>res(`[${f.name}]\n${ev.target.result.slice(0,3000)}`);r.onerror=()=>res('');r.readAsText(f,'UTF-8');})));
   const fileNote=txContent.filter(Boolean).length?'\n\nText files:\n'+txContent.join('\n'):'';
-  const prompt=`Ticket:\n- ชื่องาน: ${gv('f-jobname')}\n- ผู้ส่ง: ${gv('f-sender')}\n- บริษัท: ${gv('f-company')}\n- SLA: ${gv('f-sla')}\n- รายละเอียด: ${gv('f-details')||'-'}\nClassification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}\nSheets: ${sheets.join(', ')}\n\n=== PRIMARY ===\n${checklist}\n${checklist2?`\n=== SECONDARY ===\n${checklist2}`:''}${fileNote}\n\nตอบ JSON:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+  const prompt=`Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}\nSheets: ${sheets.join(', ')}\n\n=== PRIMARY ===\n${checklist}\n${checklist2?`\n=== SECONDARY ===\n${checklist2}`:''}${fileNote}\n\nตอบ JSON:\n{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
   if(provider==='gemini'){
     const parts=[{text:prompt}];
     for(const f of imgs){const b=await toB64(f);parts.push({inlineData:{mimeType:fInfo(f).mime,data:b}});}
@@ -911,7 +862,7 @@ async function doCall(){
 async function handleDirectSendLegal(){
   if(!isValidNoKey())return;
   const aca=genACA();const now=new Date();
-  const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:gv('f-jobname'),sender:gv('f-sender'),company:gv('f-company'),email:gv('f-email'),phone:gv('f-phone'),projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:gv('f-sla'),details:gv('f-details'),submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:'N/A',overall_summary:'ส่งโดยตรงให้ Legal ตรวจ (ไม่ผ่าน Quick Check)',checklist_results:[],forbidden_words:[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'สร้าง ticket (Direct Send)',comment:''}]};
+  const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:'N/A',overall_summary:'ส่งโดยตรงให้ Legal ตรวจ (ไม่ผ่าน Quick Check)',checklist_results:[],forbidden_words:[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'สร้าง ticket (Direct Send)',comment:''}]};
   caseHistory=[entry,...caseHistory].slice(0,200);saveState();
   localStorage.removeItem('draft_input_'+currentAcc?.username);
   sendForLegalReview(String(entry.id));
@@ -984,7 +935,7 @@ function renderResults(result,errMsg,entry){
       const alreadySent=entry.status==='Sent to Legal'||legalQueue.find(q=>q.acaNumber===entry.acaNumber);
       html+=`<div id="send-legal-wrap">`;
       if(alreadySent)html+=`<div style="padding:12px 16px;background:#dbeafe;border:1px solid #bfdbfe;border-radius:8px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#0032c7;">✅ ส่ง Legal Review แล้ว</div><div style="font-size:12px;color:#1e40af;margin-top:4px;">ACA: ${entry.acaNumber} · ${statusBadge('Sent to Legal')}</div></div>`;
-      else html+=`<button class="btn-send-legal" onclick="sendForLegalReview('${entry.id}')">📤 Send to Legal Review</button>`;
+      else html+='';
       html+=`</div>`;
     }
   }
@@ -1395,7 +1346,7 @@ function renderHistory(){
         <button onclick="exportData('all')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
       </div>
     </div>
-    <div class="sub-tabs"><button class="sub-tab ${ast==='qc'?'active':''}" onclick="_histSubTab.user='qc';_histPage=0;renderHistory()">🔍 Quick Check (${myQCAll.length})</button><button class="sub-tab ${ast==='legal'?'active':''}" onclick="_histSubTab.user='legal';_histPage=0;renderHistory()">📤 Legal Review (${myLegalAll.length})</button></div><div id="hc"></div>`;
+    <div id="hc"></div>`;
     const el=document.getElementById('hc');
     if(ast==='qc'){
       if(!myQCAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีประวัติ Quick Check</div>`;return;}
@@ -1435,7 +1386,7 @@ function renderHistory(){
           ${(c.forbidden_words||[]).map(w=>`<span style="display:inline-block;margin:2px;padding:2px 8px;background:#fef9c3;border:1px solid #fde047;border-radius:4px;font-size:11px;color:#713f12;">${esc(w.word||'')}</span>`).join('')}
         </div>`:''}
         ${files.length?`<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:5px;">📎 ไฟล์แนบ (${files.length})</div><div style="display:flex;flex-wrap:wrap;gap:6px;">${files.map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);const isPdf=ext==='pdf';const isVid=['mp4','mov','avi','webm'].includes(ext);return`<div style="padding:4px 10px;background:#f8faff;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;display:flex;align-items:center;gap:5px;">${isImg&&f.localURL?`<img src="${f.localURL}" style="width:24px;height:24px;object-fit:cover;border-radius:3px;">`:isVid?'🎬':isPdf?'📕':'📎'}<span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name)}</span>${f.localURL&&isVid?`<button onclick="window.open('${f.localURL}')" class="btn-sm" style="padding:1px 5px;font-size:10px;background:#e8effe;color:#0032c7;border:none;">▶</button>`:''}</div>`;}).join('')}</div></div>`:''}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">${c.status!=='Sent to Legal'?`<button onclick="sendForLegalReviewFromHistory('${c.id}')" class="btn-blue btn-sm">📤 Send to Legal</button>`:`${statusBadge('Sent to Legal')}`}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button onclick="viewQCDetail('${c.id}')" class="btn-navy btn-sm">🔍 Detail</button>
           <button onclick="downloadHistoryExcel('qc_result','${c.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
           <button onclick="exportCSV('qc_result','${c.id}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
@@ -1474,7 +1425,7 @@ function renderHistory(){
       <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🗂️ History</h2>
       ${filterBtns("renderHistory()")}
       </div></div>
-    <div class="sub-tabs"><button class="sub-tab ${ast==='received'?'active':''}" onclick="_histSubTab.legal='received';_histPage=0;renderHistory()">📋 งานที่รับมาตรวจ (${receivedAll.length})</button><button class="sub-tab ${ast==='myqc'?'active':''}" onclick="_histSubTab.legal='myqc';_histPage=0;renderHistory()">🔍 Quick Check ของฉัน (${myQCAll.length})</button></div><div id="hc"></div>`;
+    <div id="hc"></div>`;
     const el=document.getElementById('hc');
     if(ast==='received'){
       if(!receivedAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีงานที่ดำเนินการแล้ว</div>`;return;}
@@ -1693,7 +1644,7 @@ function renderDashboard(){
   const condPass=hist.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
   const qcTotal=hist.length;
   const lqTotal=lqAll.length;
-  const overallCases=qcTotal+lqTotal;
+  const overallCases=qcTotal;
   const lqPending=lqAll.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status)).length;
   const lqPass=lqAll.filter(q=>q.status==='Approved').length;
   const lqFail=lqAll.filter(q=>q.status==='Rejected').length;
@@ -1748,13 +1699,13 @@ function renderDashboard(){
       </div>
     </div>
 
-    <!-- Row 1: Overall + Quick Check + Send to Legal (big) -->
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+    <!-- Row 1: Overall + Quick Check -->
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px;">
       <div style="background:#0032c7;border-radius:14px;padding:20px 24px;box-shadow:0 4px 16px rgba(0,50,199,.2);position:relative;overflow:hidden;">
         <div style="position:absolute;right:-10px;top:-10px;font-size:64px;opacity:.1;">📋</div>
         <div style="font-size:13px;font-weight:700;color:rgba(255,255,255,.75);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Overall Cases</div>
         <div style="font-size:40px;font-weight:800;color:#fff;line-height:1;">${overallCases}</div>
-        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Quick Check &amp; Send to Legal</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.6);margin-top:4px;">Quick Check</div>
       </div>
       <div style="background:#f0f4ff;border:1px solid #bfdbfe;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,50,199,.08);position:relative;overflow:hidden;">
         <div style="position:absolute;right:-8px;top:-8px;font-size:48px;opacity:.1;">🔍</div>
@@ -1762,12 +1713,7 @@ function renderDashboard(){
         <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${qcTotal}</div>
         <div style="font-size:11px;color:#94a3b8;margin-top:3px;">cases</div>
       </div>
-      <div style="background:#dbeafe;border:1px solid #93c5fd;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,50,199,.08);position:relative;overflow:hidden;">
-        <div style="position:absolute;right:-8px;top:-8px;font-size:48px;opacity:.1;">📤</div>
-        <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Send to Legal</div>
-        <div style="font-size:32px;font-weight:800;color:${NAVY};line-height:1;">${lqTotal}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:3px;">${lqPending} pending</div>
-      </div>
+
     </div>
 
     <!-- Row 2: Pass / Fail / Condition / Avg Turnaround -->
@@ -1775,9 +1721,8 @@ function renderDashboard(){
       ${[['✅','Pass',lqPass,'case','#dcfce7','#15803d'],['❌','Fail',lqFail,'case','#fee2e2','#dc2626'],['⚠️','Condition',condPass,'case','#fffbeb','#92400e'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fff','#475569']].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05);position:relative;overflow:hidden;"><div style="position:absolute;right:-6px;top:-6px;font-size:36px;opacity:.1;">${ic}</div><div style="font-size:22px;font-weight:800;color:${co};line-height:1;margin-bottom:3px;">${va}</div><div style="font-size:12px;font-weight:700;color:#1e293b;">${lb}</div><div style="font-size:11px;color:#64748b;margin-top:1px;">${su}</div></div>`).join('')}
     </div>
 
-    <!-- Charts Row 1: Business type + Team usage -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-      <!-- Business type bar chart -->
+    <!-- Charts Row 1: Business type + Team usage (admin/legal only) -->
+    ${isAdmin?`<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
       <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:18px 22px;box-shadow:0 2px 8px rgba(0,50,199,.06);">
         <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">🏗️ Top Business Categories</div>
         ${Object.keys(projTypeMap).length?Object.entries(projTypeMap).sort((a,b)=>b[1]-a[1]).map(([t,n])=>{const max=Math.max(...Object.values(projTypeMap));const pct=Math.round(n/max*100);const col=t.includes('คอนโด')&&t.includes('บ้าน')?'#7c3aed':t.includes('คอนโด')?'#0891b2':'#0032c7';return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><span style="min-width:110px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t)}</span><div style="flex:1;height:14px;background:#e8effe;border-radius:7px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${col},${col}cc);border-radius:7px;transition:width .5s;"></div></div><span style="min-width:30px;text-align:right;font-weight:700;color:${col};font-size:12px;">${n}</span></div>`;}).join(''):`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
@@ -1787,7 +1732,7 @@ function renderDashboard(){
         <div style="font-weight:700;color:${NAVY};font-size:14px;margin-bottom:14px;">👤 Top Active Teams</div>
         ${topUsers.length?topUsers.map(([u,n],i)=>{const cols=['#0032c7','#0891b2','#16a34a','#f59e0b','#dc2626','#7c3aed'];const col=cols[i%cols.length];const pct=Math.round(n/topUsers[0][1]*100);return`<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px;"><span style="min-width:100px;font-size:12px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(u)}</span><div style="flex:1;height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,${col},${col}cc);border-radius:6px;"></div></div><span style="min-width:24px;text-align:right;font-weight:700;color:${col};font-size:12px;">${n}</span></div>`;}).join(''):`<div style="color:#94a3b8;font-size:13px;">ยังไม่มีข้อมูล</div>`}
       </div>
-    </div>
+    </div>`:''}
 
     <!-- Charts Row 2: Media type donut + Monthly frequency -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
@@ -1967,7 +1912,7 @@ function renderAccountsTab(){
         <div><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:${a.active?'#d8ead8':'#f0d9d9'};color:${a.active?'#14532d':'#7f1d1d'};">${a.active?'Active':'Inactive'}</span></div>
         <div style="display:flex;gap:4px;">
           <button onclick="openUserModal('${a.id}')" class="btn-sm" style="background:#f0f4ff;color:#0032c7;border:1px solid #bfdbfe;">✏️</button>
-          ${a.id!=='admin_1'?`<button onclick="toggleUserActive('${a.id}');renderAccountsTab();" class="btn-sm" style="background:${a.active?'#fee2e2':'#f0fdf4'};color:${a.active?'#dc2626':'#15803d'};border:1px solid ${a.active?'#fecaca':'#bbf7d0'};">${a.active?'ปิด':'เปิด'}</button>`:''}
+          ${a.id!=='legal_1'?`<button onclick="toggleUserActive('${a.id}');renderAccountsTab();" class="btn-sm" style="background:${a.active?'#fee2e2':'#f0fdf4'};color:${a.active?'#dc2626':'#15803d'};border:1px solid ${a.active?'#fecaca':'#bbf7d0'};">${a.active?'ปิด':'เปิด'}</button>`:''}
         </div>
       </div>`;}).join('')}
     </div>
@@ -2213,7 +2158,7 @@ function renderUserListAdmin(){
     <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;color:#1e293b;">${esc(a.displayName||a.username)}</div><div style="font-size:11px;color:#64748b;">${esc(a.username)} · <span style="padding:1px 7px;border-radius:10px;background:${rd.bg};color:${rd.textColor};font-size:10px;font-weight:700;">${rd.label}</span></div></div>
     <div style="display:flex;gap:5px;">
       <button onclick="openUserModal('${a.id}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">✏️</button>
-      ${a.id!=='admin_1'?`<button onclick="toggleUserActive('${a.id}')" class="btn-sm" style="background:${a.active?'#fee2e2':'#f0fdf4'};color:${a.active?'#dc2626':'#15803d'};border:1px solid ${a.active?'#fecaca':'#bbf7d0'};">${a.active?'ปิด':'เปิด'}</button>`:''}
+      ${a.id!=='legal_1'?`<button onclick="toggleUserActive('${a.id}')" class="btn-sm" style="background:${a.active?'#fee2e2':'#f0fdf4'};color:${a.active?'#dc2626':'#15803d'};border:1px solid ${a.active?'#fecaca':'#bbf7d0'};">${a.active?'ปิด':'เปิด'}</button>`:''}
     </div>
   </div>`;}).join('');
 }
@@ -2365,7 +2310,7 @@ function openRoleModal(){
       <h2 style="margin:0;color:${NAVY};font-size:18px;font-weight:800;">⚙️ จัดการ Roles</h2>
       <button onclick="document.getElementById('user-modal').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;color:#64748b;">✕</button>
     </div>
-    <div style="font-size:12px;color:#64748b;margin-bottom:12px;">Role กำหนด permission ในระบบ · admin = ดู Inbox + Admin · reviewer = ดู Inbox · user = ส่งงาน</div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px;">Role กำหนด permission ในระบบ · admin = Legal Team (เข้าถึงทั้งหมด) · user = Marketing (Quick Check เท่านั้น)</div>
     <div id="role-list-edit">${roles.map((r,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#f8faff;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:8px;">
       <div style="width:28px;height:28px;border-radius:6px;background:${r.bg};flex-shrink:0;"></div>
       <div style="flex:1;min-width:0;">
@@ -2409,9 +2354,9 @@ function exportReportExcel(){
     ['Ad Compliance Report — Ananda Development PCL.'],
     ['Legal & Compliance Division'],
     [''],
-    ['Job Name',gv('f-jobname')],['Requested by',gv('f-sender')],
-    ['Company',gv('f-company')],['Email',gv('f-email')],
-    ['Tel',gv('f-phone')],['SLA',gv('f-sla')],[''],
+    ['Classification',gv('f-projtype')],
+    ['Project Type',gv('f-projtype')],['Media',gv('f-media')],
+    ['Offer',getOffer()],[''],
     ['Project Type',gv('f-projtype')],['Project Status',gv('f-projstatus')],
     ['Media Type',MEDIA_LABEL[gv('f-media')]||gv('f-media')],
     ['ข้อเสนอพิเศษ',getOffer()],[''],
@@ -2440,7 +2385,7 @@ function exportReportExcel(){
     const ws3=XLSX.utils.aoa_to_sheet([h3,...r3]);
     XLSX.utils.book_append_sheet(wb,ws3,'Forbidden Words');
   }
-  XLSX.writeFile(wb,`AdCompliance_${gv('f-jobname')||'Report'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+  XLSX.writeFile(wb,`AdCompliance_Report_${new Date().toISOString().slice(0,10)}.xlsx`);
   flash('📊 Export Report Excel สำเร็จ','#d8ead8','#14532d');
 }
 
