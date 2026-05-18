@@ -419,7 +419,7 @@ const DB = {
   },
   async _sheetsPost(action, data) {
     try {
-      const res = await fetch(this.APPS_SCRIPT_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,data})});
+      const res = await fetch(this.APPS_SCRIPT_URL, {method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action,data})});
       const r = await res.json();
       if (r.error) throw new Error(r.error);
       return r;
