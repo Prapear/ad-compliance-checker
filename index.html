@@ -693,7 +693,11 @@ function applyRole(role){
   const csb=document.getElementById('conn-status-badge');if(csb){const s=DB.connStatus();csb.textContent=s.label;csb.className='conn-badge '+s.cls;}
   setTimeout(fixTabBar,50);
   initProvider();loadSrcBadges();updateReadiness();updateNotifBadges();
-  setTimeout(()=>{if(!isLegal)restoreDraft();},200);
+  // ✅ reload caseHistory จาก Sheets หลัง login (แก้ปัญหา history ไม่ขึ้น)
+  loadState().then(()=>{
+    updateNotifBadges();
+    if(!isLegal)restoreDraft();
+  });
   switchTab('input');
 }
 try{const sr=sessionStorage.getItem('cr'),su=sessionStorage.getItem('cu');if(sr){currentRole=sr;currentAcc=findAcc(su)||getAccounts().find(a=>a.username===su);if(currentAcc)applyRole(sr);else{sessionStorage.removeItem('cr');sessionStorage.removeItem('cu');renderLoginHint();}}}catch(e){renderLoginHint();}
