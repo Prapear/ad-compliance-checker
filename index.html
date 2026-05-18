@@ -419,7 +419,7 @@ const DB = {
   },
   async _sheetsPost(action, data) {
     try {
-      const res = await fetch(this.APPS_SCRIPT_URL, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,data})});
+      const res = await fetch(this.APPS_SCRIPT_URL, {method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action,data})});
       const r = await res.json();
       if (r.error) throw new Error(r.error);
       return r;
@@ -428,7 +428,7 @@ const DB = {
   async _sheetsGet(action, params) {
     try {
       const url = this.APPS_SCRIPT_URL + '?action=' + action + (params ? '&' + new URLSearchParams(params).toString() : '');
-      const res = await fetch(url);
+      const res = await fetch(url, { redirect: 'follow' }); 
       const r = await res.json();
       if (r && r.error) throw new Error(r.error);
       return r;
