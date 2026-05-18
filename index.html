@@ -516,7 +516,7 @@ let _draftTimer=null;
 async function loadState(){
   try{
     const data = await DB.get('getCaseHistory');
-    caseHistory = Array.isArray(data) ? data.filter(r=>r.id||r.acaNumber) : [];
+    caseHistory = Array.isArray(data) ? data.filter(r=>(r.id&&String(r.id).trim())||(r.acaNumber&&String(r.acaNumber).trim())) : [];
   }catch(e){caseHistory=[];}
   // legalQueue และ notifications ตัดออกแล้ว — ใช้ array ว่างไว้รองรับ code เดิม
   legalQueue=[];notifications=[];
