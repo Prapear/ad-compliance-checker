@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Ad Compliance Checker v3.8</title>
+<title>Ad Compliance Checker v3.9</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -373,7 +373,7 @@ textarea.inp{resize:vertical;}
   <div class="preview-body" id="preview-body"></div>
 </div>
 
-<footer id="app-footer" style="display:none;"><strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v3.3<br><span style="font-size:11px;opacity:.6;">ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น | <span id="footer-conn">ระบบ: Local Mode</span></span></footer>
+<footer id="app-footer" style="display:none;"><strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v3.9<br><span style="font-size:11px;opacity:.6;">ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น | <span id="footer-conn">ระบบ: Local Mode</span></span></footer>
 
 <script>
 'use strict';
@@ -423,21 +423,30 @@ const DB = {
       const r = await res.json();
       if (r.error) throw new Error(r.error);
       return r;
-    } catch(e) { console.error('[DB._sheetsPost]', action, e.message); flash('⚠️ เชื่อมต่อ Sheets ไม่ได้', '#fef2f2', '#dc2626'); return null; }
+    } catch(e) { console.error('[DB._sheetsPost]', action, e.message); if(typeof showConnectionError==='function')showConnectionError('บันทึกลง Sheets ไม่สำเร็จ: '+e.message+' — ข้อมูลถูก fallback ไป Local'); return null; }
   },
   async _sheetsGet(action, params) {
     try {
       const url = this.APPS_SCRIPT_URL + '?action=' + action + (params ? '&' + new URLSearchParams(params).toString() : '');
-      const res = await fetch(url, { redirect: 'follow' }); 
+      const res = await fetch(url, { redirect: 'follow' });
       const r = await res.json();
       if (r && r.error) throw new Error(r.error);
       return r;
-    } catch(e) { console.error('[DB._sheetsGet]', action, e.message); flash('⚠️ เชื่อมต่อ Sheets ไม่ได้', '#fef2f2', '#dc2626'); return null; }
+    } catch(e) { console.error('[DB._sheetsGet]', action, e.message); if(typeof showConnectionError==='function')showConnectionError('โหลดข้อมูลจาก Sheets ไม่สำเร็จ: '+e.message); return null; }
   },
   _lsave(action, data) {
     try {
       if (action === 'saveCaseHistory')  { localStorage.setItem('case_history',  JSON.stringify(data)); return true; }
-      if (action === 'saveLegalQueue')   { localStorage.setItem('legalQueue',     JSON.stringify(data)); return true; }
+      if (action === 'saveLegalQueue')   {
+        // Upsert by acaNumber in localStorage
+        try{
+          let q=JSON.parse(localStorage.getItem('legalQueue')||'[]');
+          const idx=q.findIndex(x=>x.acaNumber===data.acaNumber);
+          if(idx>=0)q[idx]=data;else q.unshift(data);
+          localStorage.setItem('legalQueue',JSON.stringify(q));
+        }catch(e){localStorage.setItem('legalQueue',JSON.stringify([data]));}
+        return true;
+      }
       if (action === 'saveNotifications'){ localStorage.setItem('notifications',  JSON.stringify(data)); return true; }
       if (action === 'saveAccounts')     { localStorage.setItem('user_accounts',  JSON.stringify(data)); localStorage.setItem('ua_ver','6'); return true; }
       if (action === 'saveMd')           { localStorage.setItem('md_'+data.key, JSON.stringify({text:data.text,filename:data.filename,saved:new Date().toISOString()})); return true; }
@@ -450,7 +459,7 @@ const DB = {
   _lget(action, params) {
     try {
       if (action === 'getCaseHistory')   return JSON.parse(localStorage.getItem('case_history')  || '[]');
-      if (action === 'getLegalQueue')    return JSON.parse(localStorage.getItem('legalQueue')     || '[]');
+      if (action === 'getLegalQueue')    { try{return JSON.parse(localStorage.getItem('legalQueue')||'[]');}catch(e){return [];} }
       if (action === 'getNotifications') return JSON.parse(localStorage.getItem('notifications')  || '[]');
       if (action === 'getAccounts')      return this._rawAccounts();
       if (action === 'getMd')            return JSON.parse(localStorage.getItem('md_'+params.key) || 'null');
@@ -510,23 +519,107 @@ const DEFAULT_TEMPLATES = [
 
 let mediaFiles=[],lastResult=null,currentRole=null,currentAcc=null,_loadingAbort=false;
 let caseHistory=[],legalQueue=[],notifications=[];
+let _sheetsConnected=false; // track connection health
+
+function showConnectionError(msg){
+  const existing=document.getElementById('conn-error-banner');
+  if(existing)existing.remove();
+  const d=document.createElement('div');
+  d.id='conn-error-banner';
+  d.style.cssText='position:fixed;top:0;left:0;right:0;background:#fee2e2;border-bottom:2px solid #fecaca;padding:8px 20px;font-size:13px;color:#dc2626;font-weight:600;z-index:9990;display:flex;justify-content:space-between;align-items:center;';
+  d.innerHTML=`<span>⚠️ ${msg}</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:#dc2626;cursor:pointer;font-size:16px;padding:0 4px;">✕</button>`;
+  document.body.prepend(d);
+  setTimeout(()=>d.remove(),8000);
+}
 let _inboxFilter={company:'',mediaType:'',status:'',dateFrom:'',dateTo:'',sort:'sla'};
 let _draftTimer=null;
 
+// ── Safe JSON parser for Sheets fields ──
+function safeParseJSON(val, fallback=[]) {
+  if (!val || val === '') return fallback;
+  if (typeof val === 'object') return val; // already parsed
+  try { return JSON.parse(val); } catch(e) { return fallback; }
+}
+
+// ── Normalise a case_history row from Sheets (handles JSON-string fields) ──
+function normaliseCaseRow(r) {
+  return {
+    ...r,
+    id: r.id || r.acaNumber,  // fallback id = acaNumber
+    checklist_results: safeParseJSON(r.checklist_results, []),
+    forbidden_words:   safeParseJSON(r.forbidden_words,   []),
+    attachedFiles:     safeParseJSON(r.attachedFiles,     []),
+    timeline:          safeParseJSON(r.timeline,          []),
+    slaLog:            safeParseJSON(r.slaLog,            []),
+  };
+}
+
+// ── Normalise a legal_queue row ──
+function normaliseLegalRow(r) {
+  return {
+    ...r,
+    checklist_results: safeParseJSON(r.checklist_results, []),
+    forbidden_words:   safeParseJSON(r.forbidden_words,   []),
+    attachedFiles:     safeParseJSON(r.attachedFiles,     []),
+    timeline:          safeParseJSON(r.timeline,          []),
+    slaLog:            safeParseJSON(r.slaLog,            []),
+  };
+}
+
 async function loadState(){
   try{
-    const data = await DB.get('getCaseHistory');
-    caseHistory = Array.isArray(data) ? data.filter(r=>(r.id&&String(r.id).trim())||(r.acaNumber&&String(r.acaNumber).trim())) : [];
-  }catch(e){caseHistory=[];}
-  // legalQueue และ notifications ตัดออกแล้ว — ใช้ array ว่างไว้รองรับ code เดิม
-  legalQueue=[];notifications=[];
+    const [caseData, legalData] = await Promise.all([
+      DB.get('getCaseHistory'),
+      DB.get('getLegalQueue'),
+    ]);
+    caseHistory = Array.isArray(caseData)
+      ? caseData
+          .filter(r => (r.id && String(r.id).trim()) || (r.acaNumber && String(r.acaNumber).trim()))
+          .map(normaliseCaseRow)
+      : [];
+    legalQueue = Array.isArray(legalData)
+      ? legalData.filter(r => r.acaNumber && String(r.acaNumber).trim()).map(normaliseLegalRow)
+      : [];
+  }catch(e){
+    console.error('[loadState]', e);
+    caseHistory=[];legalQueue=[];
+  }
+  notifications=[];
 }
 function saveState(){
-  // case_history บันทึกผ่าน DB.save() โดยตรงตอนสร้าง/อัปเดต entry แล้ว
-  // ฟังก์ชันนี้เก็บไว้เพื่อ backward compat กับ code เดิมที่ยังเรียกอยู่
-  if(!DB.USE_SHEETS){
+  // Persist legalQueue every time state changes
+  if(DB.USE_SHEETS && DB.APPS_SCRIPT_URL){
+    // Save all active legalQueue tickets back to Sheets
+    legalQueue.forEach(q => DB.save('saveLegalQueue', prepareLegalForSave(q)));
+  } else {
     try{localStorage.setItem('case_history',JSON.stringify(caseHistory));}catch(e){}
+    try{localStorage.setItem('legalQueue',JSON.stringify(legalQueue));}catch(e){}
   }
+}
+
+// ── Prepare object for saving to Sheets (stringify arrays) ──
+function prepareForSave(entry) {
+  return {
+    ...entry,
+    checklist_results: typeof entry.checklist_results === 'string'
+      ? entry.checklist_results
+      : JSON.stringify(entry.checklist_results || []),
+    forbidden_words: typeof entry.forbidden_words === 'string'
+      ? entry.forbidden_words
+      : JSON.stringify(entry.forbidden_words || []),
+    attachedFiles: typeof entry.attachedFiles === 'string'
+      ? entry.attachedFiles
+      : JSON.stringify((entry.attachedFiles || []).map(f => ({name:f.name,size:f.size,type:f.type||'',gDriveLink:f.gDriveLink||''}))),
+    timeline: typeof entry.timeline === 'string'
+      ? entry.timeline
+      : JSON.stringify(entry.timeline || []),
+    slaLog: typeof entry.slaLog === 'string'
+      ? entry.slaLog
+      : JSON.stringify(entry.slaLog || []),
+  };
+}
+function prepareLegalForSave(q) {
+  return prepareForSave({...q, id: q.acaNumber});
 }
 loadState();
 
@@ -693,11 +786,11 @@ function applyRole(role){
   const csb=document.getElementById('conn-status-badge');if(csb){const s=DB.connStatus();csb.textContent=s.label;csb.className='conn-badge '+s.cls;}
   setTimeout(fixTabBar,50);
   initProvider();loadSrcBadges();updateReadiness();updateNotifBadges();
-  // ✅ reload caseHistory จาก Sheets หลัง login (แก้ปัญหา history ไม่ขึ้น)
+  // ✅ reload caseHistory และ legalQueue จาก Sheets หลัง login
   loadState().then(()=>{
     updateNotifBadges();
-    if(!isLegal)restoreDraft();
-  });
+    if(!isLegal)setTimeout(restoreDraft,300);
+  }).catch(e=>console.error('[applyRole loadState]',e));
   switchTab('input');
 }
 try{const sr=sessionStorage.getItem('cr'),su=sessionStorage.getItem('cu');if(sr){currentRole=sr;currentAcc=findAcc(su)||getAccounts().find(a=>a.username===su);if(currentAcc)applyRole(sr);else{sessionStorage.removeItem('cr');sessionStorage.removeItem('cu');renderLoginHint();}}}catch(e){renderLoginHint();}
@@ -715,11 +808,11 @@ function switchTab(name){
   });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   const btn=document.querySelector(`.tab-btn[data-tab="${name}"]`);if(btn)btn.classList.add('active');
-  if(name==='inbox'){name='input';}
-  if(name==='report')renderReport();
-  if(name==='history')renderHistory();
-  if(name==='dashboard')renderDashboard();
-  if(name==='admin')renderAdmin();
+  if(name==='inbox'){renderInbox().catch(e=>console.error('[renderInbox]',e));}
+  if(name==='report')renderReport().catch(e=>console.error('[renderReport]',e));
+  if(name==='history')renderHistory().catch(e=>console.error('[renderHistory]',e));
+  if(name==='dashboard')renderDashboard().catch(e=>console.error('[renderDashboard]',e));
+  if(name==='admin')renderAdmin().catch(e=>console.error('[renderAdmin]',e));
   if(name==='accounts')renderAccountsTab();
 }
 document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{if(!btn.classList.contains('disabled'))switchTab(btn.dataset.tab);});});
@@ -863,9 +956,9 @@ async function handleSubmit(){
     setLS(3,90,'กำลังสรุปผล...');await sleep(200);setLS(3,100);await sleep(300);
     hideLoading();lastResult=result;
     const aca=genACA();const now=new Date();
-    const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:result.overall_result,overall_summary:result.overall_summary,pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,checklist_results:result.checklist_results||[],forbidden_words:result.forbidden_words_found||[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Quick Check (AI)',comment:''}]};
-    caseHistory=[entry,...caseHistory].slice(0,200);saveState();
-    DB.save('saveCaseHistory', entry);
+    const entry={id:aca,acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:result.overall_result,overall_summary:result.overall_summary,pass_count:(result.checklist_results||[]).filter(x=>x.result==='PASS').length,fail_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL').length,critical_count:(result.checklist_results||[]).filter(x=>x.result==='FAIL'&&x.severity==='Critical').length,checklist_results:result.checklist_results||[],forbidden_words:result.forbidden_words_found||[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Quick Check (AI)',comment:''}]};
+    caseHistory=[entry,...caseHistory].slice(0,500);
+    DB.save('saveCaseHistory', prepareForSave(entry));
     // Clear draft on successful submit
     localStorage.removeItem('draft_input_'+currentAcc?.username);
     document.getElementById('tab-res-btn')?.classList.remove('disabled');
@@ -909,9 +1002,9 @@ async function doCall(){
 async function handleDirectSendLegal(){
   if(!isValidNoKey())return;
   const aca=genACA();const now=new Date();
-  const entry={id:Date.now(),acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:'N/A',overall_summary:'ส่งโดยตรงให้ Legal ตรวจ (ไม่ผ่าน Quick Check)',checklist_results:[],forbidden_words:[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'สร้าง ticket (Direct Send)',comment:''}]};
-  caseHistory=[entry,...caseHistory].slice(0,200);saveState();
-  DB.save('saveCaseHistory', entry);
+  const entry={id:aca,acaNumber:aca,date:now.toISOString(),jobName:'Quick Check',sender:currentAcc?.displayName||'',company:'',email:'',phone:'',projectType:gv('f-projtype'),projectStatus:gv('f-projstatus'),mediaType:gv('f-media'),mediaLabel:MEDIA_LABEL[gv('f-media')]||gv('f-media'),offer:getOffer(),sla:'',details:'',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,attachedFiles:mediaFiles.map(f=>({name:f.name,size:f.size,type:f.type||'',localURL:URL.createObjectURL(f),gDriveLink:''})),overall_result:'N/A',overall_summary:'ส่งโดยตรงให้ Legal ตรวจ (ไม่ผ่าน Quick Check)',checklist_results:[],forbidden_words:[],status:'Draft',timeline:[{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'สร้าง ticket (Direct Send)',comment:''}]};
+  caseHistory=[entry,...caseHistory].slice(0,500);
+  DB.save('saveCaseHistory', prepareForSave(entry));
   localStorage.removeItem('draft_input_'+currentAcc?.username);
   sendForLegalReview(String(entry.id));
 }
@@ -934,8 +1027,11 @@ function sendForLegalReview(entryId){
   const now=new Date();
   const ticket={acaNumber:entry.acaNumber,jobName:entry.jobName,sender:entry.sender,company:entry.company,email:entry.email,phone:entry.phone,projectType:entry.projectType,projectStatus:entry.projectStatus,mediaType:entry.mediaType,mediaLabel:entry.mediaLabel,offer:entry.offer,sla:entry.sla,details:entry.details,attachedFiles:entry.attachedFiles||[],checklist_results:entry.checklist_results||[],forbidden_words:entry.forbidden_words||[],overall_result:entry.overall_result,overall_summary:entry.overall_summary,status:'Sent to Legal',submittedBy:currentAcc?.username,submitterName:currentAcc?.displayName,submitterRole:currentRole,sentAt:now.toISOString(),slaStartTime:now.toISOString(),revisionCount:0,timeline:[...(entry.timeline||[]),{ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Sent to Legal',comment:''}],legalComment:'',internalNote:'',reviewedBy:'',reviewedAt:'',slaLog:[]};
   legalQueue=legalQueue.filter(q=>q.acaNumber!==entry.acaNumber);legalQueue.unshift(ticket);
-  const ci=caseHistory.findIndex(c=>String(c.id)===String(entryId));if(ci>=0){caseHistory[ci].status='Sent to Legal';DB.save('saveCaseHistory', caseHistory[ci]);}
-  saveState();
+  // Update case_history status
+  const ci=caseHistory.findIndex(c=>c.acaNumber===entry.acaNumber||String(c.id)===String(entryId));
+  if(ci>=0){caseHistory[ci].status='Sent to Legal';DB.save('saveCaseHistory', prepareForSave(caseHistory[ci]));}
+  // Save legal ticket to Sheets
+  DB.save('saveLegalQueue', prepareLegalForSave(ticket));
   emailStub('sentToLegal', {acaNumber:entry.acaNumber, jobName:entry.jobName, senderEmail:entry.email, submitterRole:currentRole});
   // Notify all reviewer/admin accounts (excluding sender)
   getAccounts().filter(a=>a.active&&(getRoleDef(a.role).canInbox||getRoleDef(a.role).canAdmin)&&a.username!==currentAcc?.username).forEach(a=>{
@@ -1014,8 +1110,12 @@ function renderInboxFilterBar(allQueue){
     <div style="align-self:flex-end;"><button class="btn-sm" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;" onclick="_inboxFilter={company:'',mediaType:'',status:'',dateFrom:'',dateTo:'',sort:'sla'};renderInbox()">🔄 ล้าง</button></div>
   </div>`;
 }
-function renderInbox(){
+async function renderInbox(){
   const panel=document.getElementById('panel-inbox');if(!panel)return;
+  if(!legalQueue.length){
+    panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลด Inbox...</div>`;
+    await loadState();
+  }
   const allQueue=legalQueue.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status));
   const queue=getFilteredInboxQueue();
   const breach=queue.filter(q=>getSLAStatus(q).breached).length;
@@ -1043,9 +1143,15 @@ function renderInbox(){
 }
 
 // ── REVIEW TICKET ──
-function openReviewTicket(acaNumber){
-  const q=legalQueue.find(x=>x.acaNumber===acaNumber);if(!q){flash('ไม่พบงาน','#fef2f2','#dc2626');return;}
-  if(q.status==='Sent to Legal'){q.status='Under Review';q.timeline=(q.timeline||[]).concat([{ts:new Date().toISOString(),role:currentRole,user:currentAcc?.displayName,action:'เปิดตรวจ (Under Review)',comment:''}]);saveState();updateNotifBadges();renderInbox();}
+async function openReviewTicket(acaNumber){
+  let q=legalQueue.find(x=>x.acaNumber===acaNumber);
+  if(!q){
+    flash('⏳ กำลังโหลด...','#e8effe','#0032c7');
+    await loadState();
+    q=legalQueue.find(x=>x.acaNumber===acaNumber);
+  }
+  if(!q){flash('ไม่พบงาน ACA: '+acaNumber,'#fef2f2','#dc2626');return;}
+  if(q.status==='Sent to Legal'){q.status='Under Review';q.timeline=(q.timeline||[]).concat([{ts:new Date().toISOString(),role:currentRole,user:currentAcc?.displayName,action:'เปิดตรวจ (Under Review)',comment:''}]);DB.save('saveLegalQueue',prepareLegalForSave(q));updateNotifBadges();renderInbox();}
   const cl=q.checklist_results||[];const cnt=v=>cl.filter(r=>r.result===v).length;const sl=slaLabel(q);
   const templates=DEFAULT_TEMPLATES;const tmplGroups=[...new Set(templates.map(t=>t.group))];
   const canEditNote=isLegalRole(currentRole);
@@ -1171,7 +1277,7 @@ function saveInternalNote(acaNumber){
   q.internalNote=document.getElementById(`rt-internal-${acaNumber}`)?.value||'';
   q.internalNoteUpdatedBy=currentAcc?.displayName||currentRole;
   q.internalNoteUpdatedAt=new Date().toISOString();
-  saveState();flash('💾 บันทึก Internal Note แล้ว','#f3e8ff','#7c3aed');
+  DB.save('saveLegalQueue', prepareLegalForSave(q));flash('💾 บันทึก Internal Note แล้ว','#f3e8ff','#7c3aed');
 }
 
 function insertTemplate(text,taId){if(!text)return;const ta=document.getElementById(taId);if(!ta)return;ta.value=ta.value?(ta.value+'\n'+text):text;ta.focus();}
@@ -1210,7 +1316,7 @@ function startSLACountdown(acaNumber, sentAt, slaDays){
   tick();
   _slaTimers[acaNumber]=setInterval(tick,60000);
 }
-function adjustSLA(aca,newSLA){const q=legalQueue.find(x=>x.acaNumber===aca);if(!q)return;const old=q.sla;q.sla=newSLA;if(!q.slaLog)q.slaLog=[];q.slaLog.push({ts:new Date().toISOString(),by:currentAcc?.displayName||currentRole,from:old,to:newSLA});saveState();flash(`⏱️ ปรับ SLA ${old} → ${newSLA}`,'#e8effe','#0032c7');openReviewTicket(aca);}
+function adjustSLA(aca,newSLA){const q=legalQueue.find(x=>x.acaNumber===aca);if(!q)return;const old=q.sla;q.sla=newSLA;if(!q.slaLog)q.slaLog=[];q.slaLog.push({ts:new Date().toISOString(),by:currentAcc?.displayName||currentRole,from:old,to:newSLA});DB.save('saveLegalQueue',prepareLegalForSave(q));flash(`⏱️ ปรับ SLA ${old} → ${newSLA}`,'#e8effe','#0032c7');openReviewTicket(aca);}
 function doLegalAction(acaNumber,action){
   const q=legalQueue.find(x=>x.acaNumber===acaNumber);if(!q)return;
   const comment=document.getElementById(`rt-comment-${acaNumber}`)?.value||'';const now=new Date();
@@ -1227,7 +1333,11 @@ function doLegalAction(acaNumber,action){
   q.status=action;q.legalComment=comment;q.reviewedBy=reviewerName;q.reviewedAt=now.toISOString();
   if(!q.timeline)q.timeline=[];q.timeline.push({ts:now.toISOString(),role:currentRole,user:reviewerName,action:actionLabels[action]||action,comment});
   if(action==='Request Edit')q.slaPausedAt=now.toISOString();
-  saveState();
+  // Persist to Sheets
+  DB.save('saveLegalQueue', prepareLegalForSave(q));
+  // Also update case_history status
+  const chi=caseHistory.findIndex(c=>c.acaNumber===q.acaNumber);
+  if(chi>=0){caseHistory[chi].status=action;caseHistory[chi].reviewedBy=reviewerName;caseHistory[chi].reviewedAt=now.toISOString();DB.save('saveCaseHistory',prepareForSave(caseHistory[chi]));}
   pushNotif(q.submitterRole||'user',{Approved:`✅ ${q.acaNumber} — "${q.jobName}" ได้รับการ Approve`,'Request Edit':`🔄 ${q.acaNumber} — "${q.jobName}" ขอให้แก้ไข${comment?': '+comment:''}`,'Rejected':`❌ ${q.acaNumber} — "${q.jobName}" ไม่ได้รับการอนุมัติ`}[action]||action,q.acaNumber);
   emailStub(action==='Approved'?'approved':action==='Request Edit'?'requestEdit':'rejected',{acaNumber:q.acaNumber,jobName:q.jobName,comment,submitterRole:q.submitterRole||'user'});
   document.getElementById('review-modal').style.display='none';
@@ -1274,7 +1384,7 @@ function doResubmit(acaNumber){
   const note=document.getElementById('em-nt')?.value||'';if(window._emFiles?.[acaNumber])q.attachedFiles=window._emFiles[acaNumber];
   q.status='Re-submitted';q.resubmittedAt=now.toISOString();q.slaStartTime=now.toISOString();delete q.slaPausedAt;q.revisionCount=(q.revisionCount||0)+1;
   if(!q.timeline)q.timeline=[];q.timeline.push({ts:now.toISOString(),role:currentRole,user:currentAcc?.displayName,action:'Re-submitted',comment:note});
-  saveState();
+  DB.save('saveLegalQueue', prepareLegalForSave(q));
   pushNotif('reviewer',`🔁 Re-submit: ${q.acaNumber} — "${q.jobName}" (ครั้งที่ ${q.revisionCount})`,q.acaNumber);
   emailStub('resubmitted',{acaNumber:q.acaNumber,jobName:q.jobName,revisionCount:q.revisionCount,submitterRole:currentRole});
   document.getElementById('edit-modal').style.display='none';flash('🔁 Re-submit สำเร็จ! SLA เริ่มนับใหม่','#dbeafe','#0032c7');renderHistory();updateNotifBadges();
@@ -1301,8 +1411,10 @@ let histMonthSel=new Date().getMonth();
 let histYearSel=new Date().getFullYear();
 const HIST_PAGE_SIZE=25;
 
-function renderHistory(){
+async function renderHistory(){
   const panel=document.getElementById('panel-history');if(!panel)return;
+  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลดข้อมูลจาก Sheets...</div>`;
+  await loadState();
   const isUserRole=!isLegalRole(currentRole);
   const now=new Date();
 
@@ -1524,10 +1636,16 @@ function renderHistory(){
   }
 }
 function sendForLegalReviewFromHistory(entryId){const entry=caseHistory.find(c=>String(c.id)===String(entryId));if(!entry)return;if(entry.status==='Sent to Legal'){flash('งานนี้ถูกส่งแล้ว','#fffbeb','#78350f');return;}sendForLegalReview(entry.id);renderHistory();}
-function viewQCDetail(entryId){
-  const entry=caseHistory.find(c=>String(c.id)===String(entryId));
-  if(!entry){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
-  // Build a result-compatible object from the stored entry fields
+async function viewQCDetail(entryId){
+  // ✅ ถ้าหาใน memory ไม่เจอ ให้ fetch ใหม่จาก Sheets (รองรับดูย้อนหลัง forever)
+  const findEntry=()=>caseHistory.find(c=>c.acaNumber===String(entryId)||String(c.id)===String(entryId));
+  let entry=findEntry();
+  if(!entry){
+    flash('⏳ กำลังโหลดข้อมูล...','#e8effe','#0032c7');
+    await loadState();
+    entry=findEntry();
+  }
+  if(!entry){flash('ไม่พบข้อมูล — อาจถูกลบหรือ id ไม่ตรง','#fef2f2','#dc2626');return;}
   const result={
     overall_result:entry.overall_result,
     overall_summary:entry.overall_summary||'',
@@ -1559,8 +1677,12 @@ function calcAvgTurnaround(items){
 }
 
 
-function renderReport(){
+async function renderReport(){
   const panel=document.getElementById('panel-report');if(!panel)return;
+  if(!legalQueue.length){
+    panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลด Report...</div>`;
+    await loadState();
+  }
   if(!legalQueue.length){
     panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h2 style="margin:0;color:#0032c7;font-size:20px;font-weight:800;">📄 Report</h2></div><div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล Legal Review</div><div style="font-size:13px;color:#94a3b8;margin-top:6px;">งานจะปรากฏที่นี่เมื่อมีการส่ง Legal Review</div><button class="btn-navy" style="margin-top:16px;" onclick="switchTab('inbox')">📥 ไปที่ Inbox</button></div>`;
     return;
@@ -1674,8 +1796,11 @@ function dashFilterBtns(){
   return`<div style="display:flex;gap:6px;flex-wrap:wrap;">${btns}</div>${monthPick}${yearPick}${rangePick}`;
 }
 
-function renderDashboard(){
+async function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');if(!panel)return;
+  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลด Dashboard...</div>`;
+  // ✅ fetch ใหม่ทุกครั้ง เพื่อให้ Recent Activity แสดงข้อมูลล่าสุดจาก Sheets
+  await loadState();
   const isAdmin=getRoleDef(currentRole).canAdmin;
   const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
   // Team scoping: user sees own team, legal sees all legal, admin sees all
@@ -1869,7 +1994,7 @@ function renderDashboard(){
       </div>
       ${!hist.length?`<div style="padding:24px;text-align:center;color:#94a3b8;">ไม่มีข้อมูลในช่วงที่เลือก</div>`:`<div style="overflow-x:auto;"><table class="dtable" style="font-size:12px;">
         <thead><tr><th>ACA</th><th>ชื่องาน</th><th>ผู้ส่ง</th><th>วันที่</th><th>ผล</th><th>ตรวจ</th><th>Pass</th><th>Fail</th><th>Flag ⚠️</th><th>Action</th></tr></thead>
-        <tbody>${hist.slice(0,20).map((c,i)=>{
+        <tbody>${hist.map((c,i)=>{
           const cl=c.checklist_results||[];
           const flags=c.forbidden_words?.length||0;
           return`<tr style="background:${i%2?'#f8faff':'#fff'};border-bottom:1px solid #e8effe;">
@@ -1940,8 +2065,9 @@ function renderAccountsTab(){
   }
   renderActivityLog();
 }
-function renderAdmin(){
+async function renderAdmin(){
   const panel=document.getElementById('panel-admin');if(!panel)return;
+  if(!legalQueue.length) await loadState();
   const aca=getACAInfo();
   const acaLog=caseHistory.filter(c=>c.acaNumber&&c.acaNumber.startsWith('ACA'+aca.yr)).slice(0,30);
   const pending=legalQueue.filter(q=>['Sent to Legal','Under Review','Re-submitted'].includes(q.status));
@@ -1986,6 +2112,13 @@ function renderAdmin(){
           </div>
           <button onclick="saveDBConfig()" class="btn-navy btn-sm">💾 บันทึก Connection</button>
           <div style="font-size:11px;color:#94a3b8;margin-top:8px;">📧 เมื่อเชื่อมต่อแล้ว Email จะส่งผ่าน MailApp.sendEmail() ใน Apps Script</div>
+          <div style="margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;line-height:1.8;">
+            <strong>⚠️ อัปเดต Apps Script ด้วย:</strong><br>
+            1. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">legalQueue: 'legal_queue'</code> ใน SHEET_NAMES<br>
+            2. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">if (action === 'getLegalQueue') return jsonOut(getRows(ss, SHEET_NAMES.legalQueue));</code> ใน doGet<br>
+            3. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">if (action === 'saveLegalQueue') { upsertRow(ss, SHEET_NAMES.legalQueue, data, 'acaNumber'); return jsonOut({ok:true}); }</code> ใน doPost<br>
+            4. สร้าง Sheet ชื่อ <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">legal_queue</code> ใน Spreadsheet
+          </div>
         </div>
 
         <div class="card"><div class="admin-section-title"><span style="padding:2px 10px;background:${NAVY};color:#fff;border-radius:12px;font-size:11px;">⭐ PRIMARY</span> Checklist</div>
@@ -2657,8 +2790,8 @@ function clearHistory(){
   });
   // Also reset in-memory state
   caseHistory=[];legalQueue=[];notifications=[];
-  // Reload for clean state
-  setTimeout(()=>location.reload(),200);
+  flash('🗑️ ล้างข้อมูล Local แล้ว — รีโหลดหน้า','#fef2f2','#dc2626');
+  setTimeout(()=>location.reload(),800);
 }
 function copyQCDetail(entryId){
   const c=caseHistory.find(x=>String(x.id)===String(entryId));
