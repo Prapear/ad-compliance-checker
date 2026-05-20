@@ -414,7 +414,11 @@ const DB = {
     return this._lsave(action, data);
   },
   async get(action, params) {
-    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) return await this._sheetsGet(action, params);
+    if (this.USE_SHEETS && this.APPS_SCRIPT_URL) {
+      // getLegalQueue: silent fail (GAS เวอร์ชันเก่าอาจยังไม่มี)
+      if(action === 'getLegalQueue') return await this._sheetsGetSilent(action, params);
+      return await this._sheetsGet(action, params);
+    }
     return this._lget(action, params);
   },
   async _sheetsPost(action, data) {
@@ -433,6 +437,16 @@ const DB = {
       if (r && r.error) throw new Error(r.error);
       return r;
     } catch(e) { console.error('[DB._sheetsGet]', action, e.message); if(typeof showConnectionError==='function')showConnectionError('โหลดข้อมูลจาก Sheets ไม่สำเร็จ: '+e.message); return null; }
+  },
+  // เหมือน _sheetsGet แต่ไม่แสดง error banner (ใช้กับ action ที่ GAS เวอร์ชันเก่าอาจไม่รองรับ)
+  async _sheetsGetSilent(action, params) {
+    try {
+      const url = this.APPS_SCRIPT_URL + '?action=' + action + (params ? '&' + new URLSearchParams(params).toString() : '');
+      const res = await fetch(url, { redirect: 'follow' });
+      const r = await res.json();
+      if (r && r.error) throw new Error(r.error);
+      return r;
+    } catch(e) { console.warn('[DB._sheetsGetSilent]', action, e.message); return null; }
   },
   _lsave(action, data) {
     try {
@@ -567,23 +581,28 @@ function normaliseLegalRow(r) {
 }
 
 async function loadState(){
+  // โหลด caseHistory — แสดง error ถ้า fail
   try{
-    const [caseData, legalData] = await Promise.all([
-      DB.get('getCaseHistory'),
-      DB.get('getLegalQueue'),
-    ]);
-    caseHistory = Array.isArray(caseData)
-      ? caseData
-          .filter(r => (r.id && String(r.id).trim()) || (r.acaNumber && String(r.acaNumber).trim()))
-          .map(normaliseCaseRow)
-      : [];
-    legalQueue = Array.isArray(legalData)
-      ? legalData.filter(r => r.acaNumber && String(r.acaNumber).trim()).map(normaliseLegalRow)
-      : [];
+    const caseData = await DB.get('getCaseHistory');
+    if(Array.isArray(caseData)){
+      caseHistory = caseData
+        .filter(r => (r.id && String(r.id).trim()) || (r.acaNumber && String(r.acaNumber).trim()))
+        .map(normaliseCaseRow);
+    }
+  }catch(e){ console.error('[loadState getCaseHistory]', e); }
+
+  // โหลด legalQueue — silent fail ถ้า GAS ยังไม่อัปเดต
+  try{
+    const legalData = await DB.get('getLegalQueue');
+    if(Array.isArray(legalData)){
+      legalQueue = legalData
+        .filter(r => r.acaNumber && String(r.acaNumber).trim())
+        .map(normaliseLegalRow);
+    }
   }catch(e){
-    console.error('[loadState]', e);
-    caseHistory=[];legalQueue=[];
+    console.warn('[loadState getLegalQueue] Apps Script ยังไม่รองรับ —', e.message);
   }
+
   notifications=[];
 }
 function saveState(){
