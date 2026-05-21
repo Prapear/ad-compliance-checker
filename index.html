@@ -1146,8 +1146,13 @@ async function renderHistory(){
   if(isUserRole){
     // User sees own submissions only; admin sees all
     const isAdminRole=getRoleDef(currentRole).canAdmin;
-    const myQCAll=isAdminRole?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
-    const myLegalAll=isAdminRole?legalQueue:legalQueue.filter(q=>q.submittedBy===currentAcc?.username);
+    // Legal (admin) เห็นทั้งหมด / แต่ละทีมเห็นเฉพาะงานของทีมตัวเอง (filter by team)
+    const myTeam=currentAcc?.team||'';
+    const myQCAll=isAdminRole?caseHistory:caseHistory.filter(c=>{
+      const acc=getAccounts().find(a=>a.username===c.submittedBy);
+      return acc?.team===myTeam;
+    });
+    const myLegalAll=[];
     const myQC=applyHistFilter(myQCAll);
     const myLegal=applyHistFilter(myLegalAll);
     const ast=_histSubTab.user||'qc';
@@ -1399,8 +1404,13 @@ async function renderDashboard(){
   const isAdmin=getRoleDef(currentRole).canAdmin;
   const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
   // Team scoping: user sees own team, legal sees all legal, admin sees all
-  let hist=isAdmin?caseHistory:caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
-  let lqAll=isAdmin?legalQueue:legalQueue.filter(q=>isLegal?true:q.submittedBy===currentAcc?.username);
+  // Legal/Admin เห็นทั้งหมด / แต่ละทีมเห็นเฉพาะงานของทีมตัวเอง (filter by team)
+  const myTeamD=currentAcc?.team||'';
+  let hist=isAdmin?caseHistory:caseHistory.filter(c=>{
+    const acc=getAccounts().find(a=>a.username===c.submittedBy);
+    return acc?.team===myTeamD;
+  });
+  let lqAll=[];
   // Apply date filter
   hist=applyDashFilter(hist,'date');
   const lq=hist;
