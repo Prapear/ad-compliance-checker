@@ -1101,8 +1101,6 @@ const HIST_PAGE_SIZE=25;
 
 async function renderHistory(){
   const panel=document.getElementById('panel-history');if(!panel)return;
-  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลดข้อมูล...</div>`;
-  try{ await loadState(); }catch(e){ console.warn('[renderHistory]',e); }
   const isUserRole=!isLegalRole(currentRole);
   const now=new Date();
 
@@ -1244,6 +1242,8 @@ async function renderHistory(){
       </div>`;}).join('')}
       ${pager}</div>`;
   }
+  // Refresh Sheets in background (non-blocking)
+  loadState().catch(()=>{});
 }
 
 async function viewQCDetail(entryId){
@@ -1345,8 +1345,8 @@ function dashFilterBtns(){
 
 async function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');if(!panel)return;
-  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลด Dashboard...</div>`;
-  try{ await loadState(); }catch(e){ console.warn('[renderDashboard]',e); }
+  // Refresh Sheets in background
+  loadState().catch(()=>{});
   const isAdmin=getRoleDef(currentRole).canAdmin;
   const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
   // Team scoping: user sees own team, legal sees all legal, admin sees all
