@@ -103,13 +103,13 @@ textarea.inp{resize:vertical;}
 
 /* ── BUTTONS ── */
 .submit-btn{width:100%;padding:14px;border-radius:10px;border:none;color:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
-.btn-send-legal{width:100%;padding:14px;border-radius:10px;background:var(--blue);color:#fff;border:none;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .2s;}
+
 .btn-send-legal:hover{background:var(--blue-dark);}
 .btn-navy{padding:8px 20px;background:var(--blue);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
 .btn-navy:hover{background:var(--blue-dark);}
 .btn-ghost{padding:8px 18px;background:#fff;color:var(--blue);border:2px solid var(--blue);border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;}
 .btn-green{padding:9px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
-.btn-orange{padding:9px 20px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
+
 .btn-red{padding:9px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
 .btn-blue{padding:9px 20px;background:var(--blue);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;}
 .btn-sm{padding:5px 12px;font-size:12px;border-radius:7px;border:none;cursor:pointer;font-weight:600;}
@@ -164,9 +164,9 @@ textarea.inp{resize:vertical;}
 .internal-note-label{font-size:12px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
 
 /* ── INBOX ── */
-.inbox-card{background:#fff;border-radius:12px;border:1px solid #e2e8f0;padding:16px 18px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,50,199,.06);transition:box-shadow .2s;cursor:pointer;animation:fadeUp .2s ease;}
+
 .inbox-card:hover{box-shadow:0 6px 20px rgba(0,50,199,.12);}
-.inbox-card.urgent{border-left:4px solid #dc2626;}
+
 .inbox-card.warning{border-left:4px solid #f59e0b;}
 .inbox-card.ok{border-left:4px solid #16a34a;}
 
@@ -189,9 +189,6 @@ textarea.inp{resize:vertical;}
 .admin-ta:focus{border-color:var(--blue);background:#fff;}
 
 /* ── SLA ALERT ── */
-.sla-alert-box{border-radius:10px;padding:14px 18px;margin-bottom:14px;border:1px solid;}
-.sla-alert-red{background:#fef2f2;border-color:#fecaca;}
-.sla-alert-orange{background:#fff7ed;border-color:#fed7aa;}
 
 /* ── REQUEST EDIT BANNER ── */
 .req-edit-banner{background:#fff7ed;border:2px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;animation:requestEditPulse 2s infinite;}
@@ -264,7 +261,7 @@ textarea.inp{resize:vertical;}
 <!-- HEADER -->
 <header id="main-header" style="display:none;">
   <div class="hdr-row1">
-    <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">⚖️</span><span class="hdr-title">Ad Compliance Checker</span><span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:500;">v3.8</span></div>
+    <div style="display:flex;align-items:center;gap:12px;"><span style="font-size:24px;">⚖️</span><span class="hdr-title">Ad Compliance Checker</span><span style="font-size:11px;color:rgba(255,255,255,.5);font-weight:500;">v4.0</span></div>
     <div style="display:flex;align-items:center;gap:8px;">
       <span id="hdr-badge" class="role-badge role-admin">Legal Team</span>
       <button onclick="doLogout()" style="padding:6px 14px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;color:#fff;cursor:pointer;font-size:13px;font-weight:600;">Sign Out</button>
@@ -559,7 +556,6 @@ function normaliseCaseRow(r) {
 
 // ── Normalise a legal_queue row ──
 
-
 async function loadState(){
   // โหลด caseHistory — แสดง error ถ้า fail
   try{
@@ -610,9 +606,6 @@ function genACA(){const yr=new Date().getFullYear();const sy=parseInt(localStora
 function getACAInfo(){const yr=new Date().getFullYear();const sy=parseInt(localStorage.getItem('acaYear')||'0');const c=yr===sy?parseInt(localStorage.getItem('acaCounter')||'0'):0;return{yr,counter:c,last:'ACA'+yr+String(c).padStart(4,'0'),next:'ACA'+yr+String(c+1).padStart(4,'0')};}
 
 // ── SLA ──
-function bizDays(from,to=new Date()){let n=0,d=new Date(from);d.setHours(0,0,0,0);const end=new Date(to);end.setHours(0,0,0,0);while(d<end){const dw=d.getDay();if(dw>0&&dw<6)n++;d.setDate(d.getDate()+1);}return n;}
-function getSLAStatus(t){const days=SLA_DAYS[t.sla]||3;let elapsed=t.status==='Request Edit'&&t.slaPausedAt?bizDays(t.slaStartTime||t.date,t.slaPausedAt):bizDays(t.slaStartTime||t.date);const rem=days-elapsed;return{days,elapsed,rem,breached:rem<0,urgent:rem>=0&&rem<=1};}
-function slaLabel(t){const s=getSLAStatus(t);if(s.breached)return{text:`เกินกำหนด ${Math.abs(s.rem)} วัน`,bg:'#fee2e2',color:'#dc2626',border:'#fecaca'};if(s.urgent)return{text:`เหลือ ${s.rem} วัน`,bg:'#ffedd5',color:'#c2410c',border:'#fed7aa'};return{text:`เหลือ ${s.rem} วัน`,bg:'#dcfce7',color:'#15803d',border:'#bbf7d0'};}
 
 // ── ACCOUNTS ──
 function hashPwd(s){let h=0;for(const c of s)h=(Math.imul(31,h)+c.charCodeAt(0))|0;return h.toString(36);}
@@ -659,9 +652,7 @@ function updateNotifBadges(){
   // legalQueue notifications removed
 }
 
-
 function toggleNotif(id){const dd=document.getElementById(id);if(!dd)return;['bell-dd','clock-dd'].forEach(x=>{const el=document.getElementById(x);if(el&&x!==id)el.style.display='none';});const open=dd.style.display==='block';dd.style.display=open?'none':'block';if(!open){if(id==='bell-dd')renderBellList();else renderClockList();}}
-
 
 // ── LOADING ──
 function showLoading(hasLarge=false){_loadingAbort=false;const ov=document.getElementById('loading-overlay');ov.style.display='flex';setLS(1,10);if(hasLarge){const s=document.getElementById('lo-sub');if(s)s.textContent='ไฟล์ขนาดใหญ่อาจใช้เวลา 30-60 วินาที';}}
@@ -701,9 +692,31 @@ function getSheets(){const pt=gv('f-projtype'),ps=gv('f-projstatus'),mt=gv('f-me
 
 // ── LOGIN / LOGOUT ──
 function renderLoginHint(){
-  const accs=getAccounts().filter(a=>a.active).slice(0,8);
   const hint=document.getElementById('login-accounts-hint');
-  if(hint)hint.innerHTML=accs.map(a=>{const rd=getRoleDef(a.role);return`<span style="color:rgba(255,255,255,.7);">${rd.label}:</span> <code style="color:#fbbf24;">${a.username}</code>`;}).join('<br>');
+  if(!hint)return;
+  const accs=[
+    {u:'legal',     p:'legal2025',  label:'Legal'},
+    {u:'mkt_house', p:'house2025',  label:'MKT House'},
+    {u:'mkt_condo', p:'condo2025',  label:'MKT Condo'},
+    {u:'mkt_center',p:'center2025', label:'MKT Center'},
+  ];
+  let html='<div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Accounts</div>';
+  accs.forEach(function(a){
+    html+='<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;" data-u="'+a.u+'" data-p="'+a.p+'">'
+      +'<span style="color:rgba(255,255,255,.5);font-size:11px;">'+a.label+'</span>'
+      +'<code style="color:#fbbf24;font-size:11px;">'+a.u+' / '+a.p+'</code>'
+      +'</div>';
+  });
+  hint.innerHTML=html;
+  hint.querySelectorAll('[data-u]').forEach(function(row){
+    row.addEventListener('click',function(){
+      var lu=document.getElementById('lu');
+      var lp=document.getElementById('lp');
+      if(lu)lu.value=row.getAttribute('data-u');
+      if(lp)lp.value=row.getAttribute('data-p');
+      if(lp)lp.focus();
+    });
+  });
 }
 function doLogin(){const u=(document.getElementById('lu')?.value||'').trim(),p=document.getElementById('lp').value;const err=document.getElementById('login-err');err.style.display='none';if(!u||!p){err.textContent='กรุณากรอก Username และ Password';err.style.display='block';return;}const acc=checkLogin(u,p);if(!acc){err.textContent='❌ Username หรือ Password ไม่ถูกต้อง';err.style.display='block';document.getElementById('lp').value='';return;}currentRole=acc.role;currentAcc=acc;
   setTimeout(()=>logActivity('Login',''),100);try{sessionStorage.setItem('cr',acc.role);sessionStorage.setItem('cu',acc.username);}catch(e){}document.getElementById('lp').value='';applyRole(acc.role);}
@@ -730,15 +743,24 @@ function applyRole(role){
   const csb=document.getElementById('conn-status-badge');if(csb){const s=DB.connStatus();csb.textContent=s.label;csb.className='conn-badge '+s.cls;}
   setTimeout(fixTabBar,50);
   initProvider();loadSrcBadges();updateReadiness();updateNotifBadges();
-  // ✅ reload caseHistory และ legalQueue จาก Sheets หลัง login
+  // ✅ reload caseHistory จาก Sheets หลัง login
   loadState().then(()=>{
     updateNotifBadges();
     if(!isLegal)setTimeout(restoreDraft,300);
   }).catch(e=>console.error('[applyRole loadState]',e));
   switchTab('input');
 }
-try{const sr=sessionStorage.getItem('cr'),su=sessionStorage.getItem('cu');if(sr){currentRole=sr;currentAcc=findAcc(su)||getAccounts().find(a=>a.username===su);if(currentAcc)applyRole(sr);else{sessionStorage.removeItem('cr');sessionStorage.removeItem('cu');renderLoginHint();}}}catch(e){renderLoginHint();}
+// Always show login hint (even if session restores, hint is pre-rendered)
 renderLoginHint();
+try{
+  const sr=sessionStorage.getItem('cr'),su=sessionStorage.getItem('cu');
+  if(sr){
+    currentRole=sr;
+    currentAcc=findAcc(su)||getAccounts().find(a=>a.username===su);
+    if(currentAcc) applyRole(sr);
+    else{sessionStorage.removeItem('cr');sessionStorage.removeItem('cu');}
+  }
+}catch(e){console.warn('Session restore failed',e);}
 document.getElementById('lu')?.addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('lp').focus();});
 document.getElementById('lp')?.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 
@@ -752,7 +774,6 @@ function switchTab(name){
   });
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   const btn=document.querySelector(`.tab-btn[data-tab="${name}"]`);if(btn)btn.classList.add('active');
-
 
   if(name==='history')renderHistory().catch(e=>console.error('[renderHistory]',e));
   if(name==='dashboard')renderDashboard().catch(e=>console.error('[renderDashboard]',e));
@@ -944,9 +965,7 @@ async function doCall(){
 
 // ── SEND DIRECT ──
 
-
 // ── EMAIL STUBS (A2: ready for MailApp replacement) ──
-
 
 // sendForLegalReview removed — no Legal workflow
 
@@ -1012,29 +1031,13 @@ function renderResults(result,errMsg,entry){
 // ▶ INBOX FILTER & SORT
 // ════════════════════════════════════════════
 
-
-// renderInbox removed
-
-
 // ── REVIEW TICKET ──
-// openReviewTicket removed
-
 
 // ── B2: INTERNAL NOTE ──
 
-
 // ── SLA LIVE COUNTDOWN ──
 
-
-// doLegalAction removed
-
-
 // ── EDIT MODE ──
-// openEditMode removed
-
-
-// doResubmit removed
-
 
 // ── DOWNLOAD EXCEL ──
 function downloadHistoryExcel(type,id){
@@ -1152,10 +1155,7 @@ async function renderHistory(){
       const acc=getAccounts().find(a=>a.username===c.submittedBy);
       return acc?.team===myTeam;
     });
-    const myLegalAll=[];
     const myQC=applyHistFilter(myQCAll);
-    const myLegal=applyHistFilter(myLegalAll);
-    const ast=_histSubTab.user||'qc';
     panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
       <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🗂️ History</h2>
       ${filterBtns("renderHistory()")}
@@ -1167,7 +1167,6 @@ async function renderHistory(){
     </div>
     <div id="hc"></div>`;
     const el=document.getElementById('hc');
-    if(ast==='qc'){
       if(!myQCAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีประวัติ Quick Check</div>`;return;}
       if(!myQC.length){el.innerHTML=`<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;return;}
       const {page,pager}=paginate(myQC);
@@ -1182,7 +1181,7 @@ async function renderHistory(){
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${c.acaNumber?`<span class="aca-badge" style="font-size:11px;">${c.acaNumber}</span>`:''}<span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${c.overall_result}</span></div>
           <div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
         </div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:2px;color:#1e293b;">${esc(c.jobName||'')}</div>
+        <div style="font-size:15px;font-weight:700;margin-bottom:2px;color:#1e293b;">${esc(c.projectType||'')} · ${esc(c.mediaLabel||c.mediaType||'')}</div>
         <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(c.submitterName||'')} · ${esc(c.mediaLabel||c.mediaType||'')} · ${esc(c.projectType||'')}</div>
         ${c.details?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 10px;font-size:12px;color:#0c4a6e;margin-bottom:6px;">📋 <strong>Objective:</strong> ${esc(c.details)}</div>`:''}
         ${c.overall_summary?`<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:6px;">${esc(c.overall_summary)}</div>`:''}
@@ -1213,85 +1212,6 @@ async function renderHistory(){
         </div>
       </div>`;}).join('')}
       ${pager}</div>`;
-    } else {
-      if(!myLegalAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีประวัติ Legal Review</div>`;return;}
-      if(!myLegal.length){el.innerHTML=`<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;return;}
-      const {page:lPage,pager:lPager}=paginate(myLegal);
-      el.innerHTML=`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">`+lPage.map(q=>{const isReqEdit=q.status==='Request Edit';return`<div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;${isReqEdit?'border-left:3px solid #f59e0b;':''}">${isReqEdit?`<div class="req-edit-banner"><span style="font-size:20px;">🔔</span><div><div style="font-size:14px;font-weight:800;color:#c2410c;">Legal ขอให้แก้ไข</div><div style="font-size:12px;color:#92400e;margin-top:2px;">กรุณากด ✏️ แก้ไขและส่งใหม่ พร้อมแนบไฟล์ที่แก้ไขแล้ว</div></div></div>`:q.status==='Rejected'?`<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:8px;padding:9px 12px;margin-bottom:8px;display:flex;align-items:flex-start;gap:8px;"><span style="font-size:18px;">❌</span><div><div style="font-size:13px;font-weight:700;color:#dc2626;">งานไม่ผ่านการพิจารณา</div><div style="font-size:12px;color:#7f1d1d;margin-top:3px;">ติดต่อทีม Legal เพื่อขอข้อมูลเพิ่มเติม หรือส่งงานใหม่ผ่าน Input tab</div></div></div>`:''}
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${q.acaNumber?`<span class="aca-badge" style="font-size:11px;">${q.acaNumber}</span>`:''} ${statusBadge(q.status)}</div><div style="font-size:11px;color:#94a3b8;">${new Date(q.sentAt||'').toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div></div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:#1e293b;">${esc(q.jobName)}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(q.company||'')} · ${esc(q.mediaLabel||q.mediaType||'')}</div>
-        ${q.legalComment?`<div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:13px;color:#7c2d12;margin:8px 0;"><strong>💬 Legal:</strong> ${esc(q.legalComment)}</div>`:''}
-        <div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">SLA: ${q.sla||'3 วัน'} · ${slaLabel(q).text}</div>
-        ${q.reviewedBy&&q.reviewedAt?`<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">* Reviewed by ${esc(q.reviewedBy)} เมื่อ ${new Date(q.reviewedAt).toLocaleString('th-TH')}</div>`:`<div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">* รอ Legal Review</div>`}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${isReqEdit?`<button onclick="openEditMode('${q.acaNumber}')" class="btn-orange btn-sm">✏️ แก้ไขและส่งใหม่</button>`:q.status==='Rejected'?`<button onclick="openEditMode('${q.acaNumber}')" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">✏️ ส่งงานใหม่</button>`:''}
-          <button onclick="viewQCDetail('${q.acaNumber}')" class="btn-navy btn-sm">🔍 Detail</button>
-          <button onclick="downloadHistoryExcel('qc_result','${q.acaNumber}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
-          <button onclick="exportCSV('qc_result','${q.acaNumber}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
-        </div>
-      </div>`}).join('')+lPager+`</div>`;
-    }
-  } else {
-    const ast='qc';  // only QC history now
-    const isAdminHist=getRoleDef(currentRole).canAdmin;
-    // received: admin sees all, legal reviewer sees only what they reviewed
-    const receivedAll=isAdminHist?legalQueue.filter(q=>q.reviewedBy):legalQueue.filter(q=>q.reviewedBy&&q.reviewedBy===currentAcc?.displayName);
-    const myQCAll=caseHistory.filter(c=>c.submittedBy===currentAcc?.username);
-    const received=applyHistFilter(receivedAll.map(q=>({...q,date:q.reviewedAt||q.sentAt||q.date})));
-    const myQC=applyHistFilter(myQCAll);
-    panel.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-      <div><h2 style="margin:0;color:${NAVY};font-size:20px;font-weight:800;">🗂️ History</h2>
-      ${filterBtns("renderHistory()")}
-      </div></div>
-    <div id="hc"></div>`;
-    const el=document.getElementById('hc');
-    if(ast==='received'){
-      if(!receivedAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มีงานที่ดำเนินการแล้ว</div>`;return;}
-      if(!received.length){el.innerHTML=`<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;return;}
-      const {page,pager}=paginate(received);
-      el.innerHTML=`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-      ${page.map(q=>`<div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${q.acaNumber?`<span class="aca-badge" style="font-size:11px;">${q.acaNumber}</span>`:''} ${statusBadge(q.status)}</div>
-          <div style="font-size:11px;color:#94a3b8;">${new Date(q.reviewedAt||'').toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
-        </div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:2px;color:#1e293b;">${esc(q.jobName)}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(q.submitterName||'')} · ${esc(q.company||'')} · แก้ ${q.revisionCount||0} รอบ</div>
-        ${q.details?`<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:6px 10px;font-size:12px;color:#0c4a6e;margin-bottom:6px;">📝 Objective: ${esc(q.details)}</div>`:''}
-        ${q.legalComment?`<div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:13px;color:#7c2d12;margin-bottom:6px;"><strong>💬 Legal:</strong> ${esc(q.legalComment)}</div>`:''}
-        ${(q.attachedFiles||[]).length?`<div style="margin-bottom:6px;display:flex;flex-wrap:wrap;gap:5px;">${(q.attachedFiles||[]).map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isImg=['jpg','jpeg','png','webp','gif'].includes(ext);const isVid=['mp4','mov','avi','webm'].includes(ext);return`<span style="padding:3px 8px;background:#f8faff;border:1px solid #e2e8f0;border-radius:5px;font-size:11px;display:flex;align-items:center;gap:4px;">${isImg&&f.localURL?`<img src="${f.localURL}" style="width:18px;height:18px;object-fit:cover;border-radius:2px;">`:isVid?'🎬':f.name.endsWith('.pdf')?'📕':'📎'}${esc(f.name)}</span>`;}).join('')}</div>`:''}
-        <div style="font-size:11px;color:#94a3b8;margin-bottom:6px;">Reviewed by ${esc(q.reviewedBy||'')} · ${q.reviewedAt?new Date(q.reviewedAt).toLocaleString('th-TH'):''}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button onclick="viewQCDetail('${q.acaNumber}')" class="btn-navy btn-sm">🔍 Detail</button>
-          <button onclick="downloadHistoryExcel('qc_result','${q.acaNumber}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
-          <button onclick="exportCSV('qc_result','${q.acaNumber}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
-          <button onclick="showJsonModal('ticket','${q.acaNumber}')" class="btn-sm" style="background:#f8faff;color:#475569;border:1px solid #e2e8f0;">🔍 JSON</button>
-        </div>
-      </div>`).join('')}
-      ${pager}</div>`;
-    } else {
-      if(!myQCAll.length){el.innerHTML=`<div style="text-align:center;padding:40px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ยังไม่มี Quick Check</div>`;return;}
-      if(!myQC.length){el.innerHTML=`<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;return;}
-      const {page,pager}=paginate(myQC);
-      el.innerHTML=`<div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;">
-      ${page.map(c=>`<div style="padding:14px 18px;border-bottom:1px solid #f1f5f9;">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${c.acaNumber?`<span class="aca-badge" style="font-size:11px;">${c.acaNumber}</span>`:''}<span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${c.overall_result}</span></div>
-          <div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
-        </div>
-        <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:#1e293b;">${esc(c.jobName||'')}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:4px;">${esc(c.company||'')} · ✓${c.pass_count||0} ✕${c.fail_count||0}</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">Quick Check เมื่อ ${new Date(c.date).toLocaleString('th-TH')}</div>
-        <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button onclick="viewQCDetail('${c.id}')" class="btn-navy btn-sm">🔍 Detail</button>
-          <button onclick="exportCSV('qc_result','${c.id}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
-          <button onclick="savePDF('result','${c.id}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
-          <button onclick="showJsonModal('entry','${c.id}')" class="btn-sm" style="background:#f8faff;color:#475569;border:1px solid #e2e8f0;">🔍 JSON</button>
-        </div>
-      </div>`).join('')}
-      ${pager}</div>`;
-    }
   }
 }
 
@@ -1334,10 +1254,6 @@ function calcAvgTurnaround(items){
   // For QC-only mode: show avg time between checks (not meaningful) so just show count
   return{label:items.length+' cases','sub':'Quick Check total'};
 }
-
-
-// renderReport removed
-
 
 // ── DASHBOARD with filter + Turnaround KPI ──
 // ── DASHBOARD filter helpers (align with History) ──
@@ -1410,18 +1326,16 @@ async function renderDashboard(){
     const acc=getAccounts().find(a=>a.username===c.submittedBy);
     return acc?.team===myTeamD;
   });
-  let lqAll=[];
   // Apply date filter
   hist=applyDashFilter(hist,'date');
   const lq=hist;
   const total=hist.length,pass=hist.filter(c=>c.overall_result==='PASS').length,fail=hist.filter(c=>c.overall_result==='FAIL').length;
   const condPass=hist.filter(c=>c.overall_result==='PASS WITH CONDITIONS').length;
   const qcTotal=hist.length;
-  const lqTotal=lqAll.length;
+  
   const overallCases=qcTotal;
-  const lqPending=0;
-  const lqPass=hist.filter(c=>c.overall_result==='PASS').length;
-  const lqFail=hist.filter(c=>c.overall_result==='FAIL').length;
+  
+
   const complianceRate=total?Math.round(pass/total*100):0;
   const avgTa=calcAvgTurnaround(lq);
 
@@ -1434,10 +1348,10 @@ async function renderDashboard(){
   const timeSavedHrs=0;
 
   // Charts data
-  const projTypeMap={};[...hist,...lqAll].forEach(c=>{const pt=c.projectType||'ไม่ระบุ';projTypeMap[pt]=(projTypeMap[pt]||0)+1;});
-  const userUsage={};[...hist,...lqAll].forEach(c=>{const u=c.submitterName||c.sender||'—';userUsage[u]=(userUsage[u]||0)+1;});
+  const projTypeMap={};hist.forEach(c=>{const pt=c.projectType||'ไม่ระบุ';projTypeMap[pt]=(projTypeMap[pt]||0)+1;});
+  const userUsage={};hist.forEach(c=>{const u=c.submitterName||c.sender||'—';userUsage[u]=(userUsage[u]||0)+1;});
   const topUsers=Object.entries(userUsage).sort((a,b)=>b[1]-a[1]).slice(0,6);
-  const mediaTypeMap={};[...hist,...lqAll].forEach(c=>{const mt=c.mediaLabel||c.mediaType||'ไม่ระบุ';mediaTypeMap[mt]=(mediaTypeMap[mt]||0)+1;});
+  const mediaTypeMap={};hist.forEach(c=>{const mt=c.mediaLabel||c.mediaType||'ไม่ระบุ';mediaTypeMap[mt]=(mediaTypeMap[mt]||0)+1;});
   const mediaTotal=Object.values(mediaTypeMap).reduce((s,v)=>s+v,0)||1;
 
   // Monthly usage trend (frequency)
@@ -1448,7 +1362,7 @@ async function renderDashboard(){
   } else if(_dashFilter.period==='month'){
     for(let i=6;i>=0;i--){const d=new Date(_dashYearSel,_dashMonthSel-i,1);trendItems.push({label:(d.getMonth()+1)+'/'+(d.getFullYear()+'').slice(2),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0)});}
   }
-  const monthStats=trendItems.map(m=>{const mi=[...hist,...lqAll].filter(c=>{const d=new Date(c.date||c.sentAt||0);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length};});
+  const monthStats=trendItems.map(m=>{const mi=hist.filter(c=>{const d=new Date(c.date||c.sentAt||0);return d>=m.start&&d<=m.end;});return{label:m.label,total:mi.length};});
   const maxMonthTotal=Math.max(...monthStats.map(m=>m.total),1);
 
   // Fail topics
@@ -1459,7 +1373,7 @@ async function renderDashboard(){
   const wm={};hist.forEach(c=>(c.forbidden_words||[]).forEach(w=>{const word=w.word||'';if(word)wm[word]=(wm[word]||0)+1;}));
   const topW=Object.entries(wm).sort((a,b)=>b[1]-a[1]).slice(0,5);const maxW=topW[0]?.[1]||1;
 
-  if(!caseHistory.length&&!legalQueue.length){panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div><button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 เริ่มใช้งาน</button></div>`;return;}
+  if(!caseHistory.length){panel.innerHTML=`<div style="text-align:center;padding:60px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;"><div style="font-size:48px;">📭</div><div style="font-size:16px;color:#64748b;margin-top:12px;">ยังไม่มีข้อมูล</div><button class="btn-navy" style="margin-top:16px;" onclick="switchTab('input')">📋 เริ่มใช้งาน</button></div>`;return;}
   panel.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;flex-wrap:wrap;gap:12px;">
       <div>
@@ -1492,7 +1406,7 @@ async function renderDashboard(){
 
     <!-- Row 2: Pass / Fail / Condition / Avg Turnaround -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-      ${[['✅','Pass',lqPass,'case','#dcfce7','#15803d'],['❌','Fail',lqFail,'case','#fee2e2','#dc2626'],['⚠️','Condition',condPass,'case','#fffbeb','#92400e'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fff','#475569']].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05);position:relative;overflow:hidden;"><div style="position:absolute;right:-6px;top:-6px;font-size:36px;opacity:.1;">${ic}</div><div style="font-size:22px;font-weight:800;color:${co};line-height:1;margin-bottom:3px;">${va}</div><div style="font-size:12px;font-weight:700;color:#1e293b;">${lb}</div><div style="font-size:11px;color:#64748b;margin-top:1px;">${su}</div></div>`).join('')}
+      ${[['✅','Pass',pass,'case','#dcfce7','#15803d'],['❌','Fail',fail,'case','#fee2e2','#dc2626'],['⚠️','Condition',condPass,'case','#fffbeb','#92400e'],['⏱️','Avg. Turnaround',avgTa.label,avgTa.sub,'#fff','#475569']].map(([ic,lb,va,su,bg,co])=>`<div style="background:${bg};border:1px solid ${co}22;border-radius:12px;padding:14px 16px;box-shadow:0 2px 8px rgba(0,0,0,.05);position:relative;overflow:hidden;"><div style="position:absolute;right:-6px;top:-6px;font-size:36px;opacity:.1;">${ic}</div><div style="font-size:22px;font-weight:800;color:${co};line-height:1;margin-bottom:3px;">${va}</div><div style="font-size:12px;font-weight:700;color:#1e293b;">${lb}</div><div style="font-size:11px;color:#64748b;margin-top:1px;">${su}</div></div>`).join('')}
     </div>
 
     <!-- Charts Row 1: Business type + Team usage (admin/legal only) -->
@@ -1541,7 +1455,7 @@ async function renderDashboard(){
         ${(()=>{
           const mode=_trendMode||'year';
           let tPoints=[];
-          const allItems=[...hist,...lqAll];
+          const allItems=hist;
           if(mode==='year'){
             for(let i=11;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);const end=new Date(d.getFullYear(),d.getMonth()+1,0);const cnt=allItems.filter(c=>{const dd=new Date(c.date||c.sentAt||0);return dd>=d&&dd<=end;}).length;tPoints.push({label:(d.getMonth()+1)+'/'+(d.getFullYear()+'').slice(2),val:cnt});}
           } else if(mode==='month'){
@@ -1672,10 +1586,9 @@ function renderAccountsTab(){
 }
 async function renderAdmin(){
   const panel=document.getElementById('panel-admin');if(!panel)return;
-  if(!legalQueue.length) await loadState();
+  await loadState();
   const aca=getACAInfo();
   const acaLog=caseHistory.filter(c=>c.acaNumber&&c.acaNumber.startsWith('ACA'+aca.yr)).slice(0,30);
-
 
   panel.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
@@ -1683,9 +1596,6 @@ async function renderAdmin(){
       <button onclick="adminSaveAll()" class="btn-navy">💾 บันทึก Checklist/Skill</button>
     </div>
     <div id="admin-banner" style="display:none;padding:10px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;margin-bottom:14px;font-size:14px;color:#15803d;font-weight:600;">✅ บันทึกสำเร็จ</div>
-
-    ${breached.length?`<div class="sla-alert-box sla-alert-red"><div style="font-weight:700;color:#dc2626;font-size:14px;margin-bottom:8px;">🚨 SLA เกินกำหนดแล้ว (${breached.length} งาน)</div>${breached.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #fecaca;font-size:13px;"><div><span style="font-family:monospace;color:#94a3b8;margin-right:8px;">${q.acaNumber}</span>${esc(q.jobName)}</div><span style="color:#dc2626;font-weight:700;">เกิน ${Math.abs(getSLAStatus(q).rem)} วัน</span></div>`).join('')}</div>`:``}
-    ${urgent.length?`<div class="sla-alert-box sla-alert-orange"><div style="font-weight:700;color:#c2410c;font-size:14px;margin-bottom:8px;">⚠️ SLA เหลือ 1 วัน (${urgent.length} งาน)</div>${urgent.map(q=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #fed7aa;font-size:13px;"><div><span style="font-family:monospace;color:#94a3b8;margin-right:8px;">${q.acaNumber}</span>${esc(q.jobName)}</div><span style="color:#c2410c;font-weight:700;">เหลือ ${getSLAStatus(q).rem} วัน</span></div>`).join('')}</div>`:``}
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
       <div>
@@ -1715,13 +1625,7 @@ async function renderAdmin(){
           </div>
           <button onclick="saveDBConfig()" class="btn-navy btn-sm">💾 บันทึก Connection</button>
           <div style="font-size:11px;color:#94a3b8;margin-top:8px;">📧 เมื่อเชื่อมต่อแล้ว Email จะส่งผ่าน MailApp.sendEmail() ใน Apps Script</div>
-          <div style="margin-top:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e;line-height:1.8;">
-            <strong>⚠️ อัปเดต Apps Script ด้วย:</strong><br>
-            1. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">legalQueue: 'legal_queue'</code> ใน SHEET_NAMES<br>
-            2. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">if (action === 'getLegalQueue') return jsonOut(getRows(ss, SHEET_NAMES.legalQueue));</code> ใน doGet<br>
-            3. เพิ่ม <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">if (action === 'saveLegalQueue') { upsertRow(ss, SHEET_NAMES.legalQueue, data, 'acaNumber'); return jsonOut({ok:true}); }</code> ใน doPost<br>
-            4. สร้าง Sheet ชื่อ <code style="background:#f0f4ff;padding:1px 5px;border-radius:3px;">legal_queue</code> ใน Spreadsheet
-          </div>
+          
         </div>
 
         <div class="card"><div class="admin-section-title"><span style="padding:2px 10px;background:${NAVY};color:#fff;border-radius:12px;font-size:11px;">⭐ PRIMARY</span> Checklist</div>
@@ -2026,11 +1930,7 @@ function openUserModal(userId=''){
     </div>`;
   document.getElementById('user-modal').style.display='flex';
 }
-function scrollToFirstPending(){
-  const rows=document.querySelectorAll('#panel-history tr[data-pending]');
-  if(rows.length)rows[0].scrollIntoView({behavior:'smooth',block:'center'});
-  else flash('ไม่มีงานรอดำเนินการ','#f0f4ff','#0032c7');
-}
+
 function checkPwdStrength(pwd){
   const bar=document.getElementById('pwd-strength-bar');const fill=document.getElementById('pwd-strength-fill');const lbl=document.getElementById('pwd-strength-label');
   if(!bar||!fill||!lbl)return;
@@ -2102,7 +2002,7 @@ function saveRoleLabels(){saveRoleTemplates(getRoleTemplates());document.getElem
 // ── EXPORT FUNCTIONS ──
 function exportData(type){
   if(typeof XLSX==='undefined'){flash('โหลด SheetJS ไม่สำเร็จ','#fef2f2','#dc2626');return;}
-  const yr=new Date().getFullYear();let items=caseHistory,lq=legalQueue;
+  const yr=new Date().getFullYear();let items=caseHistory;
   if(type==='year'){items=caseHistory.filter(c=>c.acaNumber&&c.acaNumber.startsWith('ACA'+yr));}
   else if(type==='range'){const df=document.getElementById('exp-from')?.value;const dt=document.getElementById('exp-to')?.value;if(!df&&!dt){flash('กรุณาเลือกช่วงวันที่','#fffbeb','#78350f');return;}if(df)items=items.filter(c=>new Date(c.date)>=new Date(df));if(dt){const dtd=new Date(dt);dtd.setHours(23,59,59);items=items.filter(c=>new Date(c.date)<=dtd);}if(dt){const dtd=new Date(dt);dtd.setHours(23,59,59);lq=lq.filter(q=>new Date(q.sentAt||q.date||0)<=dtd);}}
   const sheet1=items.map(c=>({'ACA Number':c.acaNumber||'','ผู้ตรวจ':c.submitterName||'','ทีม':c.submitterRole||'','วันที่':c.date?new Date(c.date).toLocaleString('th-TH'):'' ,'ประเภทโครงการ':c.projectType||'','สถานะโครงการ':c.projectStatus||'','ประเภทสื่อ':c.mediaLabel||c.mediaType||'','ข้อเสนอพิเศษ':c.offer||'','ผล Quick Check':c.overall_result||'','Pass':c.pass_count||0,'Fail':c.fail_count||0,'Critical':c.critical_count||0}));
@@ -2158,15 +2058,16 @@ function exportReportExcel(){
 }
 
 function exportAuditLog(){
-  if(typeof XLSX==='undefined'){flash('โหลด SheetJS ไม่สำเร็จ','#fef2f2','#dc2626');return;}
-  const rows=[];
-  legalQueue.forEach(q=>{(q.timeline||[]).forEach(t=>{rows.push({'ACA Number':q.acaNumber||'','ชื่องาน':q.jobName||'','Action':t.action||'','โดย':t.user||t.role||'','ความเห็น':t.comment||'','เวลา':t.ts?new Date(t.ts).toLocaleString('th-TH'):''});});});
-  caseHistory.forEach(c=>{(c.timeline||[]).forEach(t=>{rows.push({'ACA Number':c.acaNumber||'','ชื่องาน':c.jobName||'','Action':t.action||'','โดย':t.user||t.role||'','ความเห็น':t.comment||'','เวลา':t.ts?new Date(t.ts).toLocaleString('th-TH'):''});});});
-  rows.sort((a,b)=>new Date(a.เวลา)-new Date(b.เวลา));
-  if(!rows.length){flash('ไม่มีข้อมูล Audit Log','#fffbeb','#78350f');return;}
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Audit Log');
-  XLSX.writeFile(wb,`ACA_AuditLog_${new Date().toLocaleDateString('th-TH').replace(/\//g,'')}.xlsx`);
-  flash(`📤 Audit Log export สำเร็จ: ${rows.length} รายการ`,'#d8ead8','#14532d');
+  const rows=[['ACA Number','Date','ผู้ตรวจ','ทีม','ประเภทสื่อ','ผล Quick Check','Pass','Fail','Critical']];
+  caseHistory.forEach(c=>{
+    rows.push([c.acaNumber||'',c.date?new Date(c.date).toLocaleString('th-TH'):'',
+      c.submitterName||'',c.submitterRole||'',c.mediaLabel||c.mediaType||'',
+      c.overall_result||'',c.pass_count||0,c.fail_count||0,c.critical_count||0]);
+  });
+  const csv='\uFEFF'+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='AuditLog_'+new Date().toLocaleDateString('th-TH').replace(/\//g,'')+'.csv';
+  a.click();flash('📄 Audit Log exported','#d8ead8','#14532d');
 }
 
 // ── PDF EXPORT (lazy-load html2canvas + jsPDF) ──
@@ -2231,59 +2132,45 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 // ── CSV EXPORT ──
 function exportCSV(type,id){
   let rows=[],filename='ACA_Export';
-  if(type==='qc_result'){
-    // id = entry.id (number) — search by id
-    const entry=caseHistory.find(c=>String(c.id)===String(id));if(!entry){flash('ไม่พบข้อมูล (qc_result)','#fef2f2','#dc2626');return;}
+  if(type==='all'||type==='qc_all'){
+    filename='ACA_History_All';
+    rows=[['ACA Number','Date','ผู้ตรวจ','ทีม','ประเภทโครงการ','ประเภทสื่อ','ผล','Pass','Fail','Critical']];
+    caseHistory.forEach(c=>rows.push([
+      c.acaNumber||'',c.date?new Date(c.date).toLocaleString('th-TH'):'',
+      c.submitterName||'',c.submitterRole||'',c.projectType||'',
+      c.mediaLabel||c.mediaType||'',c.overall_result||'',
+      c.pass_count||0,c.fail_count||0,c.critical_count||0]));
+  } else if(type==='qc_result'){
+    const entry=caseHistory.find(c=>c.acaNumber===String(id)||String(c.id)===String(id));
+    if(!entry){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
     filename=`${entry.acaNumber}_QuickCheck`;
-    const headers=['ACA','ชื่องาน','บริษัท','Rule ID','หัวข้อ','กฎหมาย','Severity','ผล','สิ่งที่พบ','ขาด','คำแนะนำ'];
-    rows=[headers,...(entry.checklist_results||[]).map(r=>[entry.acaNumber,entry.jobName,entry.company,r.rule_id||'',r.topic||'',r.law||'',r.severity||'',r.result||'',r.finding||'',r.missing||'',r.recommendation||''])];
-    if(rows.length<=1)rows=[headers,[entry.acaNumber,entry.jobName,entry.company,'','','','',entry.overall_result,entry.overall_summary||'','','']];
-
-  } else if(type==='report'){
-    filename='ACA_Report_Legal';
-    let q=legalQueue;
-    if(_reportFilter.company)q=q.filter(x=>x.company===_reportFilter.company);
-    if(_reportFilter.status)q=q.filter(x=>x.status===_reportFilter.status);
-    if(_reportFilter.dateFrom){const d=new Date(_reportFilter.dateFrom);q=q.filter(x=>new Date(x.sentAt||x.date||0)>=d);}
-    if(_reportFilter.dateTo){const d=new Date(_reportFilter.dateTo);d.setHours(23,59,59);q=q.filter(x=>new Date(x.sentAt||x.date||0)<=d);}
-    const headers=['ACA','ชื่องาน','บริษัท','ผู้ส่ง','วันที่ส่ง','Status','Reviewed by','Turnaround','Legal Comment'];
-    rows=[headers,...q.map(x=>{const ta=calcTurnaround(x);return[x.acaNumber||'',x.jobName||'',x.company||'',x.submitterName||'',x.sentAt?new Date(x.sentAt).toLocaleString('th-TH'):'',x.status||'',x.reviewedBy||'',ta.label||'',x.legalComment||''];})];
-  } else if(type==='all'||type==='year'){
-    filename='ACA_History'+(type==='year'?'_'+new Date().getFullYear():'');
-    const yr=new Date().getFullYear();
-    const items=type==='year'?caseHistory.filter(c=>c.acaNumber?.startsWith('ACA'+yr)):caseHistory;
-    const headers=['ACA Number','ชื่องาน','ผู้ส่ง','บริษัท','วันที่','ผล Quick Check','Status'];
-    rows=[headers,...items.map(c=>[c.acaNumber||'',c.jobName||'',c.submitterName||'',c.company||'',c.date?new Date(c.date).toLocaleString('th-TH'):'',c.overall_result||'',c.status||''])];
+    rows=[['ACA','ผู้ตรวจ','ทีม','ประเภทโครงการ','ประเภทสื่อ','Rule ID','หัวข้อ','Severity','ผล','สิ่งที่พบ','คำแนะนำ']];
+    (entry.checklist_results||[]).forEach(r=>rows.push([
+      entry.acaNumber,entry.submitterName||'',entry.submitterRole||'',
+      entry.projectType||'',entry.mediaLabel||entry.mediaType||'',
+      r.rule_id||'',r.topic||'',r.severity||'',r.result||'',r.finding||'',r.recommendation||'']));
+    if(rows.length<=1)rows.push([entry.acaNumber,'','','','','','',entry.overall_result||'','','','']);
   }
   if(!rows.length){flash('ไม่มีข้อมูล','#fffbeb','#78350f');return;}
-  const csvContent=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const BOM='\uFEFF';
-  const blob=new Blob([BOM+csvContent],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);const a=document.createElement('a');
-  a.href=url;a.download=filename+'_'+new Date().toLocaleDateString('th-TH').replace(/\//g,'')+'.csv';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
-  flash('📄 Export CSV สำเร็จ','#d8ead8','#14532d');
+  const csv=BOM+rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download=filename+'_'+new Date().toLocaleDateString('th-TH').replace(/\//g,'')+'.csv';
+  a.click();flash('📄 CSV exported','#d8ead8','#14532d');
 }
 
 // ── JSON VIEWER MODAL ──
 function showJsonModal(type,id){
   let data=null,title='JSON Viewer';
-  if(type==='ticket'){const q=legalQueue.find(x=>x.acaNumber===id);if(q){data={...q};delete data.attachedFiles;title=`Ticket: ${id}`;}}
-  else if(type==='entry'){const e=caseHistory.find(c=>String(c.id)===String(id));if(e){data={...e};delete data.attachedFiles;title=`Entry: ${e.acaNumber||id}`;}}
-  else if(type==='accounts'){data=getAccounts().map(a=>({id:a.id,username:a.username,displayName:a.displayName,role:a.role,active:a.active}));title='User Accounts';}
+  if(type==='case'){
+    const c=caseHistory.find(x=>x.acaNumber===String(id)||String(x.id)===String(id));
+    if(c){data=c;title='Case: '+c.acaNumber;}
+  }
   if(!data){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
-  const json=JSON.stringify(data,null,2);
-  const modal=document.getElementById('user-modal-content');
-  modal.innerHTML=`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <h2 style="margin:0;color:${NAVY};font-size:16px;font-weight:800;">🔍 ${title}</h2>
-      <div style="display:flex;gap:8px;">
-        <button onclick="copyToClipboard(${JSON.stringify(json)})" class="btn-sm btn-navy">📋 Copy</button>
-        <button onclick="document.getElementById('user-modal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">✕</button>
-      </div>
-    </div>
-    <pre style="background:#f8faff;border:1px solid #e2e8f0;border-radius:8px;padding:14px;font-size:11px;font-family:monospace;line-height:1.6;overflow-x:auto;max-height:60vh;overflow-y:auto;margin:0;color:#1e293b;">${esc(json)}</pre>`;
-  document.getElementById('user-modal').style.display='flex';
+  const modal=document.getElementById('json-modal');
+  const pre=document.getElementById('json-content');
+  if(modal&&pre){pre.textContent=JSON.stringify(data,null,2);modal.style.display='flex';
+  document.getElementById('json-modal-title').textContent=title;}
 }
 
 function exportDashboardExcel(){
@@ -2426,42 +2313,7 @@ function copyQCDetail(entryId){
   lines.push('⚠️ ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น');
   copyToClipboard(lines.join('\n'));
 }
-function copyLegalDetail(acaNumber){
-  const q=legalQueue.find(x=>x.acaNumber===acaNumber);
-  if(!q){flash('ไม่พบข้อมูล','#fef2f2','#dc2626');return;}
-  const cl=q.checklist_results||[];
-  const fw=q.forbidden_words||[];
-  const lines=[];
-  lines.push('════════════════════════════════');
-  lines.push(`⚖️ ACA: ${q.acaNumber||'—'} [Legal Review]`);
-  lines.push(`ชื่องาน: ${q.jobName||'—'}`);
-  lines.push(`บริษัท: ${q.company||'—'}`);
-  lines.push(`ผู้ส่ง: ${q.submitterName||q.sender||'—'}`);
-  lines.push(`วันที่ส่ง: ${q.sentAt?new Date(q.sentAt).toLocaleString('th-TH'):'—'}`);
-  lines.push(`Status: ${q.status||'—'}`);
-  lines.push(`Reviewed by: ${q.reviewedBy||'—'}`);
-  if(q.reviewedAt)lines.push(`วันที่ตรวจ: ${new Date(q.reviewedAt).toLocaleString('th-TH')}`);
-  lines.push('');
-  lines.push(`🏆 ผล AI: ${q.overall_result||'—'}`);
-  lines.push(`PASS: ${cl.filter(r=>r.result==='PASS').length}  FAIL: ${cl.filter(r=>r.result==='FAIL').length}  N/A: ${cl.filter(r=>r.result==='N/A').length}`);
-  if(q.legalComment)lines.push(`\n💬 Legal Comment: ${q.legalComment}`);
-  lines.push('');
-  lines.push('─── ผลตรวจ Checklist ───');
-  cl.forEach((r,i)=>{
-    lines.push(`${i+1}. [${r.result}] ${r.rule_id||''} ${r.topic||''}`);
-    if(r.law)lines.push(`   📖 ${r.law}`);
-    if(r.finding)lines.push(`   พบ: ${r.finding}`);
-    if(r.missing)lines.push(`   ⛔ ขาด: ${r.missing}`);
-    if(r.recommendation)lines.push(`   💡 ${r.recommendation}`);
-  });
-  if(fw.length){
-    lines.push('');
-    lines.push('─── ข้อควรระวัง / Keyword ───');
-    fw.forEach(w=>lines.push(`⚠️ "${w.word||''}" — ${w.location||''} [${w.rule_id||''}]`));
-  }
-  lines.push('════════════════════════════════');
-  copyToClipboard(lines.join('\n'));
-}
+
 function copyFallback(text){
   const ta=document.createElement('textarea');ta.value=text;ta.style.cssText='position:fixed;left:-9999px;top:-9999px;';document.body.appendChild(ta);ta.select();
   try{document.execCommand('copy');flash('✅ Copied','#d8ead8','#14532d');}catch(e){flash('❌ Copy ไม่สำเร็จ','#fef2f2','#dc2626');}
@@ -2497,6 +2349,8 @@ function renderFilePreview(){
 }
 // INIT
 switchTab('input');fixTabBar();updateReadiness();initProvider();
+renderLoginHint();
+document.getElementById('lu')?.focus();
 </script>
 </body>
 </html>
