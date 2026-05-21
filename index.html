@@ -422,7 +422,14 @@ const DB = {
       const r = await res.json();
       if (r.error) throw new Error(r.error);
       return r;
-    } catch(e) { console.error('[DB._sheetsPost]', action, e.message); if(typeof showConnectionError==='function')showConnectionError('บันทึกลง Sheets ไม่สำเร็จ: '+e.message+' — ข้อมูลถูก fallback ไป Local'); return null; }
+    } catch(e) {
+      console.warn('[DB._sheetsPost]', action, e.message);
+      // Don't show banner for GAS version mismatch errors (data saved locally)
+      if(typeof showConnectionError==='function' && !e.message.includes('map is not a function')){
+        showConnectionError('บันทึกลง Sheets ไม่สำเร็จ: '+e.message);
+      }
+      return null;
+    }
   },
   async _sheetsGet(action, params) {
     try {
@@ -557,18 +564,25 @@ function normaliseCaseRow(r) {
 // ── Normalise a legal_queue row ──
 
 async function loadState(){
-  // โหลด caseHistory — แสดง error ถ้า fail
+  const prevLocal = [...caseHistory]; // keep current in-memory entries as backup
   try{
-    const caseData = await DB.get('getCaseHistory');
-    if(Array.isArray(caseData)){
-      caseHistory = caseData
+    const fetchWithTimeout = (promise, ms=10000) =>
+      Promise.race([promise, new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),ms))]);
+    const caseData = await fetchWithTimeout(DB.get('getCaseHistory'));
+    if(Array.isArray(caseData) && caseData.length){
+      const fromSheets = caseData
         .filter(r => (r.id && String(r.id).trim()) || (r.acaNumber && String(r.acaNumber).trim()))
         .map(normaliseCaseRow);
+      // Merge: Sheets data + any local entries not yet in Sheets
+      const sheetsIds = new Set(fromSheets.map(r=>r.acaNumber||r.id));
+      const localOnly = prevLocal.filter(r=>!sheetsIds.has(r.acaNumber||r.id));
+      caseHistory = [...localOnly, ...fromSheets];
     }
-  }catch(e){ console.error('[loadState getCaseHistory]', e); }
-
-  // legalQueue removed — no Legal workflow
-
+    // If Sheets returns empty, keep prevLocal (don't wipe session data)
+  }catch(e){
+    console.warn('[loadState]', e.message);
+    caseHistory = prevLocal; // fallback to in-memory
+  }
   notifications=[];
 }
 function saveState(){
@@ -959,8 +973,25 @@ async function doCall(){
   const hdrs={'Content-Type':'application/json','Authorization':`Bearer ${apiKey}`};if(provider==='openrouter'){hdrs['HTTP-Referer']=location.href;hdrs['X-Title']='Ad Compliance';}
   const res=await fetch(ENDS[provider],{method:'POST',headers:hdrs,body:JSON.stringify({model,messages:[{role:'system',content:sysText},{role:'user',content:uc}],temperature:0.1,max_tokens:4096})});
   if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(`[${res.status}] ${e.error?.message||'Unknown'}`);}
-  const data=await res.json();const raw=data.choices?.[0]?.message?.content||'';if(!raw)throw new Error('ไม่ได้รับข้อความ');
-  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+  const data=await res.json();
+  const raw=(data.choices?.[0]?.message?.content||data.candidates?.[0]?.content?.parts?.[0]?.text||'').trim();
+  if(!raw)throw new Error('ไม่ได้รับข้อความจาก AI');
+  // Parse JSON — handle markdown fences and extract checklist_results
+  let cleaned=raw.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  // Sometimes AI wraps in outer object
+  if(cleaned.startsWith('{')&&!cleaned.includes('"checklist_results"')){
+    // Try to find checklist_results inside
+    const inner=cleaned.match(/"checklist_results"\s*:/);
+    if(!inner) console.warn('[doCall] No checklist_results in response');
+  }
+  const parsed=JSON.parse(cleaned);
+  // Normalise field names in case AI uses different keys
+  if(!parsed.checklist_results && parsed.checklist) parsed.checklist_results=parsed.checklist;
+  if(!parsed.checklist_results && parsed.results) parsed.checklist_results=parsed.results;
+  if(!parsed.forbidden_words_found && parsed.forbidden_words) parsed.forbidden_words_found=parsed.forbidden_words;
+  if(!parsed.overall_result && parsed.result) parsed.overall_result=parsed.result;
+  if(!parsed.overall_summary && parsed.summary) parsed.overall_summary=parsed.summary;
+  return parsed;
 }
 
 // ── SEND DIRECT ──
@@ -1070,8 +1101,8 @@ const HIST_PAGE_SIZE=25;
 
 async function renderHistory(){
   const panel=document.getElementById('panel-history');if(!panel)return;
-  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลดข้อมูลจาก Sheets...</div>`;
-  await loadState();
+  panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลดข้อมูล...</div>`;
+  try{ await loadState(); }catch(e){ console.warn('[renderHistory]',e); }
   const isUserRole=!isLegalRole(currentRole);
   const now=new Date();
 
@@ -1315,8 +1346,7 @@ function dashFilterBtns(){
 async function renderDashboard(){
   const panel=document.getElementById('panel-dashboard');if(!panel)return;
   panel.innerHTML=`<div style="text-align:center;padding:60px;color:#94a3b8;font-size:15px;"><div style="font-size:32px;margin-bottom:12px;">⏳</div>กำลังโหลด Dashboard...</div>`;
-  // ✅ fetch ใหม่ทุกครั้ง เพื่อให้ Recent Activity แสดงข้อมูลล่าสุดจาก Sheets
-  await loadState();
+  try{ await loadState(); }catch(e){ console.warn('[renderDashboard]',e); }
   const isAdmin=getRoleDef(currentRole).canAdmin;
   const isLegal=getRoleDef(currentRole).canInbox||getRoleDef(currentRole).canAdmin;
   // Team scoping: user sees own team, legal sees all legal, admin sees all
