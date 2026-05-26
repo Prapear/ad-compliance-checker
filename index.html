@@ -921,6 +921,8 @@ async function handleSubmit() {
       critical_count: cl.filter(x => x.result === 'FAIL' && x.severity === 'Critical').length,
       checklist_results: cl,
       forbidden_words: result.forbidden_words_found || [],
+      sheetsUsed: getSheets(),
+      checklistName: getMd('cl1')?.filename || 'Demo Checklist',
     };
 
     // ✅ Save to localStorage immediately, sync to Sheets async
@@ -1046,6 +1048,7 @@ function renderResults(result, errMsg, entry) {
     html += `<div class="disclaimer-yellow">📋 ผลนี้เป็นการวิเคราะห์เบื้องต้นโดย AI · อาจมีความคลาดเคลื่อน กรุณาใช้วิจารณญาณประกอบ</div>`;
 
     // Overall result banner
+    const sheetsUsed = entry.sheetsUsed || [];
     html += `<div style="background:${rbg(result.overall_result)};border:2px solid ${rcol(result.overall_result)};border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:18px;">
       <div style="font-size:44px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[result.overall_result]||'•'}</div>
       <div style="flex:1;">
@@ -1059,6 +1062,7 @@ function renderResults(result, errMsg, entry) {
           ${cnt('N/A') > 0 ? `<span style="color:#64748b;">— ${cnt('N/A')} N/A</span>` : ''}
         </div>
         ${fails.length > 0 ? `<div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v]) => sev(k) > 0 ? `<span style="padding:2px 9px;border-radius:12px;background:${v.bg};color:${v.color};font-weight:700;font-size:11px;">${v.label}: ${sev(k)}</span>` : '').join('')}</div>` : ''}
+        ${sheetsUsed.length ? `<div style="margin-top:9px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:#64748b;font-weight:600;">📊 ตรวจจาก:</span>${sheetsUsed.map(s=>`<span style="padding:2px 8px;background:rgba(0,50,199,.1);color:#0032c7;border-radius:8px;font-size:11px;font-weight:600;">${s}</span>`).join('')}</div>` : ''}
       </div>
     </div>`;
 
@@ -1123,7 +1127,13 @@ function renderResults(result, errMsg, entry) {
         </tbody></table></div>`;
     }
 
-    html += `<div style="font-size:10px;color:#94a3b8;margin-bottom:12px;">* ผลการวิเคราะห์โดย AI · Quick Check เมื่อ ${new Date().toLocaleString('th-TH')}</div>`;
+    const cl1Info = getMd('cl1');
+    const cl2Info = getMd('cl2');
+    html += `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;line-height:1.9;">
+      * ผลการวิเคราะห์โดย AI · Quick Check เมื่อ ${new Date().toLocaleString('th-TH')}<br>
+      📋 Checklist: <strong style="color:#475569;">${cl1Info?.filename || 'Demo Checklist'}</strong>${cl2Info?.text ? ` + <strong style="color:#475569;">${cl2Info.filename||'Secondary'}</strong>` : ''}
+      ${sheetsUsed.length ? ` · Sheets: <strong style="color:#475569;">${sheetsUsed.join(', ')}</strong>` : ''}
+    </div>`;
     html += `<div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">
       <button class="btn-ghost" onclick="savePDF('result','${entry.acaNumber}')">💾 PDF</button>
       <button class="btn-ghost" onclick="window.print()">🖨️ Print</button>
@@ -1207,9 +1217,11 @@ function renderHistory() {
         <div style="margin-top:7px;display:flex;gap:5px;flex-wrap:wrap;">${filterBtns}</div>
         ${rangePicker}
       </div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;">
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start;">
         <button onclick="exportCSV('all')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
         <button onclick="exportAllExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
+        <button onclick="clearHistoryFiltered()" class="btn-sm" style="background:#fff;border:1.5px solid #f59e0b;color:#92400e;" title="ลบเฉพาะรายการที่กรองอยู่">🗑️ ลบที่กรอง</button>
+        <button onclick="clearHistoryAll()" class="btn-sm" style="background:#fff;border:1.5px solid #ef4444;color:#dc2626;" title="ลบประวัติทั้งหมด">🗑️ ล้างทั้งหมด</button>
       </div>
     </div>`;
 
@@ -1261,6 +1273,7 @@ function renderHistory() {
         <button onclick="downloadHistoryExcel('${c.id||c.acaNumber}')" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📥 Excel</button>
         <button onclick="exportCSV('single','${c.id||c.acaNumber}')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
         <button onclick="savePDF('result','${c.id||c.acaNumber}')" class="btn-sm" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;">💾 PDF</button>
+        <button onclick="deleteHistoryItem('${c.id||c.acaNumber}')" class="btn-sm" style="background:#fff;border:1.5px solid #ef4444;color:#dc2626;" title="ลบรายการนี้">🗑️</button>
       </div>
     </div>`;
   }).join('');
@@ -1905,15 +1918,64 @@ function restoreData() {
 }
 
 // ═══════════════════════════════════════════════════════
-// CLEAR HISTORY
+// DELETE / CLEAR HISTORY
 // ═══════════════════════════════════════════════════════
-function clearHistory() {
-  if (!confirm('ลบประวัติ Quick Check ทั้งหมด?\nไม่สามารถย้อนกลับได้')) return;
-  localStorage.removeItem('case_history');
-  caseHistory = [];
-  flash('🗑️ ล้างประวัติแล้ว', '#fef2f2', '#dc2626');
-  renderDashboard();
+
+// ลบรายการเดียว (จาก History card)
+function deleteHistoryItem(id) {
+  const entry = caseHistory.find(c => c.acaNumber === String(id) || String(c.id) === String(id));
+  const label = entry ? (entry.acaNumber || id) : id;
+  if (!confirm(`ลบรายการ ${label} ออกจากประวัติ?\n(ลบเฉพาะในเครื่องนี้)`)) return;
+  caseHistory = caseHistory.filter(c => c.acaNumber !== String(id) && String(c.id) !== String(id));
+  DB.lsSet('case_history', caseHistory);
+  flash(`🗑️ ลบ ${label} แล้ว`, '#fef2f2', '#dc2626');
+  renderHistory();
 }
+
+// ลบเฉพาะรายการที่กรองอยู่ในปัจจุบัน (ปุ่ม "ลบที่กรอง")
+function clearHistoryFiltered() {
+  const isAdmin = getRoleDef(currentRole).canAdmin;
+  const myTeam  = currentAcc?.team || '';
+  const scopedItems = isAdmin ? caseHistory : caseHistory.filter(c => {
+    const acc = getAccounts().find(a => a.username === c.submittedBy);
+    return acc?.team === myTeam;
+  });
+  const toDelete = applyHistFilter(scopedItems);
+  if (!toDelete.length) { flash('ไม่มีรายการในช่วงที่เลือก', '#fffbeb', '#92400e'); return; }
+  const filterLabel = {all:'ทั้งหมด', today:'วันนี้', month:'เดือนนี้', year:'ปีนี้', range:'ช่วงที่เลือก'}[histFilter] || '';
+  if (!confirm(`ลบ ${toDelete.length} รายการ (${filterLabel})?\nไม่สามารถย้อนกลับได้`)) return;
+  const deleteIds = new Set(toDelete.map(c => c.acaNumber || c.id));
+  caseHistory = caseHistory.filter(c => !deleteIds.has(c.acaNumber || c.id));
+  DB.lsSet('case_history', caseHistory);
+  flash(`🗑️ ลบ ${toDelete.length} รายการแล้ว`, '#fef2f2', '#dc2626');
+  renderHistory();
+}
+
+// ล้างทั้งหมด (Admin = ทุก record, User = เฉพาะทีมตัวเอง)
+function clearHistoryAll() {
+  const isAdmin = getRoleDef(currentRole).canAdmin;
+  const myTeam  = currentAcc?.team || '';
+  const total = isAdmin
+    ? caseHistory.length
+    : caseHistory.filter(c => { const acc = getAccounts().find(a => a.username === c.submittedBy); return acc?.team === myTeam; }).length;
+  if (!total) { flash('ไม่มีประวัติ', '#fffbeb', '#92400e'); return; }
+  if (!confirm(`ลบประวัติ${isAdmin ? 'ทั้งหมด' : 'ของทีมคุณ'} (${total} รายการ)?\nไม่สามารถย้อนกลับได้`)) return;
+  if (isAdmin) {
+    caseHistory = [];
+    localStorage.removeItem('case_history');
+  } else {
+    caseHistory = caseHistory.filter(c => {
+      const acc = getAccounts().find(a => a.username === c.submittedBy);
+      return acc?.team !== myTeam;
+    });
+    DB.lsSet('case_history', caseHistory);
+  }
+  flash(`🗑️ ล้าง ${total} รายการแล้ว`, '#fef2f2', '#dc2626');
+  renderHistory();
+}
+
+// Alias ใช้ใน Dashboard
+function clearHistory() { clearHistoryAll(); }
 
 // ═══════════════════════════════════════════════════════
 // INIT
