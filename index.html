@@ -795,10 +795,24 @@ function switchTab(name) {
   if (name === 'admin')     renderAdmin();
   if (name === 'accounts')  renderAccountsTab();
 }
-document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => { if (!btn.classList.contains('disabled')) switchTab(btn.dataset.tab); }));
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+  if (btn.classList.contains('disabled')) return;
+  // ถ้ากด Input tab หลังจากตรวจเสร็จแล้ว → auto reset
+  if (btn.dataset.tab === 'input' && lastResult) {
+    newJob();
+  } else {
+    switchTab(btn.dataset.tab);
+  }
+}));
 
 function newJob() {
   mediaFiles = []; document.getElementById('file-list').innerHTML = ''; lastResult = null;
+  // reset form fields
+  ['f-projtype','f-projstatus','f-media'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.getElementById('f-status-wrap').style.display = 'none';
+  document.getElementById('sheets-card').style.display = 'none';
+  document.getElementById('chk-ai-ack').checked = false;
+  document.querySelectorAll('[data-offer]').forEach((b,i) => b.classList.toggle('active', i === 0));
   document.getElementById('tab-res-btn')?.classList.add('disabled');
   document.getElementById('btn-new-job').style.display = 'none';
   switchTab('input'); updateReadiness();
@@ -1127,6 +1141,31 @@ function renderResults(result, errMsg, entry) {
         </tbody></table></div>`;
     }
 
+    // ── Attached files strip in main ──
+    const entryFiles = entry.attachedFiles || [];
+    if (entryFiles.length) {
+      const imgFiles = entryFiles.filter(f => ['jpg','jpeg','png','webp','gif'].includes((f.name||'').split('.').pop().toLowerCase()));
+      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:13px;">
+        <div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:9px;">🖼️ ไฟล์ที่ใช้ตรวจ (${entryFiles.length} ไฟล์)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${imgFiles.map(f => {
+            const src = f.localURL || f.gDriveLink || '';
+            return src ? `<div style="position:relative;">
+              <img src="${src}" style="width:120px;height:90px;object-fit:cover;border-radius:7px;border:1px solid #e2e8f0;cursor:pointer;" onerror="this.parentElement.style.display='none'" onclick="window.open('${src}')" alt="${esc(f.name)}" title="${esc(f.name)}">
+              <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.52);color:#fff;font-size:9px;padding:2px 5px;border-radius:0 0 6px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name)}</div>
+            </div>` : '';
+          }).join('')}
+          ${entryFiles.filter(f => !['jpg','jpeg','png','webp','gif'].includes((f.name||'').split('.').pop().toLowerCase())).map(f => {
+            const ext = (f.name||'').split('.').pop().toLowerCase();
+            const icon = {pdf:'📕',mp4:'🎬',mov:'🎬',txt:'📄',csv:'📊'}[ext]||'📎';
+            const src  = f.localURL || f.gDriveLink || '';
+            return `<div style="width:120px;height:90px;border:1px solid #e2e8f0;border-radius:7px;background:#f8faff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:${src?'pointer':'default'};" ${src?`onclick="window.open('${src}')"`:''}><span style="font-size:28px;">${icon}</span><span style="font-size:9px;color:#64748b;padding:0 6px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;">${esc(f.name)}</span></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
+
+
     const cl1Info = getMd('cl1');
     const cl2Info = getMd('cl2');
     html += `<div style="font-size:11px;color:#94a3b8;margin-bottom:12px;line-height:1.9;">
@@ -1152,6 +1191,34 @@ function renderResults(result, errMsg, entry) {
     [['ผู้ตรวจ',entry.submitterName],['ทีม',entry.submitterRole],['ประเภทโครงการ',entry.projectType],['ประเภทสื่อ',entry.mediaLabel||entry.mediaType]].forEach(([l,v]) => {
       if (v) sh += `<div style="margin-bottom:7px;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;">${l}</div><div style="font-size:12px;font-weight:500;color:#1e293b;">${esc(v)}</div></div>`;
     });
+    // ── File thumbnails ──
+    const files = entry.attachedFiles || [];
+    if (files.length) {
+      sh += `<div style="border-top:1px solid #e8effe;padding-top:9px;margin-top:8px;">
+        <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;font-weight:700;margin-bottom:7px;">📎 ไฟล์แนบ (${files.length})</div>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          ${files.map(f => {
+            const ext = (f.name||'').split('.').pop().toLowerCase();
+            const isImgF = ['jpg','jpeg','png','webp','gif'].includes(ext);
+            const isPdf = ext === 'pdf';
+            const isVid = ['mp4','mov','avi','webm'].includes(ext);
+            const src   = f.localURL || f.gDriveLink || '';
+            let preview = '';
+            if (isImgF && src) {
+              preview = `<img src="${src}" style="width:100%;max-height:160px;object-fit:contain;border-radius:6px;background:#000;display:block;" onerror="this.style.display='none'" alt="${esc(f.name)}">`;
+            } else if (isPdf && src) {
+              preview = `<iframe src="${src}" style="width:100%;height:180px;border:none;border-radius:6px;" title="${esc(f.name)}"></iframe>`;
+            } else if (isVid && src) {
+              preview = `<video controls style="width:100%;max-height:140px;background:#000;border-radius:6px;display:block;" preload="metadata"><source src="${src}">ไม่รองรับวิดีโอ</video>`;
+            }
+            return `<div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8faff;">
+              ${preview}
+              <div style="padding:5px 8px;font-size:10px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(f.name)}">${ext==='pdf'?'📕':isVid?'🎬':isImgF?'🖼️':'📎'} ${esc(f.name)}</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    }
     sh += `<div style="border-top:1px solid #e8effe;padding-top:8px;margin-top:7px;font-size:10px;color:#94a3b8;">ตรวจเมื่อ: ${new Date().toLocaleString('th-TH')}</div>`;
   }
   side.innerHTML = sh;
@@ -1220,8 +1287,7 @@ function renderHistory() {
       <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start;">
         <button onclick="exportCSV('all')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
         <button onclick="exportAllExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
-        <button onclick="clearHistoryFiltered()" class="btn-sm" style="background:#fff;border:1.5px solid #f59e0b;color:#92400e;" title="ลบเฉพาะรายการที่กรองอยู่">🗑️ ลบที่กรอง</button>
-        <button onclick="clearHistoryAll()" class="btn-sm" style="background:#fff;border:1.5px solid #ef4444;color:#dc2626;" title="ลบประวัติทั้งหมด">🗑️ ล้างทั้งหมด</button>
+
       </div>
     </div>`;
 
@@ -1492,6 +1558,19 @@ function renderAdmin() {
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-bottom:7px;"><input id="aca-sv" type="number" min="1" placeholder="ตั้งค่า running number" style="flex:1;padding:6px 9px;border:1.5px solid #bfdbfe;border-radius:7px;font-size:12px;outline:none;"/><button onclick="setACAManual()" class="btn-navy btn-sm">ตั้ง</button></div>
           <button onclick="if(confirm('Reset ACA → 0001?')){localStorage.setItem('acaCounter','0');localStorage.setItem('acaYear','${aca.yr}');renderAdmin();flash('✅ Reset ACA แล้ว');}" style="padding:5px 12px;background:#fee2e2;border:none;border-radius:6px;cursor:pointer;font-size:11px;color:#dc2626;font-weight:600;">🔄 Reset → 0001</button>
+        </div>
+
+        <!-- DANGER ZONE: ล้างข้อมูลทั้งหมด -->
+        <div class="card" style="border:2px solid #fecaca;background:#fff;">
+          <div class="admin-section-title" style="color:#dc2626;border-bottom-color:#fecaca;">🗑️ ล้างข้อมูล (Danger Zone)</div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:7px;padding:9px 12px;font-size:12px;color:#7f1d1d;line-height:1.7;margin-bottom:12px;">
+            ⚠️ การล้างข้อมูลจะ <strong>ลบ History และ Dashboard ทั้งหมด</strong> และ <strong>รีเซ็ต ACA กลับเป็น 0001</strong><br>
+            แนะนำให้ <strong>Export Backup ก่อน</strong> ทุกครั้ง
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button onclick="backupData()" class="btn-sm" style="background:#d8ead8;color:#14532d;border:1px solid #a3c4a3;padding:8px 14px;font-weight:700;">💾 Export Backup ก่อน</button>
+            <button onclick="adminFullReset()" style="padding:8px 18px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;">🗑️ ล้างข้อมูลทั้งหมด + Reset ACA 0001</button>
+          </div>
         </div>
 
         <!-- EXPORT -->
@@ -1989,6 +2068,27 @@ function clearHistoryAll() {
 
 // Alias ใช้ใน Dashboard button
 function clearHistory() { clearHistoryAll(); }
+
+// Full reset จาก Admin — ล้าง history + reset ACA → 0001
+function adminFullReset() {
+  if (!confirm('⚠️ ล้างข้อมูลทั้งหมด + รีเซ็ต ACA กลับเป็น 0001?\n\nสิ่งที่จะถูกลบ:\n- ประวัติ Quick Check ทั้งหมด\n- ACA counter (เริ่มนับใหม่ 0001)\n\nไม่สามารถย้อนกลับได้')) return;
+  // Clear history
+  caseHistory = [];
+  localStorage.removeItem('case_history');
+  DB.lsSet('case_history', []);
+  // Reset ACA
+  const yr = new Date().getFullYear();
+  localStorage.setItem('acaCounter', '0');
+  localStorage.setItem('acaYear', String(yr));
+  // Re-render all active panels
+  flash('✅ ล้างข้อมูลทั้งหมดแล้ว · ACA รีเซ็ตเป็น ' + yr + '0001', '#d8ead8', '#14532d');
+  renderAdmin();
+  // ถ้า history/dashboard tab เปิดอยู่ให้ refresh ด้วย
+  const histPanel = document.getElementById('panel-history');
+  const dashPanel = document.getElementById('panel-dashboard');
+  if (histPanel && histPanel.style.display !== 'none') renderHistory();
+  if (dashPanel && dashPanel.style.display !== 'none') renderDashboard();
+}
 
 // ═══════════════════════════════════════════════════════
 // INIT
