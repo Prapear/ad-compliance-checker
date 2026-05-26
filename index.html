@@ -1919,7 +1919,23 @@ function restoreData() {
 
 // ═══════════════════════════════════════════════════════
 // DELETE / CLEAR HISTORY
+// helper: หลังแก้ caseHistory ให้ sync storage แล้ว re-render ทุก tab ที่เปิดอยู่
 // ═══════════════════════════════════════════════════════
+function _afterHistoryChange(msg) {
+  // 1. บันทึก localStorage ทันที
+  DB.lsSet('case_history', caseHistory);
+  // 2. flash
+  flash(msg, '#fef2f2', '#dc2626');
+  // 3. re-render ทั้ง History และ Dashboard พร้อมกัน (ข้อมูลเดิมกัน)
+  const histPanel  = document.getElementById('panel-history');
+  const dashPanel  = document.getElementById('panel-dashboard');
+  const histActive = histPanel  && histPanel.style.display  !== 'none';
+  const dashActive = dashPanel  && dashPanel.style.display  !== 'none';
+  if (histActive)  renderHistory();
+  if (dashActive)  renderDashboard();
+  // ถ้า tab ไหนไม่ได้เปิดอยู่ ก็ให้ render ตอนที่ user switch ไปเองผ่าน switchTab()
+  // (switchTab เรียก renderHistory/renderDashboard อยู่แล้ว — ไม่ต้องทำอะไรเพิ่ม)
+}
 
 // ลบรายการเดียว (จาก History card)
 function deleteHistoryItem(id) {
@@ -1927,9 +1943,7 @@ function deleteHistoryItem(id) {
   const label = entry ? (entry.acaNumber || id) : id;
   if (!confirm(`ลบรายการ ${label} ออกจากประวัติ?\n(ลบเฉพาะในเครื่องนี้)`)) return;
   caseHistory = caseHistory.filter(c => c.acaNumber !== String(id) && String(c.id) !== String(id));
-  DB.lsSet('case_history', caseHistory);
-  flash(`🗑️ ลบ ${label} แล้ว`, '#fef2f2', '#dc2626');
-  renderHistory();
+  _afterHistoryChange(`🗑️ ลบ ${label} แล้ว`);
 }
 
 // ลบเฉพาะรายการที่กรองอยู่ในปัจจุบัน (ปุ่ม "ลบที่กรอง")
@@ -1946,9 +1960,7 @@ function clearHistoryFiltered() {
   if (!confirm(`ลบ ${toDelete.length} รายการ (${filterLabel})?\nไม่สามารถย้อนกลับได้`)) return;
   const deleteIds = new Set(toDelete.map(c => c.acaNumber || c.id));
   caseHistory = caseHistory.filter(c => !deleteIds.has(c.acaNumber || c.id));
-  DB.lsSet('case_history', caseHistory);
-  flash(`🗑️ ลบ ${toDelete.length} รายการแล้ว`, '#fef2f2', '#dc2626');
-  renderHistory();
+  _afterHistoryChange(`🗑️ ลบ ${toDelete.length} รายการแล้ว`);
 }
 
 // ล้างทั้งหมด (Admin = ทุก record, User = เฉพาะทีมตัวเอง)
@@ -1963,6 +1975,8 @@ function clearHistoryAll() {
   if (isAdmin) {
     caseHistory = [];
     localStorage.removeItem('case_history');
+    // ต้องเขียน empty array ให้ชัดเจน ไม่ให้ loadState() โหลดกลับมาจาก Sheets อีก
+    DB.lsSet('case_history', []);
   } else {
     caseHistory = caseHistory.filter(c => {
       const acc = getAccounts().find(a => a.username === c.submittedBy);
@@ -1970,11 +1984,10 @@ function clearHistoryAll() {
     });
     DB.lsSet('case_history', caseHistory);
   }
-  flash(`🗑️ ล้าง ${total} รายการแล้ว`, '#fef2f2', '#dc2626');
-  renderHistory();
+  _afterHistoryChange(`🗑️ ล้าง ${total} รายการแล้ว`);
 }
 
-// Alias ใช้ใน Dashboard
+// Alias ใช้ใน Dashboard button
 function clearHistory() { clearHistoryAll(); }
 
 // ═══════════════════════════════════════════════════════
