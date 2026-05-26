@@ -1012,8 +1012,36 @@ function renderResults(result, errMsg, entry) {
   }
   if (result && entry) {
     const cl = result.checklist_results || [];
+
+    // ── Normalise result values (AI บางครั้งใช้ตัวพิมพ์เล็ก หรือ "pass"/"fail" แทน "PASS"/"FAIL")
+    cl.forEach(r => {
+      if (r.result) r.result = r.result.toUpperCase().trim();
+      // map variants
+      if (r.result === 'PASS WITH CONDITION') r.result = 'PASS WITH CONDITIONS';
+      if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
+    });
+
     const cnt = v => cl.filter(r => r.result === v).length;
     const sev = s => cl.filter(r => r.severity === s && r.result === 'FAIL').length;
+    const fails    = cl.filter(r => r.result === 'FAIL');
+    const passes   = cl.filter(r => r.result === 'PASS');
+    const conds    = cl.filter(r => r.result === 'PASS WITH CONDITIONS');
+    const nas      = cl.filter(r => r.result === 'N/A');
+
+    // ── Shared row renderer ──
+    const renderRow = (row, i, showFinding = true) => {
+      const cfg = SEV_CFG[row.severity] || {label: row.severity||'—', bg:'#f1f5f9', color:'#64748b'};
+      return `<tr style="background:${i%2?'#fafafa':'#fff'};">
+        <td style="font-weight:600;font-size:13px;">${esc(row.topic||'—')}</td>
+        <td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
+        <td style="line-height:1.65;font-size:13px;">
+          ${row.finding    ? `<div>${esc(row.finding)}</div>` : ''}
+          ${row.missing    ? `<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>` : ''}
+          ${row.recommendation ? `<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>` : ''}
+          ${!row.finding && !row.missing && !row.recommendation ? '<span style="color:#94a3b8;font-size:12px;">—</span>' : ''}
+        </td>
+      </tr>`;
+    };
 
     html += `<div class="disclaimer-yellow">📋 ผลนี้เป็นการวิเคราะห์เบื้องต้นโดย AI · อาจมีความคลาดเคลื่อน กรุณาใช้วิจารณญาณประกอบ</div>`;
 
@@ -1023,32 +1051,67 @@ function renderResults(result, errMsg, entry) {
       <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">${entry.acaNumber ? `<span class="aca-badge">${entry.acaNumber}</span>` : ''}</div>
         <div style="font-size:24px;font-weight:800;color:${rcol(result.overall_result)};">${result.overall_result}</div>
-        <div style="font-size:12px;color:#475569;margin-top:3px;">ตรวจ ${cl.length} ข้อ · ✓ ${cnt('PASS')} · ✕ ${cnt('FAIL')}</div>
-        ${cnt('FAIL') > 0 ? `<div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v]) => sev(k) > 0 ? `<span style="padding:2px 9px;border-radius:12px;background:${v.bg};color:${v.color};font-weight:700;font-size:11px;">${v.label}: ${sev(k)}</span>` : '').join('')}</div>` : ''}
+        <div style="font-size:12px;color:#475569;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
+          <span>ตรวจ <strong>${cl.length}</strong> ข้อ</span>
+          ${cnt('PASS') > 0 ? `<span style="color:#16a34a;font-weight:700;">✓ ${cnt('PASS')} ผ่าน</span>` : ''}
+          ${cnt('FAIL') > 0 ? `<span style="color:#dc2626;font-weight:700;">✕ ${cnt('FAIL')} ต้องแก้</span>` : ''}
+          ${cnt('PASS WITH CONDITIONS') > 0 ? `<span style="color:#92400e;font-weight:700;">⚠ ${cnt('PASS WITH CONDITIONS')} มีเงื่อนไข</span>` : ''}
+          ${cnt('N/A') > 0 ? `<span style="color:#64748b;">— ${cnt('N/A')} N/A</span>` : ''}
+        </div>
+        ${fails.length > 0 ? `<div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v]) => sev(k) > 0 ? `<span style="padding:2px 9px;border-radius:12px;background:${v.bg};color:${v.color};font-weight:700;font-size:11px;">${v.label}: ${sev(k)}</span>` : '').join('')}</div>` : ''}
       </div>
     </div>`;
 
     // Summary
-    html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:14px;"><h3 style="color:${NAVY};margin:0 0 7px;font-size:13px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:13px;">${esc(result.overall_summary)}</p></div>`;
+    if (result.overall_summary) {
+      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:14px;"><h3 style="color:${NAVY};margin:0 0 7px;font-size:13px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:13px;">${esc(result.overall_summary)}</p></div>`;
+    }
 
-    // FAIL table
-    const fails = cl.filter(r => r.result === 'FAIL');
+    // ── FAIL table ──
     if (fails.length) {
       html += `<div style="background:#fff;border:1px solid #fecaca;border-radius:10px;margin-bottom:13px;overflow:hidden;">
-        <div style="padding:10px 16px;background:#fef2f2;border-bottom:1px solid #fecaca;"><h3 style="color:#dc2626;margin:0;font-size:13px;">⚠️ ต้องแก้ไข (${fails.length})</h3></div>
-        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>สิ่งที่พบ</th></tr></thead><tbody>
-        ${fails.map((row,i) => {const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};return`<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="font-weight:600;">${esc(row.topic||'')}</td><td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td><td style="line-height:1.6;">${row.finding?`<div>${esc(row.finding)}</div>`:''} ${row.missing?`<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>`:''} ${row.recommendation?`<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>`:''}</td></tr>`;}).join('')}
+        <div style="padding:10px 16px;background:#fef2f2;border-bottom:1px solid #fecaca;"><h3 style="color:#dc2626;margin:0;font-size:13px;">❌ ต้องแก้ไข (${fails.length})</h3></div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
+        ${fails.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
     }
 
-    // PASS table
-    const passes = cl.filter(r => r.result === 'PASS');
+    // ── PASS WITH CONDITIONS table ──
+    if (conds.length) {
+      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:10px;margin-bottom:13px;overflow:hidden;">
+        <div style="padding:10px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;"><h3 style="color:#92400e;margin:0;font-size:13px;">⚠️ ผ่านแบบมีเงื่อนไข (${conds.length})</h3></div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
+        ${conds.map((row,i) => renderRow(row,i)).join('')}
+        </tbody></table></div></div>`;
+    }
+
+    // ── PASS table ──
     if (passes.length) {
       html += `<div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><h3 style="color:#15803d;margin:0;font-size:13px;">✅ ผ่านเกณฑ์ (${passes.length})</h3></div>
-        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>สิ่งที่พบ</th></tr></thead><tbody>
-        ${passes.map((row,i) => {const cfg=SEV_CFG[row.severity]||{label:row.severity,bg:'#f1f5f9',color:'#64748b'};return`<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="font-weight:600;">${esc(row.topic||'')}</td><td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td><td style="color:#374151;font-size:12px;">${esc(row.finding||'')}</td></tr>`;}).join('')}
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
+        ${passes.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
+    }
+
+    // ── N/A table (แสดงเสมอถ้ามี) ──
+    if (nas.length) {
+      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
+        <div style="padding:10px 16px;background:#f8faff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="color:#64748b;margin:0;font-size:13px;">— ไม่นำมาตรวจ / ไม่เกี่ยวข้อง (N/A) (${nas.length})</h3>
+          <button onclick="this.closest('div').nextElementSibling?.classList.toggle('hidden-table')" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
+        </div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>หมายเหตุ</th></tr></thead><tbody>
+        ${nas.map((row,i) => `<tr style="background:${i%2?'#fafafa':'#fff'};opacity:.75;"><td style="font-size:13px;">${esc(row.topic||'—')}</td><td><span style="font-size:11px;color:#94a3b8;">—</span></td><td style="font-size:12px;color:#64748b;">${esc(row.finding||row.recommendation||'ไม่เกี่ยวข้องกับงานนี้')}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    }
+
+    // ── ถ้าไม่มีข้อมูล checklist เลย (AI ตอบแค่ overall) ──
+    if (cl.length === 0) {
+      html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+        <div style="font-size:13px;color:#78350f;font-weight:700;margin-bottom:5px;">⚠️ AI ไม่ส่ง Checklist รายข้อ</div>
+        <div style="font-size:12px;color:#92400e;line-height:1.7;">ลองตรวจใหม่อีกครั้ง หรือตรวจสอบว่า Checklist ถูกตั้งค่าใน Admin แล้ว</div>
+      </div>`;
     }
 
     // Forbidden words
@@ -1160,10 +1223,13 @@ function renderHistory() {
   }
 
   const rows = page.map(c => {
-    const cl = c.checklist_results || [];
-    const fails = cl.filter(r => r.result === 'FAIL');
-    const flags = c.forbidden_words?.length || 0;
-    const files = c.attachedFiles || [];
+    const cl = (c.checklist_results || []).map(r => ({...r, result:(r.result||'N/A').toUpperCase().trim()}));
+    const fails  = cl.filter(r => r.result === 'FAIL');
+    const passes = cl.filter(r => r.result === 'PASS');
+    const conds  = cl.filter(r => r.result === 'PASS WITH CONDITIONS');
+    const nas    = cl.filter(r => r.result === 'N/A');
+    const flags  = c.forbidden_words?.length || 0;
+    const files  = c.attachedFiles || [];
     return `<div style="padding:13px 16px;border-bottom:1px solid #f1f5f9;">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;margin-bottom:5px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
@@ -1176,16 +1242,19 @@ function renderHistory() {
       <div style="font-size:12px;color:#64748b;margin-bottom:5px;">${esc(c.submitterName||'')} ${c.submitterRole?'· '+esc(c.submitterRole):''}</div>
       ${c.overall_summary ? `<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:5px;">${esc(c.overall_summary)}</div>` : ''}
       <div style="display:flex;gap:10px;margin-bottom:7px;flex-wrap:wrap;">
-        <span style="font-size:11px;color:#64748b;">ตรวจ <strong>${cl.length}</strong></span>
-        <span style="font-size:11px;color:#16a34a;font-weight:700;">✓ ${cl.filter(r=>r.result==='PASS').length}</span>
-        <span style="font-size:11px;color:#dc2626;font-weight:700;">✕ ${fails.length}</span>
-        ${flags ? `<span style="font-size:11px;color:#f59e0b;font-weight:700;">⚠️ ${flags}</span>` : ''}
+        <span style="font-size:11px;color:#64748b;">ตรวจ <strong>${cl.length}</strong> ข้อ</span>
+        ${passes.length ? `<span style="font-size:11px;color:#16a34a;font-weight:700;">✓ ${passes.length} ผ่าน</span>` : ''}
+        ${fails.length  ? `<span style="font-size:11px;color:#dc2626;font-weight:700;">✕ ${fails.length} ต้องแก้</span>` : ''}
+        ${conds.length  ? `<span style="font-size:11px;color:#92400e;font-weight:700;">⚠ ${conds.length} เงื่อนไข</span>` : ''}
+        ${nas.length    ? `<span style="font-size:11px;color:#94a3b8;">— ${nas.length} N/A</span>` : ''}
+        ${flags         ? `<span style="font-size:11px;color:#f59e0b;font-weight:700;">🚩 ${flags} keyword</span>` : ''}
       </div>
-      ${fails.length ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:7px;padding:7px 10px;margin-bottom:7px;">
-        <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:5px;">✕ Fail (${fails.length})</div>
-        ${fails.slice(0,4).map(r=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #fee2e2;"><strong style="color:#1e293b;">${esc(r.topic||'')}</strong>${r.finding?` — ${esc(r.finding)}`:''}</div>`).join('')}
-        ${fails.length>4?`<div style="font-size:11px;color:#94a3b8;margin-top:3px;">...อีก ${fails.length-4} รายการ</div>`:''}
+      ${fails.length||conds.length ? `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:7px;padding:7px 10px;margin-bottom:7px;">
+        <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:5px;">${fails.length?`✕ Fail (${fails.length})`:''}${conds.length?` ⚠ เงื่อนไข (${conds.length})`:''}</div>
+        ${[...fails,...conds].slice(0,4).map(r=>`<div style="font-size:12px;padding:3px 0;border-bottom:1px solid #fee2e2;"><strong>${esc(r.topic||'—')}</strong>${r.finding?` — <span style="color:#64748b;">${esc(r.finding)}</span>`:''}</div>`).join('')}
+        ${[...fails,...conds].length>4?`<div style="font-size:11px;color:#94a3b8;margin-top:3px;">...อีก ${[...fails,...conds].length-4} รายการ</div>`:''}
       </div>` : ''}
+      ${!cl.length ? `<div style="font-size:11px;color:#94a3b8;padding:5px 0;margin-bottom:7px;">ไม่มี Checklist รายข้อ</div>` : ''}
       ${files.length ? `<div style="margin-bottom:7px;display:flex;flex-wrap:wrap;gap:5px;">${files.map(f=>{const ext=(f.name||'').split('.').pop().toLowerCase();const isI=['jpg','jpeg','png','webp','gif'].includes(ext);return`<div style="padding:3px 8px;background:#f8faff;border:1px solid #e2e8f0;border-radius:5px;font-size:10px;display:flex;align-items:center;gap:4px;">${isI&&f.localURL?`<img src="${f.localURL}" style="width:20px;height:20px;object-fit:cover;border-radius:2px;">`:fIcon(ext)}<span style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(f.name)}</span></div>`;}).join('')}</div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button onclick="viewDetail('${c.id||c.acaNumber}')" class="btn-navy btn-sm">🔍 Detail</button>
