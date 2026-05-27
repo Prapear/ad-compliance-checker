@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Ad Compliance Checker v4.2</title>
+<title>Ad Compliance Checker v4.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -134,7 +134,6 @@ textarea.inp{resize:vertical;}
 #app-footer{background:var(--blue);color:rgba(255,255,255,.7);text-align:center;padding:10px 20px;font-size:12px;line-height:1.9;margin-top:auto;}
 
 @media print{#main-header,#tab-bar,#app-footer,#login-screen,.no-print{display:none!important;}}
-.hidden-table{display:none;}
 </style>
 </head>
 <body>
@@ -334,7 +333,7 @@ textarea.inp{resize:vertical;}
 <div id="panel-accounts" style="display:none;padding:20px 24px;max-width:860px;margin:0 auto;"></div>
 
 <footer id="app-footer" style="display:none;">
-  <strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v4.2<br>
+  <strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v4.3<br>
   <span style="font-size:11px;opacity:.6;">ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น | <span id="footer-conn">ระบบ: Local Mode</span></span>
 </footer>
 
@@ -923,6 +922,21 @@ async function handleSubmit() {
 
     const aca = genACA();
     const cl = result.checklist_results || [];
+
+    // ── Normalise result values ก่อน save entry
+    cl.forEach(r => {
+      if (r.result) r.result = r.result.toUpperCase().trim();
+      if (r.result === 'PASS WITH CONDITION') r.result = 'PASS WITH CONDITIONS';
+      if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
+    });
+
+    // ── VERDICT OVERRIDE (ทำก่อน save entry เสมอ)
+    const _hasAnyFail = cl.some(r => r.result === 'FAIL');
+    const _hasAnyCond = cl.some(r => r.result === 'PASS WITH CONDITIONS');
+    if (_hasAnyFail) result.overall_result = 'FAIL';
+    else if (_hasAnyCond) result.overall_result = 'PASS WITH CONDITIONS';
+    else result.overall_result = 'PASS';
+
     const entry = {
       id: aca, acaNumber: aca, date: new Date().toISOString(),
       projectType: gv('f-projtype'), projectStatus: gv('f-projstatus'),
@@ -981,15 +995,14 @@ ${checklist}
 ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
 
-=== กฎการตัดสิน PASS/FAIL ที่ต้องปฏิบัติอย่างเคร่งครัด ===
-1. result = "PASS" ได้เฉพาะเมื่อ: อ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้ชัดเจน และสามารถ quote ข้อความนั้นได้ตรงๆ ใน evidence field
-2. result = "FAIL" ทุกกรณีที่: ไม่พบข้อมูลในไฟล์ที่ส่งมา หรืออ่านไม่ออก หรือ quote ไม่ได้
-3. ห้ามใช้ result = "PASS" จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท โดยเด็ดขาด
-4. ห้าม hallucinate: ถ้าไม่มีข้อมูลในไฟล์ = FAIL เสมอ ไม่มีข้อยกเว้น
-5. overall_result ต้องเป็น "FAIL" ถ้ามีรายการใดเป็น "FAIL" แม้แต่ 1 รายการ
+=== กฎการตัดสิน PASS/FAIL (ห้ามละเมิด) ===
+1. result="PASS" ได้เฉพาะเมื่ออ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้จริง และ quote ได้ใน evidence
+2. result="FAIL" ทุกกรณีที่ไม่พบ หรืออ่านไม่ออก หรือ quote ไม่ได้
+3. ห้าม PASS จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท
+4. overall_result="FAIL" ถ้ามี FAIL แม้แต่ 1 รายการ
 
 ตอบ JSON:
-{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ ไม่พบในไฟล์","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
 
   const parts = [{text: prompt}];
   for (const f of imgs) { const b = await toB64(f); parts.push({inlineData:{mimeType:fInfo(f).mime, data:b}}); }
@@ -1035,27 +1048,9 @@ function renderResults(result, errMsg, entry) {
     html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:20px;margin-bottom:20px;"><h3 style="color:#dc2626;margin:0 0 10px;">⚠️ เกิดข้อผิดพลาด</h3><div style="color:#7f1d1d;font-size:13px;line-height:1.8;">${esc(errMsg).replace(/\n/g,'<br>')}</div><button class="btn-navy" style="margin-top:12px;" onclick="newJob()">🔄 ตรวจใหม่</button></div>`;
   }
   if (result && entry) {
-    const cl = result.checklist_results || [];
-
-    // ── Normalise result values (AI บางครั้งใช้ตัวพิมพ์เล็ก หรือ "pass"/"fail" แทน "PASS"/"FAIL")
-    cl.forEach(r => {
-      if (r.result) r.result = r.result.toUpperCase().trim();
-      // map variants
-      if (r.result === 'PASS WITH CONDITION') r.result = 'PASS WITH CONDITIONS';
-      if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
-    });
-
-    // ── VERDICT OVERRIDE: ถ้ามี FAIL แม้แต่ 1 รายการ → overall_result ต้องเป็น FAIL เสมอ
-    // AI อาจ hallucinate overall_result เป็น PASS ทั้งที่มีรายการ FAIL อยู่
+    // cl already normalised and verdict already overridden before save — use entry data directly
+    const cl = entry.checklist_results || [];
     const hasAnyFail = cl.some(r => r.result === 'FAIL');
-    const hasAnyCond = cl.some(r => r.result === 'PASS WITH CONDITIONS');
-    if (hasAnyFail) {
-      result.overall_result = 'FAIL';
-    } else if (!hasAnyFail && hasAnyCond) {
-      result.overall_result = 'PASS WITH CONDITIONS';
-    } else if (!hasAnyFail && !hasAnyCond && cl.every(r => r.result === 'PASS' || r.result === 'N/A')) {
-      result.overall_result = 'PASS';
-    }
 
     const cnt = v => cl.filter(r => r.result === v).length;
     const sev = s => cl.filter(r => r.severity === s && r.result === 'FAIL').length;
@@ -1065,13 +1060,13 @@ function renderResults(result, errMsg, entry) {
     const nas      = cl.filter(r => r.result === 'N/A');
 
     // ── Shared row renderer ──
-    const renderRow = (row, i, showFinding = true) => {
+    const renderRow = (row, i) => {
       const cfg = SEV_CFG[row.severity] || {label: row.severity||'—', bg:'#f1f5f9', color:'#64748b'};
       return `<tr style="background:${i%2?'#fafafa':'#fff'};">
         <td style="font-weight:600;font-size:13px;">${esc(row.topic||'—')}</td>
         <td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
         <td style="line-height:1.65;font-size:13px;">
-          ${row.evidence ? `<div style="font-size:11px;color:#475569;background:#f1f5f9;border-radius:4px;padding:3px 7px;margin-bottom:4px;">🔍 <em>${esc(row.evidence)}</em></div>` : ''}
+          ${row.evidence ? `<div style="font-size:11px;color:#64748b;background:#f8faff;border-radius:4px;padding:2px 7px;margin-bottom:4px;">🔍 <em>${esc(row.evidence)}</em></div>` : ''}
           ${row.finding    ? `<div>${esc(row.finding)}</div>` : ''}
           ${row.missing    ? `<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>` : ''}
           ${row.recommendation ? `<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>` : ''}
@@ -1084,16 +1079,16 @@ function renderResults(result, errMsg, entry) {
 
     // Overall result banner
     const sheetsUsed = entry.sheetsUsed || [];
-    html += `<div style="background:${rbg(result.overall_result)};border:2px solid ${rcol(result.overall_result)};border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:18px;">
-      <div style="font-size:44px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[result.overall_result]||'•'}</div>
+    html += `<div style="background:${rbg(entry.overall_result)};border:2px solid ${rcol(entry.overall_result)};border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:18px;">
+      <div style="font-size:44px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[entry.overall_result]||'•'}</div>
       <div style="flex:1;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">${entry.acaNumber ? `<span class="aca-badge">${entry.acaNumber}</span>` : ''}</div>
-        <div style="font-size:24px;font-weight:800;color:${rcol(result.overall_result)};">${result.overall_result}</div>
+        <div style="font-size:24px;font-weight:800;color:${rcol(entry.overall_result)};">${entry.overall_result}</div>
         <div style="font-size:12px;color:#475569;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
           <span>ตรวจ <strong>${cl.length}</strong> ข้อ</span>
-          ${cnt('PASS') > 0 ? `<span style="color:#16a34a;font-weight:700;">✓ ${cnt('PASS')} ผ่าน</span>` : ''}
           ${cnt('FAIL') > 0 ? `<span style="color:#dc2626;font-weight:700;">✕ ${cnt('FAIL')} ต้องแก้</span>` : ''}
           ${cnt('PASS WITH CONDITIONS') > 0 ? `<span style="color:#92400e;font-weight:700;">⚠ ${cnt('PASS WITH CONDITIONS')} มีเงื่อนไข</span>` : ''}
+          ${cnt('PASS') > 0 ? `<span style="color:#16a34a;font-weight:700;">✓ ${cnt('PASS')} ครบถ้วน</span>` : ''}
           ${cnt('N/A') > 0 ? `<span style="color:#64748b;">— ${cnt('N/A')} N/A</span>` : ''}
         </div>
         ${fails.length > 0 ? `<div style="display:flex;gap:5px;margin-top:7px;flex-wrap:wrap;">${Object.entries(SEV_CFG).map(([k,v]) => sev(k) > 0 ? `<span style="padding:2px 9px;border-radius:12px;background:${v.bg};color:${v.color};font-weight:700;font-size:11px;">${v.label}: ${sev(k)}</span>` : '').join('')}</div>` : ''}
@@ -1102,8 +1097,8 @@ function renderResults(result, errMsg, entry) {
     </div>`;
 
     // Summary
-    if (result.overall_summary) {
-      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:14px;"><h3 style="color:${NAVY};margin:0 0 7px;font-size:13px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:13px;">${esc(result.overall_summary)}</p></div>`;
+    if (entry.overall_summary) {
+      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:14px;"><h3 style="color:${NAVY};margin:0 0 7px;font-size:13px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:13px;">${esc(entry.overall_summary)}</p></div>`;
     }
 
     // ── FAIL table ──
@@ -1124,8 +1119,8 @@ function renderResults(result, errMsg, entry) {
         </tbody></table></div></div>`;
     }
 
-    // ── PASS table — แสดงเฉพาะเมื่อ overall_result = PASS หรือ PASS WITH CONDITIONS เท่านั้น
-    // ถ้ามี FAIL อยู่ในผล → ซ่อน PASS section เพื่อไม่ให้เข้าใจผิดว่า "ผ่านเกณฑ์"
+    // ── PASS table — แสดง "✅ ผ่านเกณฑ์" เฉพาะเมื่อไม่มี FAIL เลย
+    // ถ้ามี FAIL อยู่ → พับรายการเหล่านี้ไว้ใต้ section สีเทา ไม่ให้เข้าใจผิด
     if (passes.length && !hasAnyFail) {
       html += `<div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><h3 style="color:#15803d;margin:0;font-size:13px;">✅ ผ่านเกณฑ์ (${passes.length})</h3></div>
@@ -1133,13 +1128,12 @@ function renderResults(result, errMsg, entry) {
         ${passes.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
     } else if (passes.length && hasAnyFail) {
-      // มี FAIL → พับ PASS ไว้ใต้ส่วนยุบได้ ไม่ให้ขึ้น header สีเขียวโดดเด่น
       html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f8faff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
-          <h3 style="color:#64748b;margin:0;font-size:13px;">— รายการที่ครบถ้วนในไฟล์นี้ (${passes.length}) <span style="font-size:11px;font-weight:400;">ยังไม่ถือว่าผ่านเพราะมีรายการ FAIL อยู่</span></h3>
-          <button onclick="this.closest('div').nextElementSibling?.classList.toggle('hidden-table')" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
+          <h3 style="color:#64748b;margin:0;font-size:13px;">— ครบถ้วนในไฟล์นี้ (${passes.length}) <span style="font-size:11px;font-weight:400;color:#94a3b8;">ยังไม่ถือว่าผ่าน เนื่องจากมีรายการ FAIL</span></h3>
+          <button onclick="this.closest('div').nextElementSibling.style.display=this.closest('div').nextElementSibling.style.display==='none'?'':'none'" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
         </div>
-        <div class="hidden-table" style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
+        <div style="display:none;overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
         ${passes.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
     }
