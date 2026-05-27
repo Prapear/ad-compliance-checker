@@ -134,6 +134,7 @@ textarea.inp{resize:vertical;}
 #app-footer{background:var(--blue);color:rgba(255,255,255,.7);text-align:center;padding:10px 20px;font-size:12px;line-height:1.9;margin-top:auto;}
 
 @media print{#main-header,#tab-bar,#app-footer,#login-screen,.no-print{display:none!important;}}
+.hidden-table{display:none;}
 </style>
 </head>
 <body>
@@ -1123,11 +1124,22 @@ function renderResults(result, errMsg, entry) {
         </tbody></table></div></div>`;
     }
 
-    // ── PASS table ──
-    if (passes.length) {
+    // ── PASS table — แสดงเฉพาะเมื่อ overall_result = PASS หรือ PASS WITH CONDITIONS เท่านั้น
+    // ถ้ามี FAIL อยู่ในผล → ซ่อน PASS section เพื่อไม่ให้เข้าใจผิดว่า "ผ่านเกณฑ์"
+    if (passes.length && !hasAnyFail) {
       html += `<div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><h3 style="color:#15803d;margin:0;font-size:13px;">✅ ผ่านเกณฑ์ (${passes.length})</h3></div>
         <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
+        ${passes.map((row,i) => renderRow(row,i)).join('')}
+        </tbody></table></div></div>`;
+    } else if (passes.length && hasAnyFail) {
+      // มี FAIL → พับ PASS ไว้ใต้ส่วนยุบได้ ไม่ให้ขึ้น header สีเขียวโดดเด่น
+      html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
+        <div style="padding:10px 16px;background:#f8faff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
+          <h3 style="color:#64748b;margin:0;font-size:13px;">— รายการที่ครบถ้วนในไฟล์นี้ (${passes.length}) <span style="font-size:11px;font-weight:400;">ยังไม่ถือว่าผ่านเพราะมีรายการ FAIL อยู่</span></h3>
+          <button onclick="this.closest('div').nextElementSibling?.classList.toggle('hidden-table')" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
+        </div>
+        <div class="hidden-table" style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
         ${passes.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
     }
