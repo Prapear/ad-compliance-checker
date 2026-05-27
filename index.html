@@ -260,6 +260,10 @@ textarea.inp{resize:vertical;}
       <div class="card">
         <h3 class="card-title">🗂️ Classification</h3>
         <div class="field">
+          <label class="field-lbl">ชื่องาน / ชื่อสื่อ</label>
+          <input id="f-jobname" class="inp" placeholder="เช่น Culture Chula — Facebook Post มี.ค. 2568" autocomplete="off"/>
+        </div>
+        <div class="field">
           <label class="field-lbl">ประเภทโครงการ *</label>
           <select id="f-projtype" class="inp" onchange="onProjTypeChange()">
             <option value="">— เลือกประเภท —</option>
@@ -525,7 +529,7 @@ function _prepareForSheets(entry) {
 // ═══════════════════════════════════════════════════════
 let mediaFiles = [], lastResult = null, currentRole = null, currentAcc = null, _loadingAbort = false;
 let caseHistory = [];
-let _histPage = 0, histFilter = 'all', histRangeFrom = '', histRangeTo = '';
+let _histPage = 0, histFilter = 'all', histRangeFrom = '', histRangeTo = '', histSearch = '';
 let _dashFilter = {period:'all'}, _dashMonthSel = new Date().getMonth(), _dashYearSel = new Date().getFullYear();
 let _dashRangeFrom = '', _dashRangeTo = '', _trendMode = 'year', _trendRangeFrom = '', _trendRangeTo = '';
 const HIST_PAGE_SIZE = 25;
@@ -923,22 +927,23 @@ async function handleSubmit() {
     const aca = genACA();
     const cl = result.checklist_results || [];
 
-    // ── Normalise result values ก่อน save entry
+    // normalise ก่อน override และ save
     cl.forEach(r => {
       if (r.result) r.result = r.result.toUpperCase().trim();
       if (r.result === 'PASS WITH CONDITION') r.result = 'PASS WITH CONDITIONS';
       if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
     });
 
-    // ── VERDICT OVERRIDE (ทำก่อน save entry เสมอ)
-    const _hasAnyFail = cl.some(r => r.result === 'FAIL');
-    const _hasAnyCond = cl.some(r => r.result === 'PASS WITH CONDITIONS');
-    if (_hasAnyFail) result.overall_result = 'FAIL';
-    else if (_hasAnyCond) result.overall_result = 'PASS WITH CONDITIONS';
-    else result.overall_result = 'PASS';
+    // VERDICT OVERRIDE — ทำก่อน save เสมอ ไม่ให้ entry บันทึกค่าผิด
+    const _anyFail = cl.some(r => r.result === 'FAIL');
+    const _anyCond = cl.some(r => r.result === 'PASS WITH CONDITIONS');
+    if (_anyFail)       result.overall_result = 'FAIL';
+    else if (_anyCond)  result.overall_result = 'PASS WITH CONDITIONS';
+    else                result.overall_result = cl.length ? 'PASS' : result.overall_result;
 
     const entry = {
       id: aca, acaNumber: aca, date: new Date().toISOString(),
+      jobName: gv('f-jobname') || '',
       projectType: gv('f-projtype'), projectStatus: gv('f-projstatus'),
       mediaType: gv('f-media'), mediaLabel: MEDIA_LABEL[gv('f-media')] || gv('f-media'),
       offer: getOffer(),
@@ -995,14 +1000,15 @@ ${checklist}
 ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
 
-=== กฎการตัดสิน PASS/FAIL (ห้ามละเมิด) ===
-1. result="PASS" ได้เฉพาะเมื่ออ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้จริง และ quote ได้ใน evidence
-2. result="FAIL" ทุกกรณีที่ไม่พบ หรืออ่านไม่ออก หรือ quote ไม่ได้
-3. ห้าม PASS จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท
-4. overall_result="FAIL" ถ้ามี FAIL แม้แต่ 1 รายการ
+=== กฎการตัดสิน PASS/FAIL ที่ต้องปฏิบัติอย่างเคร่งครัด ===
+1. result = "PASS" ได้เฉพาะเมื่อ: อ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้ชัดเจน และสามารถ quote ข้อความนั้นได้ตรงๆ ใน evidence field
+2. result = "FAIL" ทุกกรณีที่: ไม่พบข้อมูลในไฟล์ที่ส่งมา หรืออ่านไม่ออก หรือ quote ไม่ได้
+3. ห้ามใช้ result = "PASS" จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท โดยเด็ดขาด
+4. ห้าม hallucinate: ถ้าไม่มีข้อมูลในไฟล์ = FAIL เสมอ ไม่มีข้อยกเว้น
+5. overall_result ต้องเป็น "FAIL" ถ้ามีรายการใดเป็น "FAIL" แม้แต่ 1 รายการ
 
 ตอบ JSON:
-{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ ไม่พบในไฟล์","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
 
   const parts = [{text: prompt}];
   for (const f of imgs) { const b = await toB64(f); parts.push({inlineData:{mimeType:fInfo(f).mime, data:b}}); }
@@ -1048,16 +1054,16 @@ function renderResults(result, errMsg, entry) {
     html += `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:20px;margin-bottom:20px;"><h3 style="color:#dc2626;margin:0 0 10px;">⚠️ เกิดข้อผิดพลาด</h3><div style="color:#7f1d1d;font-size:13px;line-height:1.8;">${esc(errMsg).replace(/\n/g,'<br>')}</div><button class="btn-navy" style="margin-top:12px;" onclick="newJob()">🔄 ตรวจใหม่</button></div>`;
   }
   if (result && entry) {
-    // cl already normalised and verdict already overridden before save — use entry data directly
+    // ใช้ cl จาก entry ซึ่ง normalise และ override แล้ว
     const cl = entry.checklist_results || [];
-    const hasAnyFail = cl.some(r => r.result === 'FAIL');
+    const anyFail = cl.some(r => r.result === 'FAIL');
 
     const cnt = v => cl.filter(r => r.result === v).length;
     const sev = s => cl.filter(r => r.severity === s && r.result === 'FAIL').length;
-    const fails    = cl.filter(r => r.result === 'FAIL');
-    const passes   = cl.filter(r => r.result === 'PASS');
-    const conds    = cl.filter(r => r.result === 'PASS WITH CONDITIONS');
-    const nas      = cl.filter(r => r.result === 'N/A');
+    const fails = cl.filter(r => r.result === 'FAIL');
+    const passes = cl.filter(r => r.result === 'PASS');
+    const conds  = cl.filter(r => r.result === 'PASS WITH CONDITIONS');
+    const nas    = cl.filter(r => r.result === 'N/A');
 
     // ── Shared row renderer ──
     const renderRow = (row, i) => {
@@ -1066,7 +1072,7 @@ function renderResults(result, errMsg, entry) {
         <td style="font-weight:600;font-size:13px;">${esc(row.topic||'—')}</td>
         <td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
         <td style="line-height:1.65;font-size:13px;">
-          ${row.evidence ? `<div style="font-size:11px;color:#64748b;background:#f8faff;border-radius:4px;padding:2px 7px;margin-bottom:4px;">🔍 <em>${esc(row.evidence)}</em></div>` : ''}
+          ${row.evidence ? `<div style="font-size:11px;color:#475569;background:#f1f5f9;border-radius:4px;padding:3px 7px;margin-bottom:4px;">🔍 <em>${esc(row.evidence)}</em></div>` : ''}
           ${row.finding    ? `<div>${esc(row.finding)}</div>` : ''}
           ${row.missing    ? `<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>` : ''}
           ${row.recommendation ? `<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>` : ''}
@@ -1077,12 +1083,15 @@ function renderResults(result, errMsg, entry) {
 
     html += `<div class="disclaimer-yellow">📋 ผลนี้เป็นการวิเคราะห์เบื้องต้นโดย AI · อาจมีความคลาดเคลื่อน กรุณาใช้วิจารณญาณประกอบ</div>`;
 
-    // Overall result banner
+    // Overall result banner — ใช้ entry.overall_result ที่ override แล้วเสมอ
     const sheetsUsed = entry.sheetsUsed || [];
     html += `<div style="background:${rbg(entry.overall_result)};border:2px solid ${rcol(entry.overall_result)};border-radius:12px;padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:18px;">
       <div style="font-size:44px;line-height:1;">${{PASS:'✅',FAIL:'❌','PASS WITH CONDITIONS':'⚠️'}[entry.overall_result]||'•'}</div>
       <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">${entry.acaNumber ? `<span class="aca-badge">${entry.acaNumber}</span>` : ''}</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+          ${entry.acaNumber ? `<span class="aca-badge">${entry.acaNumber}</span>` : ''}
+          ${entry.jobName ? `<span style="font-size:13px;font-weight:700;color:#1e293b;">${esc(entry.jobName)}</span>` : ''}
+        </div>
         <div style="font-size:24px;font-weight:800;color:${rcol(entry.overall_result)};">${entry.overall_result}</div>
         <div style="font-size:12px;color:#475569;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
           <span>ตรวจ <strong>${cl.length}</strong> ข้อ</span>
@@ -1119,19 +1128,19 @@ function renderResults(result, errMsg, entry) {
         </tbody></table></div></div>`;
     }
 
-    // ── PASS table — แสดง "✅ ผ่านเกณฑ์" เฉพาะเมื่อไม่มี FAIL เลย
-    // ถ้ามี FAIL อยู่ → พับรายการเหล่านี้ไว้ใต้ section สีเทา ไม่ให้เข้าใจผิด
-    if (passes.length && !hasAnyFail) {
+    // ── PASS table — แสดง ✅ เฉพาะเมื่อไม่มี FAIL เลย
+    if (passes.length && !anyFail) {
       html += `<div style="background:#fff;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f0fdf4;border-bottom:1px solid #bbf7d0;"><h3 style="color:#15803d;margin:0;font-size:13px;">✅ ผ่านเกณฑ์ (${passes.length})</h3></div>
         <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
         ${passes.map((row,i) => renderRow(row,i)).join('')}
         </tbody></table></div></div>`;
-    } else if (passes.length && hasAnyFail) {
+    } else if (passes.length && anyFail) {
+      // มี FAIL → พับไว้ ไม่ให้ขึ้น header สีเขียว
       html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:13px;overflow:hidden;">
         <div style="padding:10px 16px;background:#f8faff;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;">
-          <h3 style="color:#64748b;margin:0;font-size:13px;">— ครบถ้วนในไฟล์นี้ (${passes.length}) <span style="font-size:11px;font-weight:400;color:#94a3b8;">ยังไม่ถือว่าผ่าน เนื่องจากมีรายการ FAIL</span></h3>
-          <button onclick="this.closest('div').nextElementSibling.style.display=this.closest('div').nextElementSibling.style.display==='none'?'':'none'" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
+          <h3 style="color:#64748b;margin:0;font-size:13px;">— ครบถ้วนในไฟล์ (${passes.length}) <span style="font-weight:400;font-size:11px;">ยังไม่ถือว่าผ่าน เนื่องจากมีรายการ FAIL</span></h3>
+          <button onclick="var t=this.closest('div').nextElementSibling;t.style.display=t.style.display==='none'?'':'none'" style="font-size:11px;padding:2px 8px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;cursor:pointer;color:#64748b;">แสดง/ซ่อน</button>
         </div>
         <div style="display:none;overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>Severity</th><th>รายละเอียด</th></tr></thead><tbody>
         ${passes.map((row,i) => renderRow(row,i)).join('')}
@@ -1266,6 +1275,14 @@ function applyHistFilter(items) {
       return d >= from && d <= to;
     }
     return true;
+  }).filter(c => {
+    if (!histSearch) return true;
+    const q = histSearch.toLowerCase();
+    return (c.jobName||'').toLowerCase().includes(q)
+        || (c.acaNumber||'').toLowerCase().includes(q)
+        || (c.projectType||'').toLowerCase().includes(q)
+        || (c.overall_summary||'').toLowerCase().includes(q)
+        || (c.submitterName||'').toLowerCase().includes(q);
   });
 }
 
@@ -1311,9 +1328,12 @@ function renderHistory() {
         ${rangePicker}
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start;">
+        <input type="search" placeholder="🔍 ค้นหาชื่องาน, ACA, ประเภท..." value="${esc(histSearch)}"
+          onchange="histSearch=this.value;_histPage=0;renderHistory()"
+          oninput="histSearch=this.value;_histPage=0;renderHistory()"
+          style="padding:5px 10px;border:1.5px solid #cbd5e1;border-radius:8px;font-size:13px;outline:none;width:240px;"/>
         <button onclick="exportCSV('all')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
         <button onclick="exportAllExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
-
       </div>
     </div>`;
 
@@ -1342,7 +1362,7 @@ function renderHistory() {
         </div>
         <div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
       </div>
-      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">${esc(c.projectType||'')} · ${esc(c.mediaLabel||c.mediaType||'')}</div>
+      <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">${c.jobName ? esc(c.jobName)+' · ' : ''}${esc(c.projectType||'')} · ${esc(c.mediaLabel||c.mediaType||'')}</div>
       <div style="font-size:12px;color:#64748b;margin-bottom:5px;">${esc(c.submitterName||'')} ${c.submitterRole?'· '+esc(c.submitterRole):''}</div>
       ${c.overall_summary ? `<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:5px;">${esc(c.overall_summary)}</div>` : ''}
       <div style="display:flex;gap:10px;margin-bottom:7px;flex-wrap:wrap;">
