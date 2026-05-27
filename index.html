@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Ad Compliance Checker v4.1</title>
+<title>Ad Compliance Checker v4.2</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -241,16 +241,6 @@ textarea.inp{resize:vertical;}
         </div>
       </div>
 
-      <!-- Job Name -->
-      <div class="card">
-        <h3 class="card-title">📝 ชื่องาน</h3>
-        <div class="field">
-          <label class="field-lbl">ชื่องาน / Campaign Name</label>
-          <input id="f-jobname" type="text" class="inp" placeholder="เช่น Ideo Sukhumvit Q3 2025 — FB Banner" maxlength="120"/>
-          <div style="font-size:11px;color:#94a3b8;margin-top:4px;">ใช้สำหรับค้นหาย้อนหลังในหน้า History</div>
-        </div>
-      </div>
-
       <!-- File upload -->
       <div class="card">
         <h3 class="card-title">📎 แนบไฟล์สื่อโฆษณา</h3>
@@ -343,7 +333,7 @@ textarea.inp{resize:vertical;}
 <div id="panel-accounts" style="display:none;padding:20px 24px;max-width:860px;margin:0 auto;"></div>
 
 <footer id="app-footer" style="display:none;">
-  <strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v4.1<br>
+  <strong>Ananda Development PCL.</strong> — Legal &amp; Compliance · Ad Compliance Checker v4.2<br>
   <span style="font-size:11px;opacity:.6;">ผลการตรวจสร้างโดย AI เพื่อช่วยตรวจเบื้องต้นเท่านั้น | <span id="footer-conn">ระบบ: Local Mode</span></span>
 </footer>
 
@@ -535,7 +525,7 @@ function _prepareForSheets(entry) {
 // ═══════════════════════════════════════════════════════
 let mediaFiles = [], lastResult = null, currentRole = null, currentAcc = null, _loadingAbort = false;
 let caseHistory = [];
-let _histPage = 0, histFilter = 'all', histRangeFrom = '', histRangeTo = '', histSearch = '';
+let _histPage = 0, histFilter = 'all', histRangeFrom = '', histRangeTo = '';
 let _dashFilter = {period:'all'}, _dashMonthSel = new Date().getMonth(), _dashYearSel = new Date().getFullYear();
 let _dashRangeFrom = '', _dashRangeTo = '', _trendMode = 'year', _trendRangeFrom = '', _trendRangeTo = '';
 const HIST_PAGE_SIZE = 25;
@@ -818,7 +808,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click
 function newJob() {
   mediaFiles = []; document.getElementById('file-list').innerHTML = ''; lastResult = null;
   // reset form fields
-  ['f-projtype','f-projstatus','f-media','f-jobname'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  ['f-projtype','f-projstatus','f-media'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('f-status-wrap').style.display = 'none';
   document.getElementById('sheets-card').style.display = 'none';
   document.getElementById('chk-ai-ack').checked = false;
@@ -934,7 +924,6 @@ async function handleSubmit() {
     const cl = result.checklist_results || [];
     const entry = {
       id: aca, acaNumber: aca, date: new Date().toISOString(),
-      jobName: gv('f-jobname'),
       projectType: gv('f-projtype'), projectStatus: gv('f-projstatus'),
       mediaType: gv('f-media'), mediaLabel: MEDIA_LABEL[gv('f-media')] || gv('f-media'),
       offer: getOffer(),
@@ -991,8 +980,15 @@ ${checklist}
 ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
 
+=== กฎการตัดสิน PASS/FAIL ที่ต้องปฏิบัติอย่างเคร่งครัด ===
+1. result = "PASS" ได้เฉพาะเมื่อ: อ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้ชัดเจน และสามารถ quote ข้อความนั้นได้ตรงๆ ใน evidence field
+2. result = "FAIL" ทุกกรณีที่: ไม่พบข้อมูลในไฟล์ที่ส่งมา หรืออ่านไม่ออก หรือ quote ไม่ได้
+3. ห้ามใช้ result = "PASS" จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท โดยเด็ดขาด
+4. ห้าม hallucinate: ถ้าไม่มีข้อมูลในไฟล์ = FAIL เสมอ ไม่มีข้อยกเว้น
+5. overall_result ต้องเป็น "FAIL" ถ้ามีรายการใดเป็น "FAIL" แม้แต่ 1 รายการ
+
 ตอบ JSON:
-{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
 
   const parts = [{text: prompt}];
   for (const f of imgs) { const b = await toB64(f); parts.push({inlineData:{mimeType:fInfo(f).mime, data:b}}); }
@@ -1048,6 +1044,18 @@ function renderResults(result, errMsg, entry) {
       if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
     });
 
+    // ── VERDICT OVERRIDE: ถ้ามี FAIL แม้แต่ 1 รายการ → overall_result ต้องเป็น FAIL เสมอ
+    // AI อาจ hallucinate overall_result เป็น PASS ทั้งที่มีรายการ FAIL อยู่
+    const hasAnyFail = cl.some(r => r.result === 'FAIL');
+    const hasAnyCond = cl.some(r => r.result === 'PASS WITH CONDITIONS');
+    if (hasAnyFail) {
+      result.overall_result = 'FAIL';
+    } else if (!hasAnyFail && hasAnyCond) {
+      result.overall_result = 'PASS WITH CONDITIONS';
+    } else if (!hasAnyFail && !hasAnyCond && cl.every(r => r.result === 'PASS' || r.result === 'N/A')) {
+      result.overall_result = 'PASS';
+    }
+
     const cnt = v => cl.filter(r => r.result === v).length;
     const sev = s => cl.filter(r => r.severity === s && r.result === 'FAIL').length;
     const fails    = cl.filter(r => r.result === 'FAIL');
@@ -1062,6 +1070,7 @@ function renderResults(result, errMsg, entry) {
         <td style="font-weight:600;font-size:13px;">${esc(row.topic||'—')}</td>
         <td><span class="sev" style="background:${cfg.bg};color:${cfg.color};">${cfg.label}</span></td>
         <td style="line-height:1.65;font-size:13px;">
+          ${row.evidence ? `<div style="font-size:11px;color:#475569;background:#f1f5f9;border-radius:4px;padding:3px 7px;margin-bottom:4px;">🔍 <em>${esc(row.evidence)}</em></div>` : ''}
           ${row.finding    ? `<div>${esc(row.finding)}</div>` : ''}
           ${row.missing    ? `<div style="color:#dc2626;">⛔ ${esc(row.missing)}</div>` : ''}
           ${row.recommendation ? `<div style="color:#0032c7;">💡 ${esc(row.recommendation)}</div>` : ''}
@@ -1199,7 +1208,7 @@ function renderResults(result, errMsg, entry) {
   if (entry) {
     sh += entry.acaNumber ? `<div style="margin-bottom:10px;"><span class="aca-badge">${entry.acaNumber}</span></div>` : '';
     sh += `<div style="font-size:12px;font-weight:700;color:${NAVY};margin-bottom:9px;">📌 ข้อมูล</div>`;
-    [['ชื่องาน',entry.jobName],['ผู้ตรวจ',entry.submitterName],['ทีม',entry.submitterRole],['ประเภทโครงการ',entry.projectType],['ประเภทสื่อ',entry.mediaLabel||entry.mediaType]].forEach(([l,v]) => {
+    [['ผู้ตรวจ',entry.submitterName],['ทีม',entry.submitterRole],['ประเภทโครงการ',entry.projectType],['ประเภทสื่อ',entry.mediaLabel||entry.mediaType]].forEach(([l,v]) => {
       if (v) sh += `<div style="margin-bottom:7px;"><div style="font-size:10px;color:#94a3b8;text-transform:uppercase;">${l}</div><div style="font-size:12px;font-weight:500;color:#1e293b;">${esc(v)}</div></div>`;
     });
     // ── File thumbnails ──
@@ -1240,7 +1249,7 @@ function renderResults(result, errMsg, entry) {
 // ═══════════════════════════════════════════════════════
 function applyHistFilter(items) {
   const now = new Date();
-  let result = items.filter(c => {
+  return items.filter(c => {
     const d = new Date(c.date || 0);
     if (histFilter === 'today')  return d.toDateString() === now.toDateString();
     if (histFilter === 'month')  return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -1252,15 +1261,6 @@ function applyHistFilter(items) {
     }
     return true;
   });
-  if (histSearch.trim()) {
-    const q = histSearch.trim().toLowerCase();
-    result = result.filter(c =>
-      (c.jobName||'').toLowerCase().includes(q) ||
-      (c.acaNumber||'').toLowerCase().includes(q) ||
-      (c.projectType||'').toLowerCase().includes(q)
-    );
-  }
-  return result;
 }
 
 function renderHistory() {
@@ -1307,15 +1307,8 @@ function renderHistory() {
       <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-start;">
         <button onclick="exportCSV('all')" class="btn-sm" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">📄 CSV</button>
         <button onclick="exportAllExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
+
       </div>
-    </div>
-    <div style="margin-bottom:14px;">
-      <div style="position:relative;max-width:480px;">
-        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
-        <input id="hist-search-inp" type="text" value="${esc(histSearch)}" placeholder="ค้นหาชื่องาน หรือ เลข ACA เช่น ACA20250001" class="inp" style="padding-left:34px;padding-right:${histSearch?'34px':'12px'};" oninput="histSearch=this.value;_histPage=0;renderHistory()" onkeydown="if(event.key==='Escape'){histSearch='';document.getElementById('hist-search-inp').value='';_histPage=0;renderHistory();}"/>
-        ${histSearch ? `<button onclick="histSearch='';document.getElementById('hist-search-inp').value='';_histPage=0;renderHistory()" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:14px;color:#94a3b8;padding:2px 4px;" title="ล้างการค้นหา">✕</button>` : ''}
-      </div>
-      ${histSearch ? `<div style="margin-top:5px;font-size:11px;color:#64748b;">ผลลัพธ์: <strong style="color:${NAVY};">${filtered.length}</strong> รายการ สำหรับ "<strong>${esc(histSearch)}</strong>"</div>` : ''}
     </div>`;
 
   if (!allItems.length) {
@@ -1326,14 +1319,6 @@ function renderHistory() {
     panel.innerHTML += `<div style="text-align:center;padding:30px;background:#fff;border-radius:12px;border:1px solid #e2e8f0;color:#64748b;">ไม่พบข้อมูลในช่วงที่เลือก</div>`;
     return;
   }
-
-  // Highlight helper
-  function hlSearch(text, q) {
-    if (!q || !text) return esc(text||'');
-    const safe = q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    return esc(text).replace(new RegExp(`(${safe})`, 'gi'), '<mark style="background:#fef08a;color:#1e293b;border-radius:2px;padding:0 1px;">$1</mark>');
-  }
-  const hl = (t) => hlSearch(t, histSearch);
 
   const rows = page.map(c => {
     const cl = (c.checklist_results || []).map(r => ({...r, result:(r.result||'N/A').toUpperCase().trim()}));
@@ -1346,13 +1331,12 @@ function renderHistory() {
     return `<div style="padding:13px 16px;border-bottom:1px solid #f1f5f9;">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:7px;margin-bottom:5px;">
         <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
-          ${c.acaNumber ? `<span class="aca-badge" style="font-size:10px;">${hl(c.acaNumber)}</span>` : ''}
+          ${c.acaNumber ? `<span class="aca-badge" style="font-size:10px;">${c.acaNumber}</span>` : ''}
           <span class="rbadge" style="background:${rbg(c.overall_result)};color:${rcol(c.overall_result)};">${c.overall_result}</span>
         </div>
         <div style="font-size:11px;color:#94a3b8;">${new Date(c.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})}</div>
       </div>
       <div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:2px;">${esc(c.projectType||'')} · ${esc(c.mediaLabel||c.mediaType||'')}</div>
-      ${c.jobName ? `<div style="font-size:13px;color:${NAVY};font-weight:600;margin-bottom:2px;">📝 ${hl(c.jobName)}</div>` : ''}
       <div style="font-size:12px;color:#64748b;margin-bottom:5px;">${esc(c.submitterName||'')} ${c.submitterRole?'· '+esc(c.submitterRole):''}</div>
       ${c.overall_summary ? `<div style="font-size:12px;color:#374151;line-height:1.6;margin-bottom:5px;">${esc(c.overall_summary)}</div>` : ''}
       <div style="display:flex;gap:10px;margin-bottom:7px;flex-wrap:wrap;">
