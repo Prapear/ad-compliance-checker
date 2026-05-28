@@ -497,6 +497,73 @@ const DB = {
 };
 DB.loadConfig();
 
+// ═══════════════════════════════════════════════════════
+// FILE STORE — IndexedDB for persistent file storage
+// ═══════════════════════════════════════════════════════
+const FileStore = {
+  DB_NAME: 'AdComplianceFiles',
+  DB_VER: 1,
+  STORE: 'files',
+  _db: null,
+
+  open() {
+    if (this._db) return Promise.resolve(this._db);
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.DB_NAME, this.DB_VER);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(this.STORE)) {
+          db.createObjectStore(this.STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess  = e => { this._db = e.target.result; resolve(this._db); };
+      req.onerror    = e => reject(e.target.error);
+    });
+  },
+
+  async saveFiles(acaNumber, files) {
+    try {
+      const db = await this.open();
+      const tx = db.transaction(this.STORE, 'readwrite');
+      const store = tx.objectStore(this.STORE);
+      for (const file of files) {
+        const buf = await file.arrayBuffer();
+        store.put({ id: `${acaNumber}__${file.name}`, acaNumber, name: file.name, type: file.type || 'application/octet-stream', data: buf });
+      }
+      return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = e => rej(e.target.error); });
+    } catch(e) { console.warn('[FileStore.saveFiles]', e); }
+  },
+
+  async getURL(acaNumber, fileName) {
+    try {
+      const db = await this.open();
+      return new Promise(resolve => {
+        const req = db.transaction(this.STORE).objectStore(this.STORE).get(`${acaNumber}__${fileName}`);
+        req.onsuccess = e => {
+          const rec = e.target.result;
+          resolve(rec?.data ? URL.createObjectURL(new Blob([rec.data], { type: rec.type })) : null);
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch { return null; }
+  },
+
+  async deleteFiles(acaNumber) {
+    try {
+      const db = await this.open();
+      const tx = db.transaction(this.STORE, 'readwrite');
+      const store = tx.objectStore(this.STORE);
+      const req = store.openCursor();
+      req.onsuccess = e => {
+        const cursor = e.target.result;
+        if (!cursor) return;
+        if (cursor.value.acaNumber === acaNumber) cursor.delete();
+        cursor.continue();
+      };
+    } catch(e) { console.warn('[FileStore.deleteFiles]', e); }
+  }
+};
+
 // ── Row helpers ──
 function _safeJSON(v, fb = []) {
   if (!v || v === '') return fb;
@@ -511,6 +578,8 @@ function _normaliseRow(r) {
     forbidden_words:   _safeJSON(r.forbidden_words,   []),
     attachedFiles:     _safeJSON(r.attachedFiles,      []),
     timeline:          _safeJSON(r.timeline,           []),
+    cautions:          _safeJSON(r.cautions,           []),
+    typos_found:       _safeJSON(r.typos_found,        []),
   };
 }
 function _prepareForSheets(entry) {
@@ -521,6 +590,8 @@ function _prepareForSheets(entry) {
     forbidden_words:   str(entry.forbidden_words),
     attachedFiles:     str((entry.attachedFiles || []).map(f => ({name:f.name, size:f.size, type:f.type||'', gDriveLink:f.gDriveLink||''}))),
     timeline:          str(entry.timeline),
+    cautions:          str(entry.cautions),
+    typos_found:       str(entry.typos_found),
   };
 }
 
@@ -929,11 +1000,34 @@ async function handleSubmit() {
     const aca = genACA();
     const cl = result.checklist_results || [];
 
+    // safeguard A: extracted_text สั้นเกินไป → FAIL ทั้งหมด (AI ไม่เห็นเนื้อหาจริง)
+    const extText = result.extracted_text || [];
+    const extReal = extText.filter(t => t && !t.includes('ไม่พบข้อความ'));
+    if (extReal.length < 3) {
+      cl.forEach(r => { r.result = 'FAIL'; r.evidence = 'ไม่พบในไฟล์ — extracted_text ว่างหรือน้อยเกินไป'; });
+      result.overall_result = 'FAIL';
+      result.overall_summary = result.overall_summary || 'ไฟล์ไม่มีข้อความเพียงพอสำหรับการตรวจ';
+    }
+
     // normalise ก่อน override และ save
     cl.forEach(r => {
       if (r.result) r.result = r.result.toUpperCase().trim();
       if (r.result === 'PASS WITH CONDITION') r.result = 'PASS WITH CONDITIONS';
       if (!['PASS','FAIL','N/A','PASS WITH CONDITIONS'].includes(r.result)) r.result = 'N/A';
+    });
+    // safeguard B: PASS + มี missing → downgrade เป็น FAIL เสมอ
+    cl.forEach(r => {
+      if (r.result === 'PASS' && r.missing && r.missing.trim()) r.result = 'FAIL';
+    });
+
+    // safeguard C: N/A ที่ควรเป็น FAIL — อยู่ใน Sheets ที่เลือก แต่ AI ใช้ N/A เพราะไม่พบในสื่อ
+    cl.forEach(r => {
+      if (r.result !== 'N/A') return;
+      const text = (r.finding || '') + ' ' + (r.evidence || '') + ' ' + (r.missing || '');
+      if (/ไม่ได้ระบุ|ไม่พบในไฟล์|สื่อไม่ได้|ไม่ปรากฏ|ไม่มีข้อมูลใน/.test(text)) {
+        r.result = 'FAIL';
+        if (!r.missing) r.missing = r.finding || 'ไม่พบข้อมูลในสื่อ';
+      }
     });
 
     // VERDICT OVERRIDE — ทำก่อน save เสมอ ไม่ให้ entry บันทึกค่าผิด
@@ -942,6 +1036,27 @@ async function handleSubmit() {
     if (_anyFail)       result.overall_result = 'FAIL';
     else if (_anyCond)  result.overall_result = 'PASS WITH CONDITIONS';
     else                result.overall_result = cl.length ? 'PASS' : result.overall_result;
+
+    // SUMMARY OVERRIDE — สร้างสรุปจากข้อมูลจริง แทน AI summary ที่อาจผิดพลาด
+    {
+      const _fList = cl.filter(r => r.result === 'FAIL');
+      const _cList = cl.filter(r => r.result === 'PASS WITH CONDITIONS');
+      const _pList = cl.filter(r => r.result === 'PASS');
+      const _crits = _fList.filter(r => r.severity === 'Critical');
+      if (_fList.length === 0 && _cList.length === 0) {
+        result.overall_summary = `สื่อโฆษณาผ่านเกณฑ์ครบถ้วน ตรวจสอบทั้งหมด ${cl.length} รายการ ผ่านเกณฑ์ ${_pList.length} รายการ`;
+      } else {
+        const failNames = _fList.length <= 5
+          ? _fList.map((r, i) => `(${i+1}) ${r.topic||'—'}`).join(' ')
+          : _fList.slice(0, 4).map((r, i) => `(${i+1}) ${r.topic||'—'}`).join(' ') + ` และอีก ${_fList.length - 4} รายการ`;
+        let s = `สื่อโฆษณาตรวจสอบทั้งหมด ${cl.length} รายการ`;
+        if (_fList.length > 0) s += ` ไม่ผ่านเกณฑ์ ${_fList.length} รายการ: ${failNames}`;
+        if (_cList.length > 0) s += ` · ผ่านแบบมีเงื่อนไข ${_cList.length} รายการ`;
+        if (_pList.length > 0) s += ` · ผ่านเกณฑ์ ${_pList.length} รายการ`;
+        if (_crits.length > 0) s += ` ⚠️ ประเด็น Critical ที่ต้องแก้ไขด่วน: ${_crits.map(r => r.topic).join(', ')}`;
+        result.overall_summary = s;
+      }
+    }
 
     const entry = {
       id: aca, acaNumber: aca, date: new Date().toISOString(),
@@ -956,7 +1071,10 @@ async function handleSubmit() {
       fail_count:     cl.filter(x => x.result === 'FAIL').length,
       critical_count: cl.filter(x => x.result === 'FAIL' && x.severity === 'Critical').length,
       checklist_results: cl,
+      extracted_text: result.extracted_text || [],
       forbidden_words: result.forbidden_words_found || [],
+      cautions:    result.cautions    || [],
+      typos_found: result.typos_found || [],
       sheetsUsed: getSheets(),
       checklistName: getMd('cl1')?.filename || 'Demo Checklist',
     };
@@ -964,6 +1082,9 @@ async function handleSubmit() {
     // ✅ Save to localStorage immediately, sync to Sheets async
     DB.saveCaseEntry(entry);
     caseHistory = [entry, ...caseHistory.filter(e => (e.acaNumber||e.id) !== entry.acaNumber)].slice(0, 500);
+
+    // ✅ Save actual file blobs to IndexedDB so thumbnails survive page refresh
+    FileStore.saveFiles(aca, mediaFiles).catch(e => console.warn('[FileStore]', e));
 
     document.getElementById('tab-res-btn')?.classList.remove('disabled');
     document.getElementById('btn-new-job').style.display = 'flex';
@@ -983,7 +1104,9 @@ async function doAICall() {
   const checklist2 = cl2d?.text || '';
   const skillPrompt = skd?.text || '';
   const sheets = getSheets();
-  const sysText = skillPrompt || 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยใน finding, missing, recommendation, overall_summary';
+  // base instruction ต้องอยู่เสมอ — skill file เพิ่มได้แต่ห้ามลบ anti-hallucination core
+  const BASE_SYS = 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยใน finding, missing, recommendation, overall_summary ห้ามสร้างข้อมูลที่ไม่มีในไฟล์ที่ส่งมา';
+  const sysText = skillPrompt ? `${BASE_SYS}\n\n${skillPrompt}` : BASE_SYS;
 
   const imgs = mediaFiles.filter(f => fInfo(f)?.kind === 'image');
   const pdfs = mediaFiles.filter(f => fInfo(f)?.kind === 'pdf');
@@ -994,17 +1117,23 @@ async function doAICall() {
     const r = new FileReader(); r.onload = ev => res(`[${f.name}]\n${ev.target.result.slice(0,3000)}`); r.onerror = () => res(''); r.readAsText(f, 'UTF-8');
   })));
 
-  const prompt = `=== ขั้นตอนที่ต้องทำก่อนอ่าน checklist (MANDATORY — ห้ามข้าม) ===
-ก่อนทุกอย่าง: อ่านภาพแล้ว list ข้อความที่อ่านออกทั้งหมดออกมา (ใช้ internal reasoning ของคุณ)
-ถ้าอ่านได้น้อยกว่า 3 รายการ (คำหรือวลี) หรือภาพว่างเปล่า/มีแค่โลโก้:
-→ ตัดสิน FAIL ทั้งหมดทันที — overall_result = "FAIL"
-→ overall_summary = "ภาพไม่มีเนื้อหาสื่อโฆษณาเพียงพอสำหรับการตรวจ"
-→ checklist_results ทุกรายการ: result = "FAIL", evidence = "ไม่พบในไฟล์ — ภาพไม่มีเนื้อหา"
-→ หยุด ห้ามตรวจต่อ
-กฎ: ภาพโฆษณาที่ถูกกฎหมายต้องมีข้อมูลครบ — ภาพที่ไม่มีข้อความ = ขาดข้อมูลกฎหมาย = FAIL เสมอ
-ห้าม PASS ด้วยเหตุผลว่า "ไม่มีสิ่งผิดกฎ" หรือ "ภาพสะอาด"
+  const prompt = `=== STEP 1 — MANDATORY: สารภาพสิ่งที่อ่านได้จากไฟล์ก่อนทุกอย่าง ===
+อ่านทุกไฟล์ที่ส่งมา แล้วใส่ข้อความ/ตัวเลข/วลี ทุกอย่างที่อ่านออกจริงๆ ลงใน "extracted_text" array
+กฎเหล็ก:
+- extracted_text ต้องเป็น verbatim จากไฟล์เท่านั้น ห้ามแต่งเพิ่ม ห้ามอนุมาน
+- evidence ของทุก checklist item ต้อง quote ตรงจาก extracted_text เท่านั้น — ห้าม quote จาก checklist requirement
+- ถ้า extracted_text มีน้อยกว่า 3 รายการ → overall_result = "FAIL", checklist_results ทุกรายการ result = "FAIL", evidence = "ไม่พบในไฟล์"
 
-===
+=== STEP 2 — กฎการตัดสิน PASS/FAIL/N/A ===
+1. result = "PASS" ได้เฉพาะเมื่อ: quote ข้อความนั้นได้จาก extracted_text ตรงๆ เท่านั้น
+2. result = "FAIL" ทุกกรณีที่: ไม่พบใน extracted_text หรืออ่านไม่ออก — รวมทุกรายการที่อยู่ใน Sheets ที่เลือกแต่ไม่มีในสื่อ ต้องเป็น FAIL เสมอ
+3. result = "N/A" ใช้ได้เฉพาะเมื่อ: รายการนั้นไม่ได้อยู่ใน Sheets ที่เลือก (${sheets.join(', ')}) เลย เช่น ข้อ Lucky_draw เมื่อ offer=ไม่มี, ข้อ TYPE2 เมื่อสื่อเป็น TYPE1 — ห้ามใช้ N/A เมื่อรายการอยู่ใน Sheets ที่ระบุมาแต่ไม่พบในสื่อ ต้องเป็น FAIL
+4. ห้าม PASS จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท/ความรู้ทั่วไป
+5. ห้าม hallucinate: ข้อความใน PRIMARY CHECKLIST = เกณฑ์ตรวจ ไม่ใช่หลักฐาน — ห้ามนำมาใส่ evidence
+6. ถ้ามี missing field ไม่ว่าง → result ต้องเป็น "FAIL" ห้ามเป็น PASS
+7. overall_result = "FAIL" ถ้ามีรายการใดเป็น FAIL แม้แต่ 1 รายการ
+8. ตรวจจุดที่ควรระวัง เช่น ข้อมูลคลุมเครือ ตัวเลขที่ไม่ชัดเจน ข้อความที่อาจทำให้เข้าใจผิด แม้ไม่ผิดกฎหมาย → ใส่ใน cautions
+9. ตรวจคำสะกดผิด ผิดพลาดทางไวยากรณ์ ชื่อโครงการ/ชื่อบริษัทที่อาจพิมพ์ผิด → ใส่ใน typos_found (ถ้าไม่พบให้ใส่ [])
 
 Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}
 Sheets: ${sheets.join(', ')}
@@ -1014,16 +1143,8 @@ ${checklist}
 ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
 
-=== กฎการตัดสิน PASS/FAIL ที่ต้องปฏิบัติอย่างเคร่งครัด ===
-1. result = "PASS" ได้เฉพาะเมื่อ: อ่านข้อมูลนั้นจากไฟล์ที่ส่งมาได้ชัดเจน และสามารถ quote ข้อความนั้นได้ตรงๆ ใน evidence field
-2. result = "FAIL" ทุกกรณีที่: ไม่พบข้อมูลในไฟล์ที่ส่งมา หรืออ่านไม่ออก หรือ quote ไม่ได้
-3. ห้ามใช้ result = "PASS" จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท โดยเด็ดขาด
-4. ห้าม hallucinate: ถ้าไม่มีข้อมูลในไฟล์ = FAIL เสมอ ไม่มีข้อยกเว้น
-5. overall_result ต้องเป็น "FAIL" ถ้ามีรายการใดเป็น "FAIL" แม้แต่ 1 รายการ
-6. ข้อความใน PRIMARY CHECKLIST = เกณฑ์ที่ต้องตรวจ ไม่ใช่หลักฐานว่ามีในภาพ — ห้ามนำมาใส่ evidence
-
-ตอบ JSON:
-{"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
+ตอบ JSON (extracted_text ต้องมาก่อนเสมอ):
+{"extracted_text":["ทุกข้อความที่อ่านออกจากไฟล์จริง — ห้ามว่าง ถ้าอ่านไม่ออกอะไรเลยให้ใส่ 'ไม่พบข้อความในไฟล์'"],"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"quote ตรงจาก extracted_text เท่านั้น หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}],"cautions":[{"topic":"","detail":"","recommendation":""}],"typos_found":[{"original":"","suggested":"","location":""}]}`;
 
   const parts = [{text: prompt}];
   for (const f of imgs) { const b = await toB64(f); parts.push({inlineData:{mimeType:fInfo(f).mime, data:b}}); }
@@ -1125,6 +1246,16 @@ function renderResults(result, errMsg, entry) {
       html += `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:13px 16px;margin-bottom:14px;"><h3 style="color:${NAVY};margin:0 0 7px;font-size:13px;">📝 สรุปผล</h3><p style="margin:0;line-height:1.85;color:#374151;font-size:13px;">${esc(entry.overall_summary)}</p></div>`;
     }
 
+    // Extracted text — แสดงสิ่งที่ AI อ่านได้จริงเพื่อตรวจสอบ hallucination
+    const extArr = entry.extracted_text || result?.extracted_text || [];
+    if (extArr.length > 0) {
+      const items = extArr.map(t => `<li style="margin-bottom:2px;">${esc(t)}</li>`).join('');
+      html += `<details style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 16px;margin-bottom:14px;">
+        <summary style="font-size:13px;font-weight:700;color:#475569;cursor:pointer;">🔍 ข้อความที่ AI อ่านออกจากไฟล์ (${extArr.length} รายการ) — คลิกตรวจสอบ</summary>
+        <ul style="margin:8px 0 0;padding-left:18px;font-size:12px;color:#374151;line-height:1.9;">${items}</ul>
+      </details>`;
+    }
+
     // ── FAIL table ──
     if (fails.length) {
       html += `<div style="background:#fff;border:1px solid #fecaca;border-radius:10px;margin-bottom:13px;overflow:hidden;">
@@ -1189,6 +1320,26 @@ function renderResults(result, errMsg, entry) {
         <table class="dtable"><thead><tr><th>คำที่พบ</th><th>ตำแหน่ง</th><th>ระดับ</th></tr></thead><tbody>
         ${fw.map(w=>`<tr><td style="font-weight:700;color:#dc2626;">${esc(w.word)}</td><td style="color:#64748b;">${esc(w.location||'')}</td><td><span style="padding:2px 8px;border-radius:12px;background:#f0d9d9;color:#7f1d1d;font-weight:700;font-size:11px;">🔴 Critical</span></td></tr>`).join('')}
         </tbody></table></div>`;
+    }
+
+    // ── Cautions (จุดที่ควรระวัง) ──
+    const cautions = result.cautions || entry?.cautions || [];
+    if (cautions.length) {
+      html += `<div style="background:#fff;border:1px solid #fde68a;border-radius:10px;margin-bottom:14px;overflow:hidden;">
+        <div style="padding:9px 16px;background:#fffbeb;border-bottom:1px solid #fde68a;"><h3 style="color:#78350f;margin:0;font-size:13px;">⚠️ จุดที่ควรระวัง (${cautions.length} รายการ)</h3></div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>หัวข้อ</th><th>รายละเอียด</th><th>คำแนะนำ</th></tr></thead><tbody>
+        ${cautions.map((c,i) => `<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="font-weight:600;font-size:13px;">${esc(c.topic||'—')}</td><td style="font-size:13px;line-height:1.65;">${esc(c.detail||'')}</td><td style="font-size:13px;color:${NAVY};">💡 ${esc(c.recommendation||'')}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
+    }
+
+    // ── Typos (คำสะกดผิด) ──
+    const typos = result.typos_found || entry?.typos_found || [];
+    if (typos.length) {
+      html += `<div style="background:#fff;border:1px solid #e9d5ff;border-radius:10px;margin-bottom:14px;overflow:hidden;">
+        <div style="padding:9px 16px;background:#f5f3ff;border-bottom:1px solid #e9d5ff;"><h3 style="color:#5b21b6;margin:0;font-size:13px;">✏️ คำที่อาจสะกดผิด / ข้อผิดพลาดทางภาษา (${typos.length} รายการ)</h3></div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>คำที่พบในสื่อ</th><th>ที่ควรเป็น</th><th>ตำแหน่ง / หมายเหตุ</th></tr></thead><tbody>
+        ${typos.map((t,i) => `<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="color:#dc2626;font-weight:700;">${esc(t.original||'—')}</td><td style="color:#16a34a;font-weight:600;">${esc(t.suggested||'—')}</td><td style="color:#64748b;font-size:12px;">${esc(t.location||'—')}</td></tr>`).join('')}
+        </tbody></table></div></div>`;
     }
 
     // ── Attached files strip in main ──
@@ -1419,9 +1570,17 @@ async function viewDetail(entryId) {
     entry = caseHistory.find(c => c.acaNumber === String(entryId) || String(c.id) === String(entryId));
   }
   if (!entry) { flash('ไม่พบข้อมูล', '#fef2f2', '#dc2626'); return; }
+
+  // Refresh file URLs from IndexedDB (blob URLs expire after page close)
+  for (const f of entry.attachedFiles || []) {
+    const freshURL = await FileStore.getURL(entry.acaNumber || entry.id, f.name);
+    if (freshURL) f.localURL = freshURL;
+  }
+
   const result = {
     overall_result: entry.overall_result, overall_summary: entry.overall_summary || '',
     checklist_results: entry.checklist_results || [], forbidden_words_found: entry.forbidden_words || [],
+    cautions: entry.cautions || [], typos_found: entry.typos_found || [],
   };
   renderResults(result, null, entry);
   switchTab('results');
@@ -2083,6 +2242,7 @@ function deleteHistoryItem(id) {
   const label = entry ? (entry.acaNumber || id) : id;
   if (!confirm(`ลบรายการ ${label} ออกจากประวัติ?\n(ลบเฉพาะในเครื่องนี้)`)) return;
   caseHistory = caseHistory.filter(c => c.acaNumber !== String(id) && String(c.id) !== String(id));
+  FileStore.deleteFiles(String(id));
   _afterHistoryChange(`🗑️ ลบ ${label} แล้ว`);
 }
 
