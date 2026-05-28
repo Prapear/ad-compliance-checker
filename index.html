@@ -801,8 +801,8 @@ function switchTab(name) {
 }
 document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
   if (btn.classList.contains('disabled')) return;
-  // ถ้ากด Input tab หลังจากตรวจเสร็จแล้ว → auto reset
-  if (btn.dataset.tab === 'input' && lastResult) {
+  // กด Input tab ทุกครั้ง → reset ใหม่หมดเสมอ ไม่ว่าจะมาจาก tab ไหน
+  if (btn.dataset.tab === 'input') {
     newJob();
   } else {
     switchTab(btn.dataset.tab);
@@ -819,6 +819,8 @@ function newJob() {
   document.querySelectorAll('[data-offer]').forEach((b,i) => b.classList.toggle('active', i === 0));
   document.getElementById('tab-res-btn')?.classList.add('disabled');
   document.getElementById('btn-new-job').style.display = 'none';
+  // ซ่อน error messages ที่อาจค้างจากการตรวจครั้งก่อน
+  const fileErr = document.getElementById('file-req-err'); if (fileErr) fileErr.style.display = 'none';
   switchTab('input'); updateReadiness();
 }
 
@@ -992,7 +994,19 @@ async function doAICall() {
     const r = new FileReader(); r.onload = ev => res(`[${f.name}]\n${ev.target.result.slice(0,3000)}`); r.onerror = () => res(''); r.readAsText(f, 'UTF-8');
   })));
 
-  const prompt = `Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}
+  const prompt = `=== ขั้นตอนที่ต้องทำก่อนอ่าน checklist (MANDATORY — ห้ามข้าม) ===
+ก่อนทุกอย่าง: อ่านภาพแล้ว list ข้อความที่อ่านออกทั้งหมดออกมา (ใช้ internal reasoning ของคุณ)
+ถ้าอ่านได้น้อยกว่า 3 รายการ (คำหรือวลี) หรือภาพว่างเปล่า/มีแค่โลโก้:
+→ ตัดสิน FAIL ทั้งหมดทันที — overall_result = "FAIL"
+→ overall_summary = "ภาพไม่มีเนื้อหาสื่อโฆษณาเพียงพอสำหรับการตรวจ"
+→ checklist_results ทุกรายการ: result = "FAIL", evidence = "ไม่พบในไฟล์ — ภาพไม่มีเนื้อหา"
+→ หยุด ห้ามตรวจต่อ
+กฎ: ภาพโฆษณาที่ถูกกฎหมายต้องมีข้อมูลครบ — ภาพที่ไม่มีข้อความ = ขาดข้อมูลกฎหมาย = FAIL เสมอ
+ห้าม PASS ด้วยเหตุผลว่า "ไม่มีสิ่งผิดกฎ" หรือ "ภาพสะอาด"
+
+===
+
+Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}
 Sheets: ${sheets.join(', ')}
 
 === PRIMARY CHECKLIST ===
@@ -1006,6 +1020,7 @@ ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') 
 3. ห้ามใช้ result = "PASS" จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท โดยเด็ดขาด
 4. ห้าม hallucinate: ถ้าไม่มีข้อมูลในไฟล์ = FAIL เสมอ ไม่มีข้อยกเว้น
 5. overall_result ต้องเป็น "FAIL" ถ้ามีรายการใดเป็น "FAIL" แม้แต่ 1 รายการ
+6. ข้อความใน PRIMARY CHECKLIST = เกณฑ์ที่ต้องตรวจ ไม่ใช่หลักฐานว่ามีในภาพ — ห้ามนำมาใส่ evidence
 
 ตอบ JSON:
 {"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"ข้อความที่อ่านได้จากไฟล์จริงๆ หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}]}`;
