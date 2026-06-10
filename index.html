@@ -1105,7 +1105,7 @@ async function doAICall() {
   const skillPrompt = skd?.text || '';
   const sheets = getSheets();
   // base instruction ต้องอยู่เสมอ — skill file เพิ่มได้แต่ห้ามลบ anti-hallucination core
-  const BASE_SYS = 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยใน finding, missing, recommendation, overall_summary ห้ามสร้างข้อมูลที่ไม่มีในไฟล์ที่ส่งมา';
+  const BASE_SYS = 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยในทุก field ที่เป็นข้อความ ห้ามสร้างข้อมูลที่ไม่มีในไฟล์ที่ส่งมา ตรวจเฉพาะสิ่งที่อ่านหรือเห็นได้จริงในไฟล์เท่านั้น ห้าม hallucinate';
   const sysText = skillPrompt ? `${BASE_SYS}\n\n${skillPrompt}` : BASE_SYS;
 
   const imgs = mediaFiles.filter(f => fInfo(f)?.kind === 'image');
@@ -1134,6 +1134,16 @@ async function doAICall() {
 7. overall_result = "FAIL" ถ้ามีรายการใดเป็น FAIL แม้แต่ 1 รายการ
 8. ตรวจจุดที่ควรระวัง เช่น ข้อมูลคลุมเครือ ตัวเลขที่ไม่ชัดเจน ข้อความที่อาจทำให้เข้าใจผิด แม้ไม่ผิดกฎหมาย → ใส่ใน cautions
 9. ตรวจคำสะกดผิด ผิดพลาดทางไวยากรณ์ ชื่อโครงการ/ชื่อบริษัทที่อาจพิมพ์ผิด → ใส่ใน typos_found (ถ้าไม่พบให้ใส่ [])
+10. ตรวจคำหรือวลีเกินจริง (Overclaim) จาก extracted_text เท่านั้น: คำ superlative ไม่มีบริบท (ดีที่สุด/ใหญ่ที่สุด/ถูกที่สุด/สวยที่สุด), คำรับประกันสัมบูรณ์ (100%/รับประกันผลตอบแทน/แน่นอน/ไม่มีความเสี่ยง), การอ้างมูลค่าอนาคต (ราคาจะเพิ่ม/ผลตอบแทนสูง/ลงทุนคุ้มค่า/กำไรแน่นอน), คำคลุมเครือไม่มีหน่วยวัด (ใกล้/สะดวก/ครบครัน/ทันสมัย/หรูหรา โดยไม่มีตัวเลขหรือข้อมูลอ้างอิง) → quote phrase ตรงจาก extracted_text ใส่ใน overclaim_words_found พร้อม reason ว่าทำไมถึงเกินจริง และ suggested_correction (ถ้าไม่พบให้ใส่ [])
+
+=== STEP 3 — วิเคราะห์ภาพ: ภาพถ่ายจริงหรือภาพ AI/Render ===
+${imgs.length ? `ภาพที่ส่งมา: ${imgs.map((f,i) => `[IMG${i+1}] ${f.name}`).join(', ')}` : 'ไม่มีภาพ → image_analysis = []'}
+สำหรับทุกภาพ วิเคราะห์จากลักษณะภาพที่เห็นจริงๆ เท่านั้น (ห้ามตัดสินจากชื่อไฟล์):
+- "real_photo": แสง/เงา/พื้นผิวเป็นธรรมชาติ มีรายละเอียดสมจริง มีข้อบกพร่องตามธรรมชาติ
+- "ai_or_render": แสงสม่ำเสมอเกินจริง พื้นผิวเรียบเกินจริง มือ/คน/ข้อความในภาพผิดปกติ ขอบ/เงาไม่สมจริง ฉากหลังผิดสัดส่วน
+- "uncertain": ไม่สามารถระบุได้ชัดเจน ต้องใช้ confidence="low"
+confidence: "high" (ชัดเจนมาก) | "medium" (ค่อนข้างมั่นใจ) | "low" (ไม่แน่ใจ)
+indicators ต้องอธิบายลักษณะที่เห็นจากภาพจริงๆ เป็นภาษาไทย ห้ามคาดเดา
 
 Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}
 Sheets: ${sheets.join(', ')}
@@ -1144,7 +1154,7 @@ ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
 
 ตอบ JSON (extracted_text ต้องมาก่อนเสมอ):
-{"extracted_text":["ทุกข้อความที่อ่านออกจากไฟล์จริง — ห้ามว่าง ถ้าอ่านไม่ออกอะไรเลยให้ใส่ 'ไม่พบข้อความในไฟล์'"],"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"quote ตรงจาก extracted_text เท่านั้น หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}],"cautions":[{"topic":"","detail":"","recommendation":""}],"typos_found":[{"original":"","suggested":"","location":""}]}`;
+{"extracted_text":["ทุกข้อความที่อ่านออกจากไฟล์จริง — ห้ามว่าง ถ้าอ่านไม่ออกอะไรเลยให้ใส่ 'ไม่พบข้อความในไฟล์'"],"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"quote ตรงจาก extracted_text เท่านั้น หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}],"cautions":[{"topic":"","detail":"","recommendation":""}],"typos_found":[{"original":"","suggested":"","location":""}],"overclaim_words_found":[{"phrase":"","location":"","reason":"","severity":"High|Medium","suggested_correction":""}],"image_analysis":[{"filename":"","type":"real_photo|ai_or_render|uncertain","confidence":"high|medium|low","indicators":"","recommendation":""}]}`;
 
   const parts = [{text: prompt}];
   for (const f of imgs) { const b = await toB64(f); parts.push({inlineData:{mimeType:fInfo(f).mime, data:b}}); }
@@ -1155,7 +1165,7 @@ ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') 
   const body = {
     systemInstruction: {parts:[{text:sysText}]},
     contents: [{role:'user', parts}],
-    generationConfig: {temperature:0.1, maxOutputTokens:8192, responseMimeType:'application/json'}
+    generationConfig: {temperature:0.1, maxOutputTokens:16384, responseMimeType:'application/json'}
   };
 
   const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), 90000);
@@ -1172,6 +1182,8 @@ ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') 
     if (!parsed.checklist_results && parsed.results)   parsed.checklist_results = parsed.results;
     if (!parsed.forbidden_words_found && parsed.forbidden_words) parsed.forbidden_words_found = parsed.forbidden_words;
     if (!parsed.overall_result && parsed.result)       parsed.overall_result = parsed.result;
+    if (!parsed.overclaim_words_found) parsed.overclaim_words_found = [];
+    if (!parsed.image_analysis) parsed.image_analysis = [];
     return parsed;
   } catch (e) {
     clearTimeout(tid);
@@ -1340,6 +1352,47 @@ function renderResults(result, errMsg, entry) {
         <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>คำที่พบในสื่อ</th><th>ที่ควรเป็น</th><th>ตำแหน่ง / หมายเหตุ</th></tr></thead><tbody>
         ${typos.map((t,i) => `<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="color:#dc2626;font-weight:700;">${esc(t.original||'—')}</td><td style="color:#16a34a;font-weight:600;">${esc(t.suggested||'—')}</td><td style="color:#64748b;font-size:12px;">${esc(t.location||'—')}</td></tr>`).join('')}
         </tbody></table></div></div>`;
+    }
+
+    // ── Overclaim (คำ/วลีเกินจริง) ──
+    const overclaims = result.overclaim_words_found || entry?.overclaim_words_found || [];
+    if (overclaims.length) {
+      html += `<div style="background:#fff;border:1px solid #fed7aa;border-radius:10px;margin-bottom:14px;overflow:hidden;">
+        <div style="padding:9px 16px;background:#fff7ed;border-bottom:1px solid #fed7aa;"><h3 style="color:#c2410c;margin:0;font-size:13px;">🔥 คำ/วลีเกินจริง (Overclaim) ที่พบ (${overclaims.length} รายการ)</h3></div>
+        <div style="overflow-x:auto;"><table class="dtable"><thead><tr><th>คำ/วลีในสื่อ</th><th>ระดับ</th><th>เหตุผล</th><th>แนะนำแก้เป็น</th></tr></thead><tbody>
+        ${overclaims.map((o,i) => {
+          const sevBg = o.severity === 'High' ? '#fff7ed' : '#fffbeb';
+          const sevCol = o.severity === 'High' ? '#c2410c' : '#92400e';
+          return `<tr style="background:${i%2?'#fafafa':'#fff'};"><td style="color:#c2410c;font-weight:700;">"${esc(o.phrase||'—')}"${o.location?`<div style="font-size:11px;color:#94a3b8;">${esc(o.location)}</div>`:''}</td><td><span style="padding:2px 9px;border-radius:12px;background:${sevBg};color:${sevCol};font-weight:700;font-size:11px;">${esc(o.severity||'Medium')}</span></td><td style="font-size:13px;line-height:1.6;color:#374151;">${esc(o.reason||'—')}</td><td style="font-size:13px;color:#0032c7;">💡 ${esc(o.suggested_correction||'—')}</td></tr>`;
+        }).join('')}
+        </tbody></table></div></div>`;
+    }
+
+    // ── Image Analysis (ภาพจริง vs AI/Render) ──
+    const imgAnalysis = result.image_analysis || entry?.image_analysis || [];
+    if (imgAnalysis.length) {
+      const typeLabel = t => ({real_photo:'📷 ภาพถ่ายจริง', ai_or_render:'🤖 AI / Render', uncertain:'❓ ไม่แน่ใจ'}[t] || t);
+      const typeBg    = t => ({real_photo:'#f0fdf4', ai_or_render:'#fff7ed', uncertain:'#fefce8'}[t] || '#f8faff');
+      const typeCol   = t => ({real_photo:'#15803d', ai_or_render:'#c2410c', uncertain:'#78350f'}[t] || '#64748b');
+      const confLabel = c => ({high:'สูง', medium:'ปานกลาง', low:'ต่ำ'}[c] || c);
+      html += `<div style="background:#fff;border:1px solid #bae6fd;border-radius:10px;margin-bottom:14px;overflow:hidden;">
+        <div style="padding:9px 16px;background:#f0f9ff;border-bottom:1px solid #bae6fd;"><h3 style="color:#0369a1;margin:0;font-size:13px;">🖼️ วิเคราะห์ภาพ: ภาพถ่ายจริงหรือ AI/Render (${imgAnalysis.length} ภาพ)</h3></div>
+        <div style="padding:4px 6px 6px;">
+        ${imgAnalysis.map(img => `<div style="margin:8px 4px;padding:10px 14px;border-radius:8px;border:1px solid #e2e8f0;background:${typeBg(img.type)};">
+          <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+            <div style="flex:0 0 auto;">
+              <div style="font-size:18px;font-weight:800;color:${typeCol(img.type)};">${typeLabel(img.type)}</div>
+              <div style="font-size:11px;color:#64748b;margin-top:2px;">ความมั่นใจ: <strong>${confLabel(img.confidence||'—')}</strong></div>
+            </div>
+            <div style="flex:1;min-width:180px;">
+              <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:3px;">📁 ${esc(img.filename||'—')}</div>
+              ${img.indicators ? `<div style="font-size:12px;color:#374151;line-height:1.7;margin-bottom:4px;">🔍 ${esc(img.indicators)}</div>` : ''}
+              ${img.recommendation ? `<div style="font-size:12px;color:#0032c7;">💡 ${esc(img.recommendation)}</div>` : ''}
+            </div>
+          </div>
+        </div>`).join('')}
+        <div style="padding:6px 14px 4px;font-size:11px;color:#94a3b8;">* การวิเคราะห์ภาพ AI/Real เป็นการประเมินเบื้องต้น อาจมีความคลาดเคลื่อน ใช้ประกอบการพิจารณาเท่านั้น</div>
+        </div></div>`;
     }
 
     // ── Attached files strip in main ──
