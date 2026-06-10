@@ -930,6 +930,24 @@ function getSheets() {
   s.push(mt);
   return s;
 }
+function parseChecklist(clText) {
+  const map = {};
+  let cur = null;
+  (clText || '').split('\n').forEach(line => {
+    line = line.trim();
+    if (line.startsWith('## ')) { cur = line.slice(3).trim(); map[cur] = []; }
+    else if (cur && line && !line.startsWith('#')) {
+      const p = line.split('|');
+      if (p.length >= 3) map[cur].push({ rule_id: p[0].trim(), topic: p[1].trim(), description: p[2].trim(), law: p[3]?.trim() || '' });
+    }
+  });
+  return map;
+}
+function getGapFilledSeverity(sheetName) {
+  if (['Common_Rules','Condo_Regis','Condo_Unregis','H_Allocation','H_Unallocation'].includes(sheetName)) return 'Critical';
+  if (['promotion','Lucky_draw'].includes(sheetName)) return 'High';
+  return 'Medium';
+}
 function updateReadiness() {
   const checks = [
     {l:'API Key',          ok:!!gv('inp-key')},
@@ -1029,6 +1047,31 @@ async function handleSubmit() {
         if (!r.missing) r.missing = r.finding || 'ไม่พบข้อมูลในสื่อ';
       }
     });
+
+    // Gap-fill: inject rules that AI missed but must be checked per selected sheets
+    {
+      const clText = getMd('cl1')?.text || DEMO_CL;
+      const parsedCL = parseChecklist(clText);
+      const returnedIds = new Set(cl.map(r => r.rule_id).filter(Boolean));
+      getSheets().forEach(sheet => {
+        (parsedCL[sheet] || []).forEach(rule => {
+          if (!returnedIds.has(rule.rule_id)) {
+            cl.push({
+              rule_id: rule.rule_id,
+              topic: rule.topic,
+              law: rule.law,
+              result: 'FAIL',
+              severity: getGapFilledSeverity(sheet),
+              evidence: 'AI ไม่ได้ส่งผลการตรวจสอบรายการนี้',
+              finding: 'รายการนี้ขาดหายไปจากผล AI — อาจเกิดจาก token limit หรือ AI ข้ามไป',
+              missing: rule.topic,
+              penalty: '',
+              recommendation: 'กรุณาตรวจสอบรายการนี้ด้วยตนเองหรือส่งตรวจใหม่'
+            });
+          }
+        });
+      });
+    }
 
     // VERDICT OVERRIDE — ทำก่อน save เสมอ ไม่ให้ entry บันทึกค่าผิด
     const _anyFail = cl.some(r => r.result === 'FAIL');
