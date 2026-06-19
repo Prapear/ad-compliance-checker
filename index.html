@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;}
-:root{--blue:#0032c7;--blue-dark:#001f8a;--blue-light:#3d5fff;--yellow:#f59e0b;}
+:root{--blue:#0032c7;--blue-dark:#001f8a;--blue-light:#3d5fff;}
 body{margin:0;font-family:'Sarabun',sans-serif;min-height:100vh;font-size:15px;display:flex;flex-direction:column;background:#f0f4ff;}
 input,select,textarea,button{font-family:'Sarabun',sans-serif;font-size:14px;}
 @keyframes spin{to{transform:rotate(360deg);}}
@@ -86,8 +86,6 @@ textarea.inp{resize:vertical;}
 .btn-navy{padding:7px 18px;background:var(--blue);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;}
 .btn-navy:hover{background:var(--blue-dark);}
 .btn-ghost{padding:7px 16px;background:#fff;color:var(--blue);border:2px solid var(--blue);border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;}
-.btn-green{padding:8px 18px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;}
-.btn-red{padding:8px 18px;background:#dc2626;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;}
 .btn-sm{padding:5px 11px;font-size:12px;border-radius:7px;border:none;cursor:pointer;font-weight:600;}
 
 /* FILES */
@@ -121,14 +119,10 @@ textarea.inp{resize:vertical;}
 .admin-ta:focus{border-color:var(--blue);background:#fff;}
 .admin-file-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f8faff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:10px;}
 
-/* USER */
-.user-row{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8faff;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:7px;}
-
 /* MISC */
 .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;}
 .disclaimer-yellow{background:#fef9c3;border:1px solid #fde047;border-radius:8px;padding:9px 13px;font-size:13px;color:#713f12;margin-bottom:12px;line-height:1.7;}
 .disclaimer-gray{font-size:11px;color:#94a3b8;line-height:1.7;margin-top:5px;}
-.filter-select{padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;background:#fff;color:#1e293b;}
 .filter-date{padding:6px 9px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;outline:none;background:#fff;}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,20,80,.5);display:none;align-items:center;justify-content:center;z-index:700;}
 .modal-box{background:#fff;border-radius:12px;padding:22px;width:560px;max-width:94vw;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,50,199,.2);}
@@ -255,7 +249,7 @@ textarea.inp{resize:vertical;}
         <button onclick="document.getElementById('inp-files').click()" style="width:100%;padding:9px;border-radius:8px;background:var(--blue);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📎 เลือกไฟล์</button>
         <input id="inp-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.bmp,.pdf,.txt,.csv,.docx,.mp4,.mov,.avi,.webm" style="display:none;" onchange="addFiles(Array.from(this.files));this.value=''"/>
         <div class="drop-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();addFiles(Array.from(event.dataTransfer.files))">
-          <div style="font-size:12px;color:#3d5fff;line-height:2;">🖼️ JPG, PNG, WebP · 📕 PDF · 📄 TXT · 🎬 MP4 (≤50MB)</div>
+          <div id="file-type-hint" style="font-size:12px;color:#3d5fff;line-height:2;">🖼️ JPG, PNG, WebP · 📕 PDF · 📄 TXT · 🎬 MP4 (≤50MB)</div>
         </div>
         <div id="file-list" style="margin-top:9px;"></div>
         <div id="file-req-err" style="display:none;font-size:12px;color:#ef4444;margin-top:4px;">📎 กรุณาแนบไฟล์อย่างน้อย 1 ไฟล์</div>
@@ -606,11 +600,11 @@ function _prepareForSheets(entry) {
 // ═══════════════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════════════
-let mediaFiles = [], lastResult = null, currentRole = null, currentAcc = null, _loadingAbort = false;
+let mediaFiles = [], currentRole = null, currentAcc = null, _loadingAbort = false;
 let caseHistory = [];
 let _histPage = 0, histFilter = 'all', histRangeFrom = '', histRangeTo = '', histSearch = '';
 let _dashFilter = {period:'all'}, _dashMonthSel = new Date().getMonth(), _dashYearSel = new Date().getFullYear();
-let _dashRangeFrom = '', _dashRangeTo = '', _trendMode = 'year', _trendRangeFrom = '', _trendRangeTo = '';
+let _dashRangeFrom = '', _dashRangeTo = '';
 const HIST_PAGE_SIZE = 25;
 
 async function loadState() {
@@ -623,7 +617,6 @@ loadState();
 // ═══════════════════════════════════════════════════════
 function hashPwd(s) { let h = 0; for (const c of s) h = (Math.imul(31, h) + c.charCodeAt(0)) | 0; return h.toString(36); }
 function getRoleTemplates() { return DB.lsGet('role_templates') || ROLE_TEMPLATES; }
-function saveRoleTemplates(t) { DB.lsSet('role_templates', t); }
 function getRoleDef(roleId) { return getRoleTemplates().find(r => r.id === roleId) || ROLE_TEMPLATES.find(r => r.id === roleId) || {id:roleId,label:roleId,color:'#64748b',bg:'#f1f5f9',textColor:'#475569',canAdmin:false}; }
 
 function getAccounts() {
@@ -682,6 +675,22 @@ function onProviderChange() {
   saveProvider(prov);
   document.getElementById('key-gemini-wrap').style.display = prov === 'gemini' ? '' : 'none';
   document.getElementById('key-groq-wrap').style.display = prov === 'groq' ? '' : 'none';
+
+  const fileInput = document.getElementById('inp-files');
+  const hint = document.getElementById('file-type-hint');
+  if (prov === 'groq') {
+    if (fileInput) fileInput.accept = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.bmp,.txt,.csv,.docx';
+    if (hint) hint.innerHTML = '🖼️ JPG, PNG, WebP · 📄 TXT · 📝 DOCX <span style="color:#ef4444;font-size:11px;">(Groq ไม่รองรับ PDF/วิดีโอ)</span>';
+    const groqUnsupported = mediaFiles.filter(f => ['pdf','mp4','mov','avi','webm'].includes(f.name.split('.').pop().toLowerCase()));
+    if (groqUnsupported.length) {
+      mediaFiles = mediaFiles.filter(f => !groqUnsupported.includes(f));
+      renderFileList(); updateReadiness();
+      flash(`นำออก ${groqUnsupported.length} ไฟล์ที่ Groq ไม่รองรับ (PDF/วิดีโอ)`, '#fef3c7', '#92400e');
+    }
+  } else {
+    if (fileInput) fileInput.accept = '.jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.bmp,.pdf,.txt,.csv,.docx,.mp4,.mov,.avi,.webm';
+    if (hint) hint.innerHTML = '🖼️ JPG, PNG, WebP · 📕 PDF · 📄 TXT · 🎬 MP4 (≤50MB)';
+  }
   updateReadiness();
 }
 
@@ -930,7 +939,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click
 }));
 
 function newJob() {
-  mediaFiles = []; document.getElementById('file-list').innerHTML = ''; lastResult = null;
+  mediaFiles = []; document.getElementById('file-list').innerHTML = '';
   // reset form fields
   ['f-projtype','f-projstatus','f-media'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.getElementById('f-status-wrap').style.display = 'none';
@@ -1020,6 +1029,15 @@ function addFiles(files) {
   const VM = 100 * 1024 * 1024, TM = 200 * 1024 * 1024;
   const badType = files.filter(f => fInfo(f).kind === 'other');
   if (badType.length) { showError('file'); return; }
+  const prov = document.getElementById('sel-provider')?.value || loadProvider();
+  if (prov === 'groq') {
+    const groqBad = files.filter(f => ['pdf','mp4','mov','avi','webm'].includes(f.name.split('.').pop().toLowerCase()));
+    if (groqBad.length) {
+      showError('file', `Groq ไม่รองรับ: ${groqBad.map(f=>f.name).join(', ')}\nกรุณาใช้ Gemini หรือแปลงไฟล์เป็น JPG/TXT ก่อน`);
+      files = files.filter(f => !groqBad.includes(f));
+      if (!files.length) return;
+    }
+  }
   const big = files.filter(f => fInfo(f).kind === 'video' && f.size > VM);
   if (big.length) { showError('file', `ไฟล์วิดีโอ "${big[0].name}" เกิน 100MB`); return; }
   const ok = files.filter(f => !big.includes(f));
@@ -1077,7 +1095,7 @@ async function handleSubmit() {
     setLS(2, 20, 'AI กำลังวิเคราะห์...');
     const result = await doAICall(); if (_loadingAbort) return;
     setLS(3, 90, 'กำลังสรุปผล...'); await sleep(200); setLS(3, 100); await sleep(300);
-    hideLoading(); lastResult = result;
+    hideLoading();
 
     const aca = genACA();
     const cl = result.checklist_results || [];
@@ -1745,9 +1763,6 @@ function renderHistory() {
     return acc?.team === myTeam;
   });
   const filtered = applyHistFilter(allItems);
-
-  const now = new Date(); const yr = now.getFullYear();
-  const MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 
   const filterBtns = ['all','today','month','year','range'].map(f => {
     const lbls = {all:'All',today:'Today',month:'Month',year:'Year',range:'📅 Range'};
@@ -2483,8 +2498,6 @@ async function savePDF(source, id) {
       const entry = caseHistory.find(c => String(c.id) === String(id) || c.acaNumber === String(id));
       if (entry) filename = `${entry.acaNumber}_QuickCheck`;
       el = document.getElementById('results-main');
-    } else if (source === 'dashboard') {
-      el = document.getElementById('panel-dashboard'); filename = 'ACA_Dashboard';
     }
     if (!el) { flash('ไม่พบ element', '#fef2f2', '#dc2626'); return; }
     el.scrollTop = 0;
@@ -2564,23 +2577,6 @@ function deleteHistoryItem(id) {
   caseHistory = caseHistory.filter(c => c.acaNumber !== String(id) && String(c.id) !== String(id));
   FileStore.deleteFiles(String(id));
   _afterHistoryChange(`🗑️ ลบ ${label} แล้ว`);
-}
-
-// ลบเฉพาะรายการที่กรองอยู่ในปัจจุบัน (ปุ่ม "ลบที่กรอง")
-function clearHistoryFiltered() {
-  const isAdmin = getRoleDef(currentRole).canAdmin;
-  const myTeam  = currentAcc?.team || '';
-  const scopedItems = isAdmin ? caseHistory : caseHistory.filter(c => {
-    const acc = getAccounts().find(a => a.username === c.submittedBy);
-    return acc?.team === myTeam;
-  });
-  const toDelete = applyHistFilter(scopedItems);
-  if (!toDelete.length) { flash('ไม่มีรายการในช่วงที่เลือก', '#fffbeb', '#92400e'); return; }
-  const filterLabel = {all:'ทั้งหมด', today:'วันนี้', month:'เดือนนี้', year:'ปีนี้', range:'ช่วงที่เลือก'}[histFilter] || '';
-  if (!confirm(`ลบ ${toDelete.length} รายการ (${filterLabel})?\nไม่สามารถย้อนกลับได้`)) return;
-  const deleteIds = new Set(toDelete.map(c => c.acaNumber || c.id));
-  caseHistory = caseHistory.filter(c => !deleteIds.has(c.acaNumber || c.id));
-  _afterHistoryChange(`🗑️ ลบ ${toDelete.length} รายการแล้ว`);
 }
 
 // ล้างทั้งหมด (Admin = ทุก record, User = เฉพาะทีมตัวเอง)
