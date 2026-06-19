@@ -2225,6 +2225,8 @@ function adminSaveGroqKey() {
   if (!val) { flash('กรุณาใส่ Groq API Key', '#fffbeb', '#92400e'); return; }
   saveGroqKey(val);
   const inp = document.getElementById('inp-key-groq'); if (inp) { inp.value = val; inp.classList.add('active'); }
+  const sel = document.getElementById('sel-provider');
+  if (sel && sel.value !== 'groq') { sel.value = 'groq'; onProviderChange(); }
   updateReadiness();
   const st = document.getElementById('admin-groq-key-status');
   if (st) { st.textContent = '✅ บันทึกแล้ว'; st.style.color = '#16a34a'; }
