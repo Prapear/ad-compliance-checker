@@ -6,6 +6,7 @@
 <title>Ad Compliance Checker v4.3</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;}
 :root{--blue:#0032c7;--blue-dark:#001f8a;--blue-light:#3d5fff;--yellow:#f59e0b;}
@@ -201,11 +202,18 @@ textarea.inp{resize:vertical;}
     </div>
   </div>
   <div class="hdr-row2">
-    <div id="key-input-row" style="display:flex;align-items:center;gap:6px;">
-      <span style="font-size:12px;opacity:.8;">🔑 Gemini Key</span>
-      <div class="key-wrap">
+    <div id="key-input-row" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+      <select id="sel-provider" onchange="onProviderChange()" style="padding:4px 8px;border-radius:7px;border:2px solid rgba(255,255,255,.2);background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:600;outline:none;cursor:pointer;">
+        <option value="gemini" style="color:#000;background:#fff;">Gemini</option>
+        <option value="groq" style="color:#000;background:#fff;">Groq (Free)</option>
+      </select>
+      <div id="key-gemini-wrap" class="key-wrap">
         <input id="inp-key" type="password" placeholder="AIza..." class="key-inp" autocomplete="off"/>
         <button type="button" class="key-eye" onclick="togglePwd('inp-key',this)">👁️</button>
+      </div>
+      <div id="key-groq-wrap" class="key-wrap" style="display:none;">
+        <input id="inp-key-groq" type="password" placeholder="gsk_..." class="key-inp" autocomplete="off"/>
+        <button type="button" class="key-eye" onclick="togglePwd('inp-key-groq',this)">👁️</button>
       </div>
     </div>
     <div id="central-key-badge" style="display:none;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:7px;font-size:11px;color:#fff;font-weight:600;">🔑 API Key พร้อมใช้งาน</div>
@@ -245,7 +253,7 @@ textarea.inp{resize:vertical;}
       <div class="card">
         <h3 class="card-title">📎 แนบไฟล์สื่อโฆษณา</h3>
         <button onclick="document.getElementById('inp-files').click()" style="width:100%;padding:9px;border-radius:8px;background:var(--blue);color:#fff;border:none;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📎 เลือกไฟล์</button>
-        <input id="inp-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.pdf,.txt,.csv,.mp4,.mov,.avi,.webm" style="display:none;" onchange="addFiles(Array.from(this.files));this.value=''"/>
+        <input id="inp-files" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.gif,.heic,.heif,.bmp,.pdf,.txt,.csv,.docx,.mp4,.mov,.avi,.webm" style="display:none;" onchange="addFiles(Array.from(this.files));this.value=''"/>
         <div class="drop-zone" ondragover="event.preventDefault()" ondrop="event.preventDefault();addFiles(Array.from(event.dataTransfer.files))">
           <div style="font-size:12px;color:#3d5fff;line-height:2;">🖼️ JPG, PNG, WebP · 📕 PDF · 📄 TXT · 🎬 MP4 (≤50MB)</div>
         </div>
@@ -655,10 +663,27 @@ function getACAInfo() {
 }
 
 // ═══════════════════════════════════════════════════════
-// API KEY
+// API KEY & PROVIDER
 // ═══════════════════════════════════════════════════════
 function saveApiKey(key) { try { localStorage.setItem('api_key_gemini', key); } catch {} }
 function loadApiKey() { return localStorage.getItem('api_key_gemini') || ''; }
+function saveGroqKey(key) { try { localStorage.setItem('api_key_groq', key); } catch {} }
+function loadGroqKey() { return localStorage.getItem('api_key_groq') || ''; }
+function saveProvider(p) { try { localStorage.setItem('api_provider', p); } catch {} }
+function loadProvider() { return localStorage.getItem('api_provider') || 'gemini'; }
+
+function getActiveApiKey() {
+  const prov = document.getElementById('sel-provider')?.value || loadProvider();
+  return prov === 'groq' ? gv('inp-key-groq') : gv('inp-key');
+}
+
+function onProviderChange() {
+  const prov = document.getElementById('sel-provider')?.value || 'gemini';
+  saveProvider(prov);
+  document.getElementById('key-gemini-wrap').style.display = prov === 'gemini' ? '' : 'none';
+  document.getElementById('key-groq-wrap').style.display = prov === 'groq' ? '' : 'none';
+  updateReadiness();
+}
 
 async function fetchCentralApiKey() {
   try {
@@ -672,15 +697,35 @@ async function fetchCentralApiKey() {
 
 function initApiKey() {
   const inp = document.getElementById('inp-key');
+  const groqInp = document.getElementById('inp-key-groq');
+  const provSel = document.getElementById('sel-provider');
   if (!inp) return;
-  const saved = loadApiKey();
-  if (saved) { inp.value = saved; inp.classList.add('active'); }
+
+  // Restore provider
+  const savedProv = loadProvider();
+  if (provSel) { provSel.value = savedProv; onProviderChange(); }
+
+  // Restore Gemini key
+  const savedGemini = loadApiKey();
+  if (savedGemini) { inp.value = savedGemini; inp.classList.add('active'); }
   inp.addEventListener('input', function() {
     this.classList.toggle('active', !!this.value);
     if (this.value) saveApiKey(this.value);
     updateReadiness();
   });
-  // Try central key
+
+  // Restore Groq key
+  const savedGroq = loadGroqKey();
+  if (groqInp) {
+    if (savedGroq) { groqInp.value = savedGroq; groqInp.classList.add('active'); }
+    groqInp.addEventListener('input', function() {
+      this.classList.toggle('active', !!this.value);
+      if (this.value) saveGroqKey(this.value);
+      updateReadiness();
+    });
+  }
+
+  // Try central key (Gemini only)
   fetchCentralApiKey().then(centralKey => {
     if (!centralKey) return;
     inp.value = centralKey; inp.classList.add('active');
@@ -704,16 +749,20 @@ function toB64(f) { return new Promise((res, rej) => { const r = new FileReader(
 function fInfo(f) {
   const x = f.name.split('.').pop().toLowerCase();
   if (['jpg','jpeg'].includes(x)) return {kind:'image', mime:'image/jpeg'};
-  if (x === 'png') return {kind:'image', mime:'image/png'};
+  if (x === 'png')  return {kind:'image', mime:'image/png'};
   if (x === 'webp') return {kind:'image', mime:'image/webp'};
-  if (x === 'gif') return {kind:'image', mime:'image/gif'};
-  if (x === 'pdf') return {kind:'pdf', mime:'application/pdf'};
+  if (x === 'gif')  return {kind:'image', mime:'image/gif'};
+  if (x === 'bmp')  return {kind:'image', mime:'image/bmp'};
+  if (x === 'heic') return {kind:'image', mime:'image/heic'};
+  if (x === 'heif') return {kind:'image', mime:'image/heif'};
+  if (x === 'pdf')  return {kind:'pdf',   mime:'application/pdf'};
+  if (x === 'docx') return {kind:'docx',  mime:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'};
   if (['txt','csv'].includes(x)) return {kind:'text', mime:'text/plain'};
   if (['mp4','mov','avi','webm'].includes(x)) return {kind:'video', mime:'video/'+x};
   return {kind:'other', mime:'application/octet-stream'};
 }
-function isImg(f) { return ['jpg','jpeg','png','webp','gif'].includes(f.name.split('.').pop().toLowerCase()); }
-function fIcon(x) { return {pdf:'📕',txt:'📄',csv:'📊',mp4:'🎬',mov:'🎬',avi:'🎬',webm:'🎬'}[x] || '📎'; }
+function isImg(f) { return ['jpg','jpeg','png','webp','gif','bmp','heic','heif'].includes(f.name.split('.').pop().toLowerCase()); }
+function fIcon(x) { return {pdf:'📕',docx:'📝',txt:'📄',csv:'📊',mp4:'🎬',mov:'🎬',avi:'🎬',webm:'🎬'}[x] || '📎'; }
 function togglePwd(id, btn) { const el = document.getElementById(id); if (!el) return; el.type = el.type === 'password' ? 'text' : 'password'; if (btn) btn.textContent = el.type === 'password' ? '👁️' : '🙈'; }
 function flash(msg, bg = '#d8ead8', color = '#14532d') {
   const f = document.createElement('div');
@@ -950,7 +999,7 @@ function getGapFilledSeverity(sheetName) {
 }
 function updateReadiness() {
   const checks = [
-    {l:'API Key',          ok:!!gv('inp-key')},
+    {l:'API Key',          ok:!!getActiveApiKey()},
     {l:'ประเภทโครงการ',    ok:!!gv('f-projtype')},
     {l:'ประเภทสื่อ',       ok:!!gv('f-media')},
     {l:'ยืนยัน Disclaimer',ok:!!document.getElementById('chk-ai-ack')?.checked},
@@ -959,7 +1008,7 @@ function updateReadiness() {
   document.getElementById('readiness-list').innerHTML = checks.map(c =>
     `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px;"><span>${c.ok?'✅':c.opt?'⬜':'❌'}</span><span style="color:${c.ok?'#16a34a':c.opt?'#94a3b8':'#ef4444'};">${c.l}</span></div>`
   ).join('');
-  const v = !!(gv('inp-key') && gv('f-projtype') && gv('f-media') && document.getElementById('chk-ai-ack')?.checked);
+  const v = !!(getActiveApiKey() && gv('f-projtype') && gv('f-media') && document.getElementById('chk-ai-ack')?.checked);
   const btn = document.getElementById('btn-submit');
   if (btn) { btn.disabled = !v; btn.style.background = v ? NAVY : '#94a3b8'; btn.style.cursor = v ? 'pointer' : 'not-allowed'; btn.style.boxShadow = v ? '0 4px 14px rgba(0,50,199,.3)' : 'none'; }
 }
@@ -968,13 +1017,13 @@ function updateReadiness() {
 // FILES
 // ═══════════════════════════════════════════════════════
 function addFiles(files) {
-  const VM = 50 * 1024 * 1024, TM = 75 * 1024 * 1024;
+  const VM = 100 * 1024 * 1024, TM = 200 * 1024 * 1024;
   const badType = files.filter(f => fInfo(f).kind === 'other');
   if (badType.length) { showError('file'); return; }
   const big = files.filter(f => fInfo(f).kind === 'video' && f.size > VM);
-  if (big.length) { showError('file', `ไฟล์ "${big[0].name}" เกิน 50MB`); return; }
+  if (big.length) { showError('file', `ไฟล์วิดีโอ "${big[0].name}" เกิน 100MB`); return; }
   const ok = files.filter(f => !big.includes(f));
-  if ([...mediaFiles, ...ok].reduce((s, f) => s + f.size, 0) > TM) { showError('file', 'ไฟล์รวมเกิน 75MB'); return; }
+  if ([...mediaFiles, ...ok].reduce((s, f) => s + f.size, 0) > TM) { showError('file', 'ไฟล์รวมเกิน 200MB'); return; }
   mediaFiles = [...mediaFiles, ...ok];
   renderFileList(); updateReadiness();
   document.getElementById('file-req-err').style.display = 'none';
@@ -1002,8 +1051,23 @@ function loadSrcBadges() {
 // ═══════════════════════════════════════════════════════
 // SUBMIT → AI CALL
 // ═══════════════════════════════════════════════════════
+async function extractDocxText(file) {
+  return new Promise(resolve => {
+    if (typeof mammoth === 'undefined') { resolve(`[${file.name}]\n(ไม่สามารถโหลด mammoth.js)`); return; }
+    const r = new FileReader();
+    r.onload = async ev => {
+      try {
+        const result = await mammoth.extractRawText({arrayBuffer: ev.target.result});
+        resolve(`[${file.name}]\n${result.value.slice(0, 5000)}`);
+      } catch { resolve(`[${file.name}]\n(อ่านไฟล์ไม่สำเร็จ)`); }
+    };
+    r.onerror = () => resolve('');
+    r.readAsArrayBuffer(file);
+  });
+}
+
 async function handleSubmit() {
-  if (!(gv('inp-key') && gv('f-projtype') && gv('f-media') && document.getElementById('chk-ai-ack')?.checked)) return;
+  if (!(getActiveApiKey() && gv('f-projtype') && gv('f-media') && document.getElementById('chk-ai-ack')?.checked)) return;
   if (mediaFiles.length === 0) { document.getElementById('file-req-err').style.display = 'block'; showError('nofile'); return; }
   const hasLarge = mediaFiles.some(f => f.size > 10 * 1024 * 1024);
   showLoading(hasLarge); _retryFn = handleSubmit;
@@ -1140,6 +1204,11 @@ async function handleSubmit() {
 }
 
 async function doAICall() {
+  const prov = document.getElementById('sel-provider')?.value || loadProvider();
+  return prov === 'groq' ? doGroqCall() : doGeminiCall();
+}
+
+async function doGeminiCall() {
   const apiKey = gv('inp-key');
   const model = 'gemini-2.5-flash-lite';
   const cl1d = getMd('cl1'), cl2d = getMd('cl2'), skd = getMd('skill');
@@ -1154,11 +1223,13 @@ async function doAICall() {
   const imgs = mediaFiles.filter(f => fInfo(f)?.kind === 'image');
   const pdfs = mediaFiles.filter(f => fInfo(f)?.kind === 'pdf');
   const txts = mediaFiles.filter(f => fInfo(f)?.kind === 'text');
-  const vids = mediaFiles.filter(f => fInfo(f)?.kind === 'video' && f.size <= 50*1024*1024);
+  const docxs = mediaFiles.filter(f => fInfo(f)?.kind === 'docx');
+  const vids = mediaFiles.filter(f => fInfo(f)?.kind === 'video' && f.size <= 100*1024*1024);
 
   const txContent = await Promise.all(txts.map(f => new Promise(res => {
-    const r = new FileReader(); r.onload = ev => res(`[${f.name}]\n${ev.target.result.slice(0,3000)}`); r.onerror = () => res(''); r.readAsText(f, 'UTF-8');
+    const r = new FileReader(); r.onload = ev => res(`[${f.name}]\n${ev.target.result.slice(0,5000)}`); r.onerror = () => res(''); r.readAsText(f, 'UTF-8');
   })));
+  const docxContent = await Promise.all(docxs.map(f => extractDocxText(f)));
 
   const prompt = `=== STEP 1 — MANDATORY: สารภาพสิ่งที่อ่านได้จากไฟล์ก่อนทุกอย่าง ===
 อ่านทุกไฟล์ที่ส่งมา แล้วใส่ข้อความ/ตัวเลข/วลี ทุกอย่างที่อ่านออกจริงๆ ลงใน "extracted_text" array
@@ -1195,6 +1266,7 @@ Sheets: ${sheets.join(', ')}
 ${checklist}
 ${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
 ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
+${docxContent.filter(Boolean).length ? '\n\nWord documents:\n' + docxContent.join('\n') : ''}
 
 ตอบ JSON (extracted_text ต้องมาก่อนเสมอ):
 {"extracted_text":["ทุกข้อความที่อ่านออกจากไฟล์จริง — ห้ามว่าง ถ้าอ่านไม่ออกอะไรเลยให้ใส่ 'ไม่พบข้อความในไฟล์'"],"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"quote ตรงจาก extracted_text เท่านั้น หรือ 'ไม่พบในไฟล์'","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}],"cautions":[{"topic":"","detail":"","recommendation":""}],"typos_found":[{"original":"","suggested":"","location":""}],"overclaim_words_found":[{"phrase":"","location":"","reason":"","severity":"High|Medium","suggested_correction":""}],"image_analysis":[{"filename":"","type":"real_photo|ai_or_render|uncertain","confidence":"high|medium|low","indicators":"","recommendation":""}]}`;
@@ -1221,6 +1293,121 @@ ${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') 
     if (!raw) throw new Error('Gemini ไม่ส่งข้อความ');
     const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
     // Normalise alternate field names
+    if (!parsed.checklist_results && parsed.checklist) parsed.checklist_results = parsed.checklist;
+    if (!parsed.checklist_results && parsed.results)   parsed.checklist_results = parsed.results;
+    if (!parsed.forbidden_words_found && parsed.forbidden_words) parsed.forbidden_words_found = parsed.forbidden_words;
+    if (!parsed.overall_result && parsed.result)       parsed.overall_result = parsed.result;
+    if (!parsed.overclaim_words_found) parsed.overclaim_words_found = [];
+    if (!parsed.image_analysis) parsed.image_analysis = [];
+    return parsed;
+  } catch (e) {
+    clearTimeout(tid);
+    if (e.name === 'AbortError') throw new Error('TIMEOUT');
+    throw e;
+  }
+}
+
+async function doGroqCall() {
+  const apiKey = gv('inp-key-groq');
+  if (!apiKey) throw new Error('กรุณาใส่ Groq API Key');
+
+  const cl1d = getMd('cl1'), cl2d = getMd('cl2'), skd = getMd('skill');
+  const checklist = cl1d?.text || DEMO_CL;
+  const checklist2 = cl2d?.text || '';
+  const skillPrompt = skd?.text || '';
+  const sheets = getSheets();
+  const BASE_SYS = 'คุณคือผู้ช่วยกฎหมายด้านการตรวจสื่อโฆษณาอสังหาริมทรัพย์ ตรวจสอบสื่อตาม checklist ตอบเป็น JSON เท่านั้น ไม่มี markdown ใช้ภาษาไทยในทุก field ที่เป็นข้อความ ห้ามสร้างข้อมูลที่ไม่มีในไฟล์ที่ส่งมา ตรวจเฉพาะสิ่งที่อ่านหรือเห็นได้จริงในไฟล์เท่านั้น ห้าม hallucinate';
+  const sysText = skillPrompt ? `${BASE_SYS}\n\n${skillPrompt}` : BASE_SYS;
+
+  const imgs = mediaFiles.filter(f => fInfo(f)?.kind === 'image');
+  const txts = mediaFiles.filter(f => fInfo(f)?.kind === 'text');
+  const docxs = mediaFiles.filter(f => fInfo(f)?.kind === 'docx');
+  const pdfs = mediaFiles.filter(f => fInfo(f)?.kind === 'pdf');
+  const vids = mediaFiles.filter(f => fInfo(f)?.kind === 'video');
+
+  // Warn about unsupported file types
+  const unsupported = [...pdfs, ...vids];
+  if (unsupported.length > 0) {
+    const names = unsupported.map(f => f.name).join(', ');
+    throw new Error(`Groq ไม่รองรับไฟล์ PDF/วิดีโอ: ${names}\n\nกรุณาใช้ Gemini สำหรับไฟล์ประเภทนี้ หรือแปลงเป็น JPG/TXT ก่อน`);
+  }
+
+  const txContent = await Promise.all(txts.map(f => new Promise(res => {
+    const r = new FileReader(); r.onload = ev => res(`[${f.name}]\n${ev.target.result.slice(0,5000)}`); r.onerror = () => res(''); r.readAsText(f, 'UTF-8');
+  })));
+  const docxContent = await Promise.all(docxs.map(f => extractDocxText(f)));
+
+  const prompt = `=== STEP 1 — MANDATORY: สารภาพสิ่งที่อ่านได้จากไฟล์ก่อนทุกอย่าง ===
+อ่านทุกไฟล์ที่ส่งมา แล้วใส่ข้อความ/ตัวเลข/วลี ทุกอย่างที่อ่านออกจริงๆ ลงใน "extracted_text" array
+กฎเหล็ก:
+- extracted_text ต้องเป็น verbatim จากไฟล์เท่านั้น ห้ามแต่งเพิ่ม ห้ามอนุมาน
+- evidence ของทุก checklist item ต้อง quote ตรงจาก extracted_text เท่านั้น — ห้าม quote จาก checklist requirement
+- ถ้า extracted_text มีน้อยกว่า 3 รายการ → overall_result = "FAIL", checklist_results ทุกรายการ result = "FAIL", evidence = "ไม่พบในไฟล์"
+
+=== STEP 2 — กฎการตัดสิน PASS/FAIL/N/A ===
+1. result = "PASS" ได้เฉพาะเมื่อ: quote ข้อความนั้นได้จาก extracted_text ตรงๆ เท่านั้น
+2. result = "FAIL" ทุกกรณีที่: ไม่พบใน extracted_text หรืออ่านไม่ออก — รวมทุกรายการที่อยู่ใน Sheets ที่เลือกแต่ไม่มีในสื่อ ต้องเป็น FAIL เสมอ
+3. result = "N/A" ใช้ได้เฉพาะเมื่อ: รายการนั้นไม่ได้อยู่ใน Sheets ที่เลือก (${sheets.join(', ')}) เลย
+4. ห้าม PASS จากการอนุมาน เดา หรือสรุปจากชื่อโครงการ/โลโก้/บริบท/ความรู้ทั่วไป
+5. ห้าม hallucinate: ข้อความใน PRIMARY CHECKLIST = เกณฑ์ตรวจ ไม่ใช่หลักฐาน — ห้ามนำมาใส่ evidence
+6. ถ้ามี missing field ไม่ว่าง → result ต้องเป็น "FAIL" ห้ามเป็น PASS
+7. overall_result = "FAIL" ถ้ามีรายการใดเป็น FAIL แม้แต่ 1 รายการ
+8. ตรวจจุดที่ควรระวัง → ใส่ใน cautions
+9. ตรวจคำสะกดผิด → ใส่ใน typos_found (ถ้าไม่พบให้ใส่ [])
+10. ตรวจคำเกินจริง (Overclaim) → ใส่ใน overclaim_words_found (ถ้าไม่พบให้ใส่ [])
+
+${imgs.length ? `=== STEP 3 — วิเคราะห์ภาพ ===\nภาพที่ส่งมา: ${imgs.map((f,i) => `[IMG${i+1}] ${f.name}`).join(', ')}\nวิเคราะห์ว่าเป็น real_photo / ai_or_render / uncertain พร้อม confidence และ indicators` : 'image_analysis = []'}
+
+Classification: ${gv('f-projtype')} / ${gv('f-projstatus')} / ${gv('f-media')} / ${getOffer()}
+Sheets: ${sheets.join(', ')}
+
+=== PRIMARY CHECKLIST ===
+${checklist}
+${checklist2 ? `\n=== SECONDARY ===\n${checklist2}` : ''}
+${txContent.filter(Boolean).length ? '\n\nText files:\n' + txContent.join('\n') : ''}
+${docxContent.filter(Boolean).length ? '\n\nWord documents:\n' + docxContent.join('\n') : ''}
+
+ตอบ JSON (extracted_text ต้องมาก่อนเสมอ):
+{"extracted_text":["..."],"overall_result":"PASS|FAIL|PASS WITH CONDITIONS","overall_summary":"","checklist_results":[{"rule_id":"","topic":"","law":"","result":"PASS|FAIL|N/A","severity":"Critical|High|Medium|Low","evidence":"","finding":"","missing":"","penalty":"","recommendation":""}],"forbidden_words_found":[{"word":"","location":"","rule_id":"","severity":""}],"cautions":[{"topic":"","detail":"","recommendation":""}],"typos_found":[{"original":"","suggested":"","location":""}],"overclaim_words_found":[{"phrase":"","location":"","reason":"","severity":"High|Medium","suggested_correction":""}],"image_analysis":[{"filename":"","type":"real_photo|ai_or_render|uncertain","confidence":"high|medium|low","indicators":"","recommendation":""}]}`;
+
+  // Auto-select model: vision model when images present, text model otherwise
+  const model = imgs.length > 0
+    ? 'meta-llama/llama-4-scout-17b-16e-instruct'
+    : 'llama-3.3-70b-versatile';
+
+  // Build message content
+  const userContent = [];
+  userContent.push({type: 'text', text: prompt});
+  for (const f of imgs) {
+    const b64 = await toB64(f);
+    userContent.push({type: 'image_url', image_url: {url: `data:${fInfo(f).mime};base64,${b64}`}});
+  }
+
+  const body = {
+    model,
+    messages: [
+      {role: 'system', content: sysText},
+      {role: 'user', content: imgs.length > 0 ? userContent : prompt}
+    ],
+    temperature: 0.1,
+    max_tokens: 8000,
+    response_format: {type: 'json_object'}
+  };
+
+  const ctrl = new AbortController(); const tid = setTimeout(() => ctrl.abort(), 90000);
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
+      body: JSON.stringify(body),
+      signal: ctrl.signal
+    });
+    clearTimeout(tid);
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(`[Groq ${res.status}] ${e.error?.message || 'Unknown'}`); }
+    const data = await res.json();
+    const raw = data.choices?.[0]?.message?.content || '';
+    if (!raw) throw new Error('Groq ไม่ส่งข้อความกลับมา');
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
     if (!parsed.checklist_results && parsed.checklist) parsed.checklist_results = parsed.checklist;
     if (!parsed.checklist_results && parsed.results)   parsed.checklist_results = parsed.results;
     if (!parsed.forbidden_words_found && parsed.forbidden_words) parsed.forbidden_words_found = parsed.forbidden_words;
@@ -1856,6 +2043,21 @@ function renderAdmin() {
           <div id="admin-key-status" style="font-size:11px;color:#94a3b8;"></div>
         </div>
 
+        <!-- GROQ API KEY -->
+        <div class="card">
+          <div class="admin-section-title">🟠 API Key (Groq — Free)</div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:6px 10px;font-size:11px;color:#92400e;margin-bottom:8px;">
+            รองรับไฟล์: รูปภาพ + ไฟล์ข้อความ (TXT/CSV) — <strong>ไม่รองรับ PDF และวิดีโอ</strong><br>
+            Model: ภาพ → llama-4-scout | ข้อความ → llama-3.3-70b-versatile
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            <div style="position:relative;flex:1;"><input type="password" id="admin-groq-key" placeholder="gsk_..." style="width:100%;padding:7px 30px 7px 10px;border:1.5px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:monospace;outline:none;box-sizing:border-box;"/><button type="button" onclick="togglePwd('admin-groq-key',this)" style="position:absolute;right:7px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:13px;">👁️</button></div>
+            <button onclick="adminSaveGroqKey()" class="btn-navy btn-sm">💾</button>
+            <button onclick="adminClearGroqKey()" class="btn-sm" style="background:#fee2e2;color:#dc2626;border:1px solid #fecaca;">✕</button>
+          </div>
+          <div id="admin-groq-key-status" style="font-size:11px;color:#94a3b8;"></div>
+        </div>
+
         <!-- SHEETS -->
         <div class="card">
           <div class="admin-section-title">🔗 Google Sheets Connection</div>
@@ -1980,6 +2182,11 @@ function adminLoadKeyField() {
   const inp = document.getElementById('admin-gemini-key'); if (inp) inp.value = saved || '';
   const st = document.getElementById('admin-key-status');
   if (st) { st.textContent = saved ? '✅ มี Key บันทึกไว้ (' + saved.slice(0,8) + '***)' : '— ยังไม่มี Key'; st.style.color = saved ? '#16a34a' : '#94a3b8'; }
+
+  const savedGroq = loadGroqKey();
+  const ginp = document.getElementById('admin-groq-key'); if (ginp) ginp.value = savedGroq || '';
+  const gst = document.getElementById('admin-groq-key-status');
+  if (gst) { gst.textContent = savedGroq ? '✅ มี Groq Key บันทึกไว้ (' + savedGroq.slice(0,8) + '***)' : '— ยังไม่มี Groq Key'; gst.style.color = savedGroq ? '#16a34a' : '#94a3b8'; }
 }
 function adminSaveKey() {
   const val = (document.getElementById('admin-gemini-key')?.value || '').trim();
@@ -1989,14 +2196,31 @@ function adminSaveKey() {
   updateReadiness();
   const st = document.getElementById('admin-key-status');
   if (st) { st.textContent = '✅ บันทึกแล้ว'; st.style.color = '#16a34a'; }
-  flash('✅ บันทึก API Key แล้ว', '#d8ead8', '#14532d');
+  flash('✅ บันทึก Gemini API Key แล้ว', '#d8ead8', '#14532d');
 }
 function adminClearKey() {
-  if (!confirm('ลบ API Key?')) return;
+  if (!confirm('ลบ Gemini API Key?')) return;
   localStorage.removeItem('api_key_gemini');
   const inp = document.getElementById('admin-gemini-key'); if (inp) inp.value = '';
   const hi = document.getElementById('inp-key'); if (hi) { hi.value = ''; hi.classList.remove('active'); }
-  adminLoadKeyField(); updateReadiness(); flash('🗑️ ลบ API Key แล้ว', '#f1f5f9', '#64748b');
+  adminLoadKeyField(); updateReadiness(); flash('🗑️ ลบ Gemini API Key แล้ว', '#f1f5f9', '#64748b');
+}
+function adminSaveGroqKey() {
+  const val = (document.getElementById('admin-groq-key')?.value || '').trim();
+  if (!val) { flash('กรุณาใส่ Groq API Key', '#fffbeb', '#92400e'); return; }
+  saveGroqKey(val);
+  const inp = document.getElementById('inp-key-groq'); if (inp) { inp.value = val; inp.classList.add('active'); }
+  updateReadiness();
+  const st = document.getElementById('admin-groq-key-status');
+  if (st) { st.textContent = '✅ บันทึกแล้ว'; st.style.color = '#16a34a'; }
+  flash('✅ บันทึก Groq API Key แล้ว', '#d8ead8', '#14532d');
+}
+function adminClearGroqKey() {
+  if (!confirm('ลบ Groq API Key?')) return;
+  localStorage.removeItem('api_key_groq');
+  const inp = document.getElementById('admin-groq-key'); if (inp) inp.value = '';
+  const hi = document.getElementById('inp-key-groq'); if (hi) { hi.value = ''; hi.classList.remove('active'); }
+  adminLoadKeyField(); updateReadiness(); flash('🗑️ ลบ Groq API Key แล้ว', '#f1f5f9', '#64748b');
 }
 function adminLoadFile(inp, key, nameId, metaId, taId) {
   const file = inp.files[0]; if (!file) return;
