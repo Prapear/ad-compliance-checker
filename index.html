@@ -2232,6 +2232,8 @@ function adminSaveKey() {
   if (!val) { flash('กรุณาใส่ API Key', '#fffbeb', '#92400e'); return; }
   saveApiKey(val);
   const inp = document.getElementById('inp-key'); if (inp) { inp.value = val; inp.classList.add('active'); }
+  const sel = document.getElementById('sel-provider');
+  if (sel && sel.value !== 'gemini') { sel.value = 'gemini'; onProviderChange(); }
   updateReadiness();
   const st = document.getElementById('admin-key-status');
   if (st) { st.textContent = '✅ บันทึกแล้ว'; st.style.color = '#16a34a'; }
