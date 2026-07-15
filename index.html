@@ -1228,6 +1228,7 @@ async function doAICall() {
 
 async function doGeminiCall() {
   const apiKey = gv('inp-key');
+  if (!apiKey) throw new Error('ยังไม่ได้ใส่ Gemini API Key — กรุณาใส่ที่ช่องด้านบน หรือบันทึกผ่าน Admin Panel');
   const model = 'gemini-2.5-flash-lite';
   const cl1d = getMd('cl1'), cl2d = getMd('cl2'), skd = getMd('skill');
   const checklist = cl1d?.text || DEMO_CL;
@@ -1305,11 +1306,34 @@ ${docxContent.filter(Boolean).length ? '\n\nWord documents:\n' + docxContent.joi
   try {
     const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal:ctrl.signal});
     clearTimeout(tid);
-    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(`[${res.status}] ${e.error?.message||'Unknown'}`); }
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      const errMsg = e.error?.message || 'Unknown error';
+      console.error('[Gemini API Error]', res.status, e);
+      const hint = res.status === 400 ? '\n→ API Key ไม่ถูกต้อง หรือ request ผิดรูปแบบ' :
+                   res.status === 403 ? '\n→ API Key ถูก block หรือยังไม่ได้เปิดใช้ Gemini API ใน Google Cloud Console' :
+                   res.status === 404 ? '\n→ ไม่พบโมเดล — กรุณาแจ้ง admin เพื่ออัปเดต model name' :
+                   res.status === 429 ? '\n→ เกิน rate limit — รอสักครู่แล้วลองใหม่' :
+                   res.status === 500 ? '\n→ Gemini server error — ลองใหม่ภายหลัง' : '';
+      throw new Error(`Gemini [${res.status}]${hint}\n${errMsg}`);
+    }
     const data = await res.json();
-    const raw = (data.candidates?.[0]?.content?.parts||[]).map(p => p.text||'').join('');
-    if (!raw) throw new Error('Gemini ไม่ส่งข้อความ');
-    const parsed = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    const candidate = data.candidates?.[0];
+    if (candidate && !candidate.content) {
+      const reason = candidate.finishReason === 'SAFETY' ? 'ถูก block โดยระบบความปลอดภัยของ Google' :
+                     candidate.finishReason === 'MAX_TOKENS' ? 'ข้อความยาวเกินขีดจำกัด token — ลองลดขนาดไฟล์' :
+                     candidate.finishReason ? `หยุดเนื่องจาก: ${candidate.finishReason}` : 'ไม่มีเนื้อหาใน response';
+      throw new Error(`Gemini ส่งผลลัพธ์ไม่ครบ — ${reason}`);
+    }
+    const raw = (candidate?.content?.parts || []).map(p => p.text || '').join('');
+    if (!raw) throw new Error('Gemini ไม่ส่งข้อความ — กรุณาลองใหม่หรือลดขนาดไฟล์');
+    let parsed;
+    try {
+      parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    } catch {
+      console.error('[Gemini] JSON parse failed, raw preview:', raw.slice(0, 300));
+      throw new Error('Gemini ส่งข้อมูลผิดรูปแบบ JSON — กรุณาลองใหม่อีกครั้ง');
+    }
     // Normalise alternate field names
     if (!parsed.checklist_results && parsed.checklist) parsed.checklist_results = parsed.checklist;
     if (!parsed.checklist_results && parsed.results)   parsed.checklist_results = parsed.results;
@@ -1964,7 +1988,7 @@ function renderDashboard() {
       </div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;">
         <button onclick="exportAllExcel()" class="btn-sm" style="background:#f0f4ff;color:${NAVY};border:1px solid #bfdbfe;">📊 Excel</button>
-        <button onclick="clearHistory()" style="padding:4px 11px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;">🗑️ ล้าง</button>
+        <button onclick="clearHistoryAll()" style="padding:4px 11px;background:#fff;border:1.5px solid #ef4444;color:#ef4444;border-radius:7px;cursor:pointer;font-size:11px;font-weight:600;">🗑️ ล้าง</button>
       </div>
     </div>
 
@@ -2604,9 +2628,6 @@ function clearHistoryAll() {
   }
   _afterHistoryChange(`🗑️ ล้าง ${total} รายการแล้ว`);
 }
-
-// Alias ใช้ใน Dashboard button
-function clearHistory() { clearHistoryAll(); }
 
 // Full reset จาก Admin — ล้าง history + reset ACA → 0001
 function adminFullReset() {
